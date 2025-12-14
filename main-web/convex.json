@@ -1,0 +1,8 @@
+{
+  "auth": {
+    "providers": [
+      "credentials"
+    ]
+  },
+  "database": "aes"
+}

@@ -1,0 +1,21 @@
+# Allow all crawlers
+User-agent: *
+Allow: /
+
+# Disallow admin and API routes
+Disallow: /admin/
+Disallow: /api/
+Disallow: /user/settings/
+Disallow: /checkout/
+Disallow: /cart/
+
+# Allow specific important pages
+Allow: /product/
+Allow: /shop/
+Allow: /collections/
+
+# Sitemap location
+Sitemap: https://walkdrobe.in/sitemap.xml
+
+# Crawl-delay for polite crawling
+Crawl-delay: 1

@@ -1,0 +1,335 @@
+"use client";
+import Image from "next/image";
+import { useState, useRef, useEffect } from "react";
+import SidebarDrawer from "./SidebarDrawer"; // adjust path as needed
+import UserNavigation from "@/components/UserNavigation";
+import Link from "next/link";
+import { useQuery } from "convex/react";
+import { api } from "@/convex/_generated/api";
+
+export default function Navbar() {
+  const navLinks = ["MEN", "WOMEN", "SNEAKERS"];
+  const [hovered, setHovered] = useState(null);
+  const [active, setActive] = useState("MEN"); // Set this as needed
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [token, setToken] = useState(null);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+
+  useEffect(() => {
+    if (typeof document !== "undefined") {
+      const match = document.cookie.match(/(?:^|; )sessionToken=([^;]+)/);
+      setToken(match ? decodeURIComponent(match[1]) : null);
+    }
+  }, []);
+
+  // Get user data
+  const me = useQuery(api.users.meByToken, token ? { token } : "skip");
+  
+  useEffect(() => {
+    if (me) {
+      setIsLoggedIn(true);
+    } else if (token && !me) {
+      setIsLoggedIn(false);
+    }
+  }, [me, token]);
+
+  // Cart data
+  const cartSummary = useQuery(api.cart.getCartSummary, me ? { userId: me._id } : "skip");
+  
+  // Wishlist data
+  const wishlistSummary = useQuery(api.wishlist.getWishlistSummary, me ? { userId: me._id } : "skip");
+
+  return (
+    <>
+      {/* Main Navbar */}
+      <SidebarDrawer
+        open={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
+        width={"w-1/3"}
+      />
+      <nav className="z-50 fixed top-1 w-[99%] left-2  rounded-3xl flex items-center justify-between px-6 py-2 border border-white/20 bg-white/10 backdrop-blur-md shadow-lg">
+        {/* Left: Hamburger + Nav Links */}
+        <div className="flex items-center gap-6">
+          {/* Hamburger */}
+          <button
+            onClick={() => setSidebarOpen(true)}
+            className="p-4 hover:bg-white/10 rounded-xl transition"
+          >
+            <img
+              src="/icons/hamburger.png"
+              alt="Menu"
+              width={24}
+              height={24}
+            />
+          </button>
+
+          {/* Nav Links */}
+          <div className="flex items-center gap-6 font-semibold text-white">
+            {navLinks.map((link) => (
+              <div
+                key={link}
+                className="flex flex-col p-3 font-bold items-center cursor-pointer group rounded-lg transition-colors hover:bg-black/10"
+                onMouseEnter={() => setHovered(link)}
+                onMouseLeave={() => setHovered(null)}
+              >
+                <span className="tracking-wide text-black transition-colors group-hover:text-black/70">
+                  {link}
+                </span>
+                <span
+                  className={`h-[2px] mt-1 rounded transition-all duration-300 ${
+                    hovered === link || (!hovered && active === link)
+                      ? "w-[40px] bg-black"
+                      : "w-0 bg-transparent"
+                  }`}
+                ></span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Center: Logo */}
+        <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
+          <img
+            src="/logo.png"
+            alt="aesthetx.ways"
+            width={200}
+            height={40}
+            className="object-contain"
+          />
+        </div>
+
+        {/* Right: Search + Icons */}
+        <div className="flex items-center gap-4">
+          {/* Search Bar */}
+          <div className="flex items-center border border-white/20 rounded-full px-3 py-1 w-72 bg-white/10 backdrop-blur-sm text-white">
+            <input
+              type="text"
+              placeholder="What are you looking for?"
+              className="outline-none flex-1 bg-transparent text-sm placeholder-black/60 text-black"
+            />
+            <button className="ml-2">
+              <img
+                src="/icons/search.png"
+                alt="Search"
+                width={24}
+                height={24}
+              />
+            </button>
+          </div>
+
+          {/* Icons */}
+          <UserNavigation />
+          
+          {/* Wishlist Icon */}
+          <Link href="/wishlist">
+            <button className="relative hover:bg-white/10 rounded-full p-2 transition-colors">
+              <imgrc="/icons/wishlist.png" alt="Wishlist" width={24} height={24} />
+              {wishlistSummary && wishlistSummary.itemCount > 0 && (
+                <span className="absolute -top-1 -right-1 w-5 h-5 bg-black/5 text-black text-xs rounded-full flex items-center justify-center font-bold">
+                  {wishlistSummary.itemCount > 99 ? '99+' : wishlistSummary.itemCount}
+                </span>
+              )}
+            </button>
+          </Link>
+          
+          {/* Cart Icon with Badge */}
+          {isLoggedIn && (
+            <div className="flex items-center space-x-2">
+              {/* Cart Summary Display */}
+             
+              
+              <Link href="/cart">
+                <button className="relative hover:bg-white/10 rounded-full p-2 transition-colors">
+                  <imgrc="/icons/cart.png" alt="Cart" width={24} height={24} />
+                  {cartSummary && cartSummary.totalItems > 0 && (
+                    <span className="absolute -top-1 -right-1 w-5 h-5 bg-black/5 text-black text-xs rounded-full flex items-center justify-center font-bold">
+                      {cartSummary.totalItems > 99 ? '99+' : cartSummary.totalItems}
+                    </span>
+                  )}
+                </button>
+              </Link>
+            </div>
+          )}
+          
+          {/* Cart Icon without Badge for non-logged in users */}
+          {!isLoggedIn && (
+            <button className="hover:bg-white/10 rounded-full p-2 transition-colors">
+              <imgrc="/icons/cart.png" alt="Cart" width={24} height={24} />
+            </button>
+          )}
+        </div>
+      </nav>
+
+      {/* Mobile Nav Links Bar */}
+      <div className="flex md:hidden items-center justify-between border-b">
+        {navLinks.map((link, idx) => (
+          <div key={link} className="flex-1 flex flex-col items-center">
+            <button
+              className={`w-full py-2 font-semibold text-sm ${
+                active === link ? "text-black font-bold" : "text-gray-700"
+              }`}
+              onClick={() => setActive(link)}
+            >
+              {link}
+            </button>
+            {/* Underline for active link */}
+            <span
+              className={`h-1 w-full transition-all duration-300 ${
+                active === link ? "bg-teal-800" : "bg-transparent"
+              }`}
+            ></span>
+            {/* Vertical divider except after last link */}
+            {idx < navLinks.length - 1 && (
+              <span className="absolute right-0 top-2 h-6 w-px bg-gray-300"></span>
+            )}
+          </div>
+        ))}
+      </div>
+    </>
+  );
+}
+
+export function NavbarMobile() {
+  const navLinks = ["MEN", "WOMEN", "SNEAKERS"];
+  const [activeIdx, setActiveIdx] = useState(null);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [token, setToken] = useState(null);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const barRef = useRef(null);
+  const [tabWidth, setTabWidth] = useState(0);
+
+  useEffect(() => {
+    if (typeof document !== "undefined") {
+      const match = document.cookie.match(/(?:^|; )sessionToken=([^;]+)/);
+      setToken(match ? decodeURIComponent(match[1]) : null);
+    }
+  }, []);
+
+  // Get user data
+  const me = useQuery(api.users.meByToken, token ? { token } : "skip");
+  
+  useEffect(() => {
+    if (me) {
+      setIsLoggedIn(true);
+    } else if (token && !me) {
+      setIsLoggedIn(false);
+    }
+  }, [me, token]);
+
+  // Cart data
+  const cartSummary = useQuery(api.cart.getCartSummary, me ? { userId: me._id } : "skip");
+  
+  // Wishlist data
+  const wishlistSummary = useQuery(api.wishlist.getWishlistSummary, me ? { userId: me._id } : "skip");
+
+  useEffect(() => {
+    if (barRef.current) {
+      setTabWidth(barRef.current.offsetWidth / navLinks.length);
+    }
+    const handleResize = () => {
+      if (barRef.current) {
+        setTabWidth(barRef.current.offsetWidth / navLinks.length);
+      }
+    };
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, [navLinks.length]);
+
+  return (
+    <>
+      {/* Main Mobile Navbar */}
+      <nav className="fixed rounded-3xl top-1 left-[2PX] z-50 w-[99%] flex items-center justify-between px-4 py-1 shadow-lg border-b border-white/20 bg-white/10 backdrop-blur-md md:hidden">
+        {/* Hamburger */}
+        <button
+          className="p-2 z-10 rounded-lg hover:bg-white/10 transition-colors"
+          onClick={() => setSidebarOpen(true)}
+        >
+          <imgrc="/icons/hamburger.png" alt="Menu" width={24} height={24} />
+        </button>
+
+        {/* Icons */}
+        <div className="flex items-center gap-1 z-10">
+          {/* Search Icon */}
+          <button className="p-1 rounded-full hover:bg-white/10 transition-colors">
+            <imgrc="/icons/search.png" alt="Search" width={24} height={24} />
+          </button>
+          
+          {/* Wishlist Icon */}
+         
+          {/* Cart Icon with Badge */}
+          {isLoggedIn && (
+            <div className="flex flex-col items-center">
+              {/* Cart Summary Display for Mobile */}
+              
+              
+              <Link href="/cart">
+                <button className="relative p-1 rounded-full hover:bg-white/10 transition-colors">
+                  <imgrc="/icons/cart.png" alt="Cart" width={24} height={24} />
+                  {cartSummary && cartSummary.totalItems > 0 && (
+                    <span className="absolute -top-1 -right-1 w-5 h-5 bg-black/5 text-black text-xs rounded-full flex items-center justify-center font-bold">
+                      {cartSummary.totalItems > 99 ? '99+' : cartSummary.totalItems}
+                    </span>
+                  )}
+                </button>
+              </Link>
+            </div>
+          )}
+          
+          {/* Cart Icon without Badge for non-logged in users */}
+          {!isLoggedIn && (
+            <button className="p-1 rounded-full hover:bg-white/10 transition-colors">
+              <imgrc="/icons/cart.png" alt="Cart" width={24} height={24} />
+            </button>
+          )}
+          
+          <UserNavigation />
+        </div>
+      </nav>
+
+      <SidebarDrawer
+        open={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
+        width={"w-[85%]"}
+      />
+
+      {/* Mobile Nav Links Bar (at bottom) */}
+      <div
+        ref={barRef}
+        className="fixed bottom-3 left-1/2 -translate-x-1/2 w-[92%] flex md:hidden items-center justify-between 
+             border border-black/5 rounded-full 
+             bg-gradient-to-tr from-white/80 to-white/60 backdrop-blur-xl 
+             shadow-[0_8px_20px_rgba(0,0,0,0.15)] 
+             px-2 z-50 transition-all duration-300"
+        style={{ height: 60 }}
+      >
+        {navLinks.map((link, idx) => (
+          <button
+            key={link}
+            className={`flex-1 py-2 text-sm relative rounded-full transition-all duration-300 flex items-center justify-center font-medium
+        ${
+          activeIdx === idx
+            ? "text-black font-bold bg-white shadow-md scale-105"
+            : "text-black/70 hover:bg-black/5 hover:scale-[1.02]"
+        } 
+        ${idx !== 0 ? "border-l border-black/0" : ""}`}
+            onClick={() => setActiveIdx(idx)}
+          >
+            {link}
+          </button>
+        ))}
+
+        {/* Animated Underline Bubble - Fixed positioning */}
+        {activeIdx !== null && (
+          <span
+            className="absolute bottom-1 rounded-full bg-black/30 transition-all duration-300"
+            style={{
+              width: `${tabWidth * 0.6}px`,
+              left: `${activeIdx * tabWidth + tabWidth * 0.2}px`,
+              height: "3px",
+            }}
+          />
+        )}
+      </div>
+    </>
+  );
+} 
