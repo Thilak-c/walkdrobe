@@ -142,19 +142,19 @@ export default function LoginPage() {
               </button>
 
               {/* Bypass Button */}
-              <button
+              {/* <button
                 type="button"
                 onClick={handleBypass}
                 className="w-full mt-4 flex items-center justify-center gap-2 px-6 py-3 border border-gray-200 text-gray-500 rounded-xl hover:bg-gray-50 hover:text-gray-700 transition-colors text-sm"
               >
                 <Zap size={16} />
                 Quick Bypass (Dev Mode)
-              </button>
+              </button> */}
 
               {/* Demo credentials hint */}
-              <p className="text-center text-xs text-gray-400 mt-6">
+              {/* <p className="text-center text-xs text-gray-400 mt-6">
                 Demo: admin / walkdrobe123
-              </p>
+              </p> */}
             </form>
           ) : (
             /* Step 2: Select Store Type */
