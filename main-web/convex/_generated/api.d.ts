@@ -21,6 +21,7 @@ import type * as crons from "../crons.js";
 import type * as dailyAccess from "../dailyAccess.js";
 import type * as emailNotifications from "../emailNotifications.js";
 import type * as emailService from "../emailService.js";
+import type * as insys from "../insys.js";
 import type * as inventory from "../inventory.js";
 import type * as mutations_shares from "../mutations/shares.js";
 import type * as orders from "../orders.js";
@@ -57,6 +58,7 @@ declare const fullApi: ApiFromModules<{
   dailyAccess: typeof dailyAccess;
   emailNotifications: typeof emailNotifications;
   emailService: typeof emailService;
+  insys: typeof insys;
   inventory: typeof inventory;
   "mutations/shares": typeof mutations_shares;
   orders: typeof orders;

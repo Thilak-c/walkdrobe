@@ -121,71 +121,84 @@ export default function HistoryPage() {
     if (!selectedBill || !printRef.current) return;
     
     const printContent = printRef.current;
-    const printWindow = window.open("", "", "width=400,height=600");
+    const printWindow = window.open("", "", "width=350,height=600");
     printWindow.document.write(`
       <html>
         <head>
           <title>Bill - ${selectedBill.billNumber}</title>
           <style>
+            @page {
+              size: 80mm auto;
+              margin: 2mm;
+            }
             * { margin: 0; padding: 0; box-sizing: border-box; }
-            body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; padding: 10px; max-width: 320px; margin: 0 auto; font-size: 12px; color: #1f2937; position: relative; }
-            .watermark { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-45deg); font-size: 48px; font-weight: bold; color: rgba(239, 68, 68, 0.15); pointer-events: none; z-index: 1000; white-space: nowrap; }
+            body { 
+              font-family: 'Courier New', monospace; 
+              width: 76mm;
+              padding: 2mm; 
+              font-size: 11px; 
+              color: #000;
+              background: white;
+              position: relative;
+            }
+            .watermark { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-45deg); font-size: 24px; font-weight: bold; color: rgba(200, 0, 0, 0.2); pointer-events: none; z-index: 1000; white-space: nowrap; }
             .content { position: relative; z-index: 1; }
             .text-center { text-align: center; }
             .text-right { text-align: right; }
             .font-bold { font-weight: 700; }
             .font-semibold { font-weight: 600; }
-            .text-sm { font-size: 11px; }
-            .text-xs { font-size: 10px; }
-            .text-gray-900 { color: #111827; }
-            .text-gray-600 { color: #4b5563; }
-            .text-gray-500 { color: #6b7280; }
-            .text-gray-400 { color: #9ca3af; }
+            .text-sm { font-size: 10px; }
+            .text-xs { font-size: 9px; }
+            .text-gray-900, .text-gray-600, .text-gray-500 { color: #000; }
+            .text-gray-400 { color: #666; }
             .text-white { color: #fff; }
-            .text-emerald-600 { color: #059669; }
-            .bg-gray-900 { background: #111827; }
-            .bg-gray-50 { background: #f9fafb; }
-            .border-b { border-bottom: 1px solid #e5e7eb; }
-            .border-t { border-top: 1px solid #e5e7eb; }
-            .border-t-2 { border-top: 2px solid; }
-            .border-b-2 { border-bottom: 2px solid; }
-            .border-gray-900 { border-color: #111827; }
-            .border-gray-300 { border-color: #d1d5db; }
+            .text-emerald-600 { color: #000; }
+            .bg-gray-900 { background: #000; }
+            .bg-gray-50 { background: #f5f5f5; }
+            .border-b { border-bottom: 1px solid #ccc; }
+            .border-t { border-top: 1px solid #ccc; }
+            .border-t-2 { border-top: 2px solid #000; }
+            .border-b-2 { border-bottom: 2px solid #000; }
+            .border-gray-900 { border-color: #000; }
+            .border-gray-300 { border-color: #ccc; }
             .border-dashed { border-style: dashed; }
-            .mb-6 { margin-bottom: 20px; }
-            .mb-4 { margin-bottom: 15px; }
-            .mb-3 { margin-bottom: 12px; }
-            .mb-2 { margin-bottom: 8px; }
-            .mt-8 { margin-top: 30px; }
-            .mt-6 { margin-top: 24px; }
-            .mt-4 { margin-top: 15px; }
-            .mt-2 { margin-top: 8px; }
-            .mt-1 { margin-top: 4px; }
-            .pb-6 { padding-bottom: 20px; }
-            .pb-4 { padding-bottom: 15px; }
-            .pt-6 { padding-top: 20px; }
-            .pt-4 { padding-top: 15px; }
-            .py-3 { padding-top: 12px; padding-bottom: 12px; }
-            .px-8 { padding-left: 20px; padding-right: 20px; }
-            .p-8 { padding: 25px; }
-            .p-4 { padding: 15px; }
-            .space-y-3 > * + * { margin-top: 10px; }
-            .space-y-1 > * + * { margin-top: 4px; }
-            .rounded-lg { border-radius: 8px; }
+            .mb-6 { margin-bottom: 4mm; }
+            .mb-4 { margin-bottom: 3mm; }
+            .mb-3 { margin-bottom: 2mm; }
+            .mb-2 { margin-bottom: 2mm; }
+            .mt-8 { margin-top: 5mm; }
+            .mt-6 { margin-top: 4mm; }
+            .mt-4 { margin-top: 3mm; }
+            .mt-2 { margin-top: 2mm; }
+            .mt-1 { margin-top: 1mm; }
+            .pb-6 { padding-bottom: 4mm; }
+            .pb-4 { padding-bottom: 3mm; }
+            .pt-6 { padding-top: 4mm; }
+            .pt-4 { padding-top: 3mm; }
+            .py-3 { padding-top: 2mm; padding-bottom: 2mm; }
+            .px-8 { padding-left: 3mm; padding-right: 3mm; }
+            .p-8 { padding: 3mm; }
+            .p-4 { padding: 2mm; }
+            .space-y-3 > * + * { margin-top: 2mm; }
+            .space-y-1 > * + * { margin-top: 1mm; }
+            .rounded-lg { border-radius: 2mm; }
             .w-full { width: 100%; }
             .flex { display: flex; }
             .justify-between { justify-content: space-between; }
             .justify-center { justify-content: center; }
             table { width: 100%; border-collapse: collapse; }
-            th, td { padding: 6px 4px; }
+            th, td { padding: 1mm 0; }
             th { text-align: left; }
-            img { height: 40px; width: auto; max-width: 120px; object-fit: contain; margin: 0 auto; display: block; }
-            .-mx-8 { margin-left: -25px; margin-right: -25px; }
-            .text-xl { font-size: 16px; }
-            .h-10 { height: 40px; }
+            img { height: 10mm; width: auto; max-width: 30mm; object-fit: contain; margin: 0 auto; display: block; }
+            .-mx-8 { margin-left: -3mm; margin-right: -3mm; }
+            .text-xl { font-size: 14px; }
+            .h-10 { height: 10mm; }
             .w-auto { width: auto; }
-            .max-w-\\[120px\\] { max-width: 120px; }
+            .max-w-\\[120px\\] { max-width: 30mm; }
             .object-contain { object-fit: contain; }
+            @media print {
+              body { width: 76mm; }
+            }
           </style>
         </head>
         <body>
@@ -372,7 +385,8 @@ export default function HistoryPage() {
                                 ) : (
                                   <Package className="w-6 h-6 text-gray-300" />
                                 )}
-                                <span className="text-xs text-gray-600 truncate max-w-[100px]">{item.productName}</span>
+                                <span className="text-xs text-gray-600 truncate max-w-[80px]">{item.productName}</span>
+                                {item.size && <span className="text-[10px] text-gray-400">({item.size})</span>}
                                 <span className="text-xs text-gray-400">×{item.quantity}</span>
                               </div>
                             ))}
@@ -474,7 +488,7 @@ export default function HistoryPage() {
                       <tr key={idx} className={idx < selectedBill.items.length - 1 ? "border-b border-gray-100" : ""}>
                         <td className="py-3 pr-2">
                           <p className="font-medium text-gray-900 truncate max-w-[140px]">{item.productName}</p>
-                          <p className="text-[10px] text-gray-400 mt-1">{item.itemId}</p>
+                          <p className="text-[10px] text-gray-400 mt-1">{item.size ? `Size: ${item.size} • ` : ""}{item.itemId}</p>
                         </td>
                         <td className="py-3 text-center text-gray-700">{item.quantity}</td>
                         <td className="py-3 text-right text-gray-700">₹{item.price}</td>

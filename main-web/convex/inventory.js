@@ -227,19 +227,21 @@ export const updateSizeStock = mutation({
   args: {
     productId: v.id("products"),
     sizeStock: v.any(),
+    availableSizes: v.optional(v.array(v.string())),
     updatedBy: v.optional(v.string()),
   },
-  handler: async (ctx, { productId, sizeStock, updatedBy }) => {
+  handler: async (ctx, { productId, sizeStock, availableSizes, updatedBy }) => {
     const product = await ctx.db.get(productId);
     if (!product) throw new Error("Product not found");
 
     // Calculate total stock from sizes
     const totalStock = Object.values(sizeStock).reduce((sum, qty) => sum + (qty || 0), 0);
-    const availableSizes = Object.keys(sizeStock).filter(size => sizeStock[size] > 0);
+    // Use provided availableSizes or derive from sizeStock
+    const sizes = availableSizes || Object.keys(sizeStock);
 
     await ctx.db.patch(productId, {
       sizeStock,
-      availableSizes,
+      availableSizes: sizes,
       currentStock: totalStock,
       totalAvailable: totalStock,
       inStock: totalStock > 0,
@@ -251,6 +253,7 @@ export const updateSizeStock = mutation({
     await ctx.db.insert("inventoryMovements", {
       productId: product.itemId,
       productName: product.name,
+      productImage: product.mainImage || null,
       type: "size_update",
       quantity: totalStock,
       previousStock: product.currentStock ?? 0,
@@ -261,7 +264,7 @@ export const updateSizeStock = mutation({
       createdBy: updatedBy || "admin",
     });
 
-    return { success: true, totalStock, availableSizes };
+    return { success: true, totalStock, availableSizes: sizes };
   },
 });
 
@@ -398,6 +401,58 @@ export const removeStock = mutation({
   },
 });
 
+// Remove stock for a specific size
+export const removeSizeStock = mutation({
+  args: {
+    productId: v.id("products"),
+    size: v.string(),
+    quantity: v.number(),
+    reason: v.optional(v.string()),
+    updatedBy: v.optional(v.string()),
+  },
+  handler: async (ctx, { productId, size, quantity, reason, updatedBy }) => {
+    const product = await ctx.db.get(productId);
+    if (!product) throw new Error("Product not found");
+
+    const sizeStock = product.sizeStock || {};
+    const oldSizeQty = sizeStock[size] ?? 0;
+    const newSizeQty = Math.max(0, oldSizeQty - quantity);
+    
+    // Update size stock
+    const newSizeStock = { ...sizeStock, [size]: newSizeQty };
+    
+    // Calculate new total stock
+    const newTotalStock = Object.values(newSizeStock).reduce((sum, qty) => sum + (qty || 0), 0);
+    const oldTotalStock = product.currentStock ?? product.totalAvailable ?? 0;
+
+    await ctx.db.patch(productId, {
+      sizeStock: newSizeStock,
+      currentStock: newTotalStock,
+      totalAvailable: newTotalStock,
+      inStock: newTotalStock > 0,
+      updatedAt: nowIso(),
+      updatedBy: updatedBy || "admin",
+    });
+
+    // Log movement
+    await ctx.db.insert("inventoryMovements", {
+      productId: product.itemId,
+      productName: product.name,
+      productImage: product.mainImage || null,
+      type: "stock_out",
+      quantity,
+      previousStock: oldTotalStock,
+      newStock: newTotalStock,
+      reason: reason || `Size ${size} stock removal`,
+      sizeDetails: { size, oldQty: oldSizeQty, newQty: newSizeQty },
+      createdAt: nowIso(),
+      createdBy: updatedBy || "admin",
+    });
+
+    return { success: true, size, oldQty: oldSizeQty, newQty: newSizeQty };
+  },
+});
+
 // ============ BILLING FUNCTIONS ============
 
 // Create a new bill
@@ -409,6 +464,7 @@ export const createBill = mutation({
       productName: v.string(),
       productImage: v.optional(v.string()),
       itemId: v.string(),
+      size: v.optional(v.string()),
       price: v.float64(),
       quantity: v.number(),
     })),

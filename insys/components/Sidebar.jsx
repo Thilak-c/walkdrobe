@@ -3,11 +3,11 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
-import { 
-  LayoutDashboard, 
-  Package, 
-  AlertTriangle, 
-  History, 
+import {
+  LayoutDashboard,
+  Package,
+  AlertTriangle,
+  History,
   Settings,
   ExternalLink,
   Menu,
@@ -16,17 +16,29 @@ import {
   PlusCircle,
   LogOut,
   Globe,
-  Store
+  Store,
+  Receipt,
+  RotateCcw,
+  Users,
+  Truck,
+  ClipboardList,
+  Wallet,
+  BarChart3,
 } from "lucide-react";
 import toast from "react-hot-toast";
-
-import { Receipt } from "lucide-react";
+import UnderConstruction from "./UnderConstruction";
 
 const navItems = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard, description: "Overview & stats" },
   { href: "/billing", label: "Billing", icon: Receipt, description: "Create & print bills" },
+  // { href: "/returns", label: "Returns", icon: RotateCcw, description: "Returns & exchanges" },
   { href: "/add-product", label: "Add Product", icon: PlusCircle, description: "New inventory item" },
   { href: "/products", label: "All Products", icon: Package, description: "Manage inventory" },
+  // { href: "/customers", label: "Customers", icon: Users, description: "Customer database" },
+  // { href: "/suppliers", label: "Suppliers", icon: Truck, description: "Vendor management" },
+  // { href: "/purchase-orders", label: "Purchase Orders", icon: ClipboardList, description: "Stock orders" },
+  // { href: "/expenses", label: "Expenses", icon: Wallet, description: "Track expenses" },
+  // { href: "/reports", label: "Reports", icon: BarChart3, description: "Sales & profit" },
   { href: "/alerts", label: "Low Stock", icon: AlertTriangle, description: "Items to restock" },
   { href: "/history", label: "History", icon: History, description: "Stock movements" },
   { href: "/settings", label: "Settings", icon: Settings, description: "Preferences" },
@@ -39,13 +51,19 @@ export default function Sidebar() {
   const [storeType, setStoreType] = useState(null);
   const [showSwitcher, setShowSwitcher] = useState(false);
 
+  const [showUnderConstruction, setShowUnderConstruction] = useState(false);
+
   useEffect(() => {
     const authData = localStorage.getItem("insys_auth");
     if (authData) {
       try {
         const parsed = JSON.parse(authData);
         setStoreType(parsed.storeType);
-      } catch (e) {}
+        // Show under construction if website store is selected
+        if (parsed.storeType === "website") {
+          setShowUnderConstruction(true);
+        }
+      } catch (e) { }
     }
   }, []);
 
@@ -57,7 +75,12 @@ export default function Sidebar() {
       localStorage.setItem("insys_auth", JSON.stringify(parsed));
       setStoreType(newType);
       setShowSwitcher(false);
-      toast.success(`Switched to ${newType === "website" ? "Website Store" : "Offline Shop"}`);
+
+      if (newType === "website") {
+        setShowUnderConstruction(true);
+      } else {
+        toast.success("Switched to Offline Shop");
+      }
     }
   };
 
@@ -69,6 +92,9 @@ export default function Sidebar() {
 
   return (
     <>
+      {/* Under Construction Modal */}
+      {showUnderConstruction && <UnderConstruction />}
+
       {/* Mobile menu button */}
       <button
         onClick={() => setMobileOpen(true)}
@@ -112,15 +138,14 @@ export default function Sidebar() {
               <X size={20} className="text-gray-500" />
             </button>
           </div>
-          
+
           {/* Store Type Badge - Clickable */}
           {storeType && (
             <div className="mt-4 relative">
               <button
                 onClick={() => setShowSwitcher(!showSwitcher)}
-                className={`w-full flex items-center justify-between gap-2 px-3 py-2 rounded-xl transition-all hover:shadow-md cursor-pointer ${
-                  storeType === "website" ? "bg-blue-50 hover:bg-blue-100" : "bg-emerald-50 hover:bg-emerald-100"
-                }`}
+                className={`w-full flex items-center justify-between gap-2 px-3 py-2 rounded-xl transition-all hover:shadow-md cursor-pointer ${storeType === "website" ? "bg-blue-50 hover:bg-blue-100" : "bg-emerald-50 hover:bg-emerald-100"
+                  }`}
               >
                 <div className="flex items-center gap-2">
                   {storeType === "website" ? (
@@ -128,15 +153,13 @@ export default function Sidebar() {
                   ) : (
                     <Store size={16} className="text-emerald-500" />
                   )}
-                  <span className={`text-xs font-medium ${
-                    storeType === "website" ? "text-blue-600" : "text-emerald-600"
-                  }`}>
+                  <span className={`text-xs font-medium ${storeType === "website" ? "text-blue-600" : "text-emerald-600"
+                    }`}>
                     {storeType === "website" ? "Website Store" : "Offline Shop"}
                   </span>
                 </div>
-                <ChevronRight size={14} className={`transition-transform ${showSwitcher ? "rotate-90" : ""} ${
-                  storeType === "website" ? "text-blue-400" : "text-emerald-400"
-                }`} />
+                <ChevronRight size={14} className={`transition-transform ${showSwitcher ? "rotate-90" : ""} ${storeType === "website" ? "text-blue-400" : "text-emerald-400"
+                  }`} />
               </button>
 
               {/* Dropdown Switcher */}
@@ -147,9 +170,8 @@ export default function Sidebar() {
                   </p>
                   <button
                     onClick={() => handleSwitchStore("website")}
-                    className={`w-full flex items-center gap-3 px-3 py-3 hover:bg-gray-50 transition-colors ${
-                      storeType === "website" ? "bg-blue-50" : ""
-                    }`}
+                    className={`w-full flex items-center gap-3 px-3 py-3 hover:bg-gray-50 transition-colors ${storeType === "website" ? "bg-blue-50" : ""
+                      }`}
                   >
                     <Globe size={18} className="text-blue-500" />
                     <div className="flex-1 text-left">
@@ -162,9 +184,8 @@ export default function Sidebar() {
                   </button>
                   <button
                     onClick={() => handleSwitchStore("offline")}
-                    className={`w-full flex items-center gap-3 px-3 py-3 hover:bg-gray-50 transition-colors ${
-                      storeType === "offline" ? "bg-emerald-50" : ""
-                    }`}
+                    className={`w-full flex items-center gap-3 px-3 py-3 hover:bg-gray-50 transition-colors ${storeType === "offline" ? "bg-emerald-50" : ""
+                      }`}
                   >
                     <Store size={18} className="text-emerald-500" />
                     <div className="flex-1 text-left">
@@ -196,8 +217,8 @@ export default function Sidebar() {
                 onClick={() => setMobileOpen(false)}
                 className={`
                   group flex items-center gap-3 px-3 py-3 rounded-xl transition-all duration-200
-                  ${isActive 
-                    ? "bg-gray-900 text-white shadow-lg shadow-gray-900/20" 
+                  ${isActive
+                    ? "bg-gray-900 text-white shadow-lg shadow-gray-900/20"
                     : "text-gray-600 hover:bg-gray-50"
                   }
                 `}
@@ -241,7 +262,7 @@ export default function Sidebar() {
               <p className="text-[11px] text-gray-400">walkdrobe.in</p>
             </div>
           </a>
-          
+
           {/* Logout Button */}
           <button
             onClick={handleLogout}

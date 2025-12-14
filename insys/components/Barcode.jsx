@@ -3,7 +3,7 @@
 import { useEffect, useRef } from "react";
 
 // Simple barcode generator using canvas
-export default function Barcode({ value, width = 200, height = 60, showText = true }) {
+export default function Barcode({ value, width = 200, height = 60, showText = true, printable = true }) {
   const canvasRef = useRef(null);
 
   useEffect(() => {
@@ -38,12 +38,65 @@ export default function Barcode({ value, width = 200, height = 60, showText = tr
     }
   }, [value, width, height, showText]);
 
+  const handlePrint = () => {
+    if (!canvasRef.current || !printable) return;
+    
+    const canvas = canvasRef.current;
+    const dataUrl = canvas.toDataURL("image/png");
+    
+    const printWindow = window.open("", "_blank", "width=300,height=200");
+    if (!printWindow) {
+      alert("Please allow popups to print barcode");
+      return;
+    }
+    
+    printWindow.document.write(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Barcode</title>
+          <style>
+            @page {
+              size: 50mm 25mm;
+              margin: 0;
+            }
+            * { margin: 0; padding: 0; box-sizing: border-box; }
+            body { 
+              width: 50mm;
+              height: 25mm;
+              display: flex; 
+              align-items: center; 
+              justify-content: center; 
+              background: white;
+            }
+            img { 
+              width: 45mm;
+              height: auto;
+            }
+            @media print {
+              body { 
+                width: 50mm;
+                height: 25mm;
+              }
+            }
+          </style>
+        </head>
+        <body>
+          <img src="${dataUrl}" alt="Barcode" onload="window.print();" />
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
+  };
+
   return (
     <canvas
       ref={canvasRef}
       width={width}
       height={height}
-      className="bg-white"
+      className={`bg-white ${printable ? "cursor-pointer hover:opacity-80 transition-opacity" : ""}`}
+      onClick={handlePrint}
+      title={printable ? "Click to print barcode" : undefined}
     />
   );
 }

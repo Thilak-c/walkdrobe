@@ -4,35 +4,84 @@ import { useState } from "react";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../../main-web/convex/_generated/api";
 import Sidebar from "@/components/Sidebar";
-import { AlertTriangle, Plus, Package, CheckCircle, X } from "lucide-react";
+import { AlertTriangle, Package, CheckCircle, X, Save } from "lucide-react";
 import toast from "react-hot-toast";
+
+const ALL_SIZES = ["5", "6", "7", "8", "9", "10", "11", "12", "13"];
 
 export default function AlertsPage() {
   const [threshold, setThreshold] = useState(10);
-  const [restockModal, setRestockModal] = useState(null);
-  const [restockAmount, setRestockAmount] = useState(0);
+  const [editingProduct, setEditingProduct] = useState(null);
+  const [editSizeStock, setEditSizeStock] = useState({});
+  const [editSizes, setEditSizes] = useState([]);
 
   const lowStock = useQuery(api.inventory.getLowStockAlerts, { threshold });
-  const addStock = useMutation(api.inventory.addStock);
+  const updateSizeStock = useMutation(api.inventory.updateSizeStock);
 
-  const handleRestock = async () => {
-    if (!restockModal || restockAmount <= 0) return;
-    try {
-      await addStock({
-        productId: restockModal._id,
-        quantity: restockAmount,
-        reason: "Restock from alerts",
-      });
-      toast.success(`Added ${restockAmount} units to ${restockModal.name}`);
-      setRestockModal(null);
-      setRestockAmount(0);
-    } catch (error) {
-      toast.error("Failed to restock");
+  const getTotalStock = (product) => {
+    if (product.sizeStock) {
+      return Object.values(product.sizeStock).reduce((sum, qty) => sum + (qty || 0), 0);
+    }
+    return product.currentStock ?? 0;
+  };
+
+  const startEditing = (product) => {
+    setEditingProduct(product);
+    setEditSizeStock(product.sizeStock || {});
+    setEditSizes(product.availableSizes || []);
+  };
+
+  const closeModal = () => {
+    setEditingProduct(null);
+    setEditSizeStock({});
+    setEditSizes([]);
+  };
+
+  const toggleSize = (size) => {
+    if (editSizes.includes(size)) {
+      setEditSizes(editSizes.filter(s => s !== size));
+      const newStock = { ...editSizeStock };
+      delete newStock[size];
+      setEditSizeStock(newStock);
+    } else {
+      setEditSizes([...editSizes, size]);
+      setEditSizeStock({ ...editSizeStock, [size]: 0 });
     }
   };
 
-  const outOfStock = lowStock?.filter(p => p.currentStock === 0) || [];
-  const lowStockItems = lowStock?.filter(p => p.currentStock > 0) || [];
+  const updateSizeQty = (size, value) => {
+    setEditSizeStock(prev => ({
+      ...prev,
+      [size]: Math.max(0, parseInt(value) || 0)
+    }));
+  };
+
+  const handleSaveStock = async () => {
+    if (!editingProduct) return;
+    try {
+      await updateSizeStock({
+        productId: editingProduct._id,
+        sizeStock: editSizeStock,
+        availableSizes: editSizes.sort((a, b) => parseInt(a) - parseInt(b)),
+        updatedBy: "admin",
+      });
+      toast.success("Stock updated!");
+      closeModal();
+    } catch (error) {
+      toast.error("Failed to update stock");
+    }
+  };
+
+  // Get low stock sizes for a product
+  const getLowStockSizes = (product) => {
+    if (!product.sizeStock) return [];
+    return Object.entries(product.sizeStock)
+      .filter(([_, qty]) => qty <= 3)
+      .map(([size, qty]) => ({ size, qty }));
+  };
+
+  const outOfStock = lowStock?.filter(p => getTotalStock(p) === 0) || [];
+  const lowStockItems = lowStock?.filter(p => getTotalStock(p) > 0) || [];
   const isLoading = lowStock === undefined;
 
   return (
@@ -84,36 +133,13 @@ export default function AlertsPage() {
                     </div>
                   </div>
                   <div className="space-y-3">
-                    {outOfStock.map((product, idx) => (
-                      <div 
+                    {outOfStock.map((product) => (
+                      <ProductCard 
                         key={product._id} 
-                        className="bg-white rounded-2xl p-5 border border-red-100 flex items-center justify-between hover:shadow-lg transition-shadow"
-                        style={{ animationDelay: `${idx * 50}ms` }}
-                      >
-                        <div className="flex items-center gap-4">
-                          <div className="w-16 h-16 bg-gray-100 rounded-xl overflow-hidden flex-shrink-0">
-                            {product.mainImage ? (
-                              <img src={product.mainImage} alt="" className="w-full h-full object-cover" />
-                            ) : (
-                              <div className="w-full h-full flex items-center justify-center">
-                                <Package className="text-gray-300" size={24} />
-                              </div>
-                            )}
-                          </div>
-                          <div>
-                            <p className="font-semibold text-gray-900">{product.name}</p>
-                            <p className="text-sm text-gray-400">{product.category} • ₹{product.price?.toLocaleString()}</p>
-                            <span className="inline-block mt-1 badge badge-danger">Out of Stock</span>
-                          </div>
-                        </div>
-                        <button
-                          onClick={() => { setRestockModal(product); setRestockAmount(10); }}
-                          className="flex items-center gap-2 px-5 py-2.5 bg-gray-900 text-white rounded-xl hover:bg-gray-800 transition-colors font-medium text-sm"
-                        >
-                          <Plus size={18} />
-                          Restock
-                        </button>
-                      </div>
+                        product={product} 
+                        onEdit={() => startEditing(product)}
+                        variant="danger"
+                      />
                     ))}
                   </div>
                 </div>
@@ -132,36 +158,14 @@ export default function AlertsPage() {
                     </div>
                   </div>
                   <div className="space-y-3">
-                    {lowStockItems.map((product, idx) => (
-                      <div 
+                    {lowStockItems.map((product) => (
+                      <ProductCard 
                         key={product._id} 
-                        className="bg-white rounded-2xl p-5 border border-amber-100 flex items-center justify-between hover:shadow-lg transition-shadow"
-                        style={{ animationDelay: `${idx * 50}ms` }}
-                      >
-                        <div className="flex items-center gap-4">
-                          <div className="w-16 h-16 bg-gray-100 rounded-xl overflow-hidden flex-shrink-0">
-                            {product.mainImage ? (
-                              <img src={product.mainImage} alt="" className="w-full h-full object-cover" />
-                            ) : (
-                              <div className="w-full h-full flex items-center justify-center">
-                                <Package className="text-gray-300" size={24} />
-                              </div>
-                            )}
-                          </div>
-                          <div>
-                            <p className="font-semibold text-gray-900">{product.name}</p>
-                            <p className="text-sm text-gray-400">{product.category} • ₹{product.price?.toLocaleString()}</p>
-                            <span className="inline-block mt-1 badge badge-warning">{product.currentStock} units left</span>
-                          </div>
-                        </div>
-                        <button
-                          onClick={() => { setRestockModal(product); setRestockAmount(10); }}
-                          className="flex items-center gap-2 px-5 py-2.5 bg-gray-900 text-white rounded-xl hover:bg-gray-800 transition-colors font-medium text-sm"
-                        >
-                          <Plus size={18} />
-                          Restock
-                        </button>
-                      </div>
+                        product={product} 
+                        onEdit={() => startEditing(product)}
+                        variant="warning"
+                        getLowStockSizes={getLowStockSizes}
+                      />
                     ))}
                   </div>
                 </div>
@@ -182,66 +186,147 @@ export default function AlertsPage() {
         </div>
       </main>
 
-      {/* Restock Modal */}
-      {restockModal && (
+
+      {/* Edit Stock Modal */}
+      {editingProduct && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl p-6 w-full max-w-md animate-fadeIn">
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-lg font-semibold text-gray-900 font-poppins">Restock Product</h3>
-              <button
-                onClick={() => setRestockModal(null)}
-                className="p-2 hover:bg-gray-100 rounded-xl transition-colors"
-              >
-                <X size={20} className="text-gray-500" />
+          <div className="bg-white rounded-2xl w-full max-w-md">
+            <div className="p-4 border-b border-gray-100 flex items-center justify-between">
+              <h3 className="font-semibold text-gray-900">Restock - {editingProduct.name}</h3>
+              <button onClick={closeModal} className="p-2 hover:bg-gray-100 rounded-lg">
+                <X size={20} />
               </button>
             </div>
             
-            <div className="flex items-center gap-4 p-4 bg-gray-50 rounded-xl mb-6">
-              <div className="w-14 h-14 bg-white rounded-xl overflow-hidden flex-shrink-0">
-                {restockModal.mainImage ? (
-                  <img src={restockModal.mainImage} alt="" className="w-full h-full object-cover" />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center">
-                    <Package className="text-gray-300" size={20} />
+            <div className="p-4">
+              <div className="flex gap-3 mb-4 pb-4 border-b border-gray-100">
+                <div className="w-14 h-14 bg-gray-100 rounded-xl overflow-hidden shrink-0">
+                  {editingProduct.mainImage ? (
+                    <img src={editingProduct.mainImage} alt="" className="w-full h-full object-cover" />
+                  ) : (
+                    <Package className="w-full h-full p-3 text-gray-300" />
+                  )}
+                </div>
+                <div>
+                  <p className="font-semibold text-gray-900">{editingProduct.name}</p>
+                  <p className="text-xs text-gray-400">{editingProduct.itemId}</p>
+                  <p className="text-sm font-bold mt-1">₹{editingProduct.price}</p>
+                </div>
+              </div>
+
+              {/* Available Sizes */}
+              <p className="text-sm font-medium text-gray-700 mb-2">Available Sizes</p>
+              <div className="flex flex-wrap gap-2 mb-4">
+                {ALL_SIZES.map(size => (
+                  <button
+                    key={size}
+                    type="button"
+                    onClick={() => toggleSize(size)}
+                    className={`w-10 h-10 rounded-lg text-sm font-medium transition-all ${
+                      editSizes.includes(size)
+                        ? "bg-gray-900 text-white"
+                        : "bg-gray-100 text-gray-400 hover:bg-gray-200"
+                    }`}
+                  >
+                    {size}
+                  </button>
+                ))}
+              </div>
+
+              {/* Stock per Size */}
+              {editSizes.length > 0 && (
+                <>
+                  <p className="text-sm font-medium text-gray-700 mb-2">Stock per Size</p>
+                  <div className="grid grid-cols-4 gap-3 mb-4">
+                    {editSizes.sort((a,b) => parseInt(a) - parseInt(b)).map(size => (
+                      <div key={size}>
+                        <label className="block text-xs text-gray-500 mb-1 text-center">Size {size}</label>
+                        <input
+                          type="number"
+                          value={editSizeStock[size] ?? 0}
+                          onChange={(e) => updateSizeQty(size, e.target.value)}
+                          className="w-full px-2 py-2 text-center border border-gray-200 rounded-lg text-sm"
+                          min="0"
+                        />
+                      </div>
+                    ))}
                   </div>
-                )}
-              </div>
-              <div>
-                <p className="font-medium text-gray-900">{restockModal.name}</p>
-                <p className="text-sm text-gray-400">Current stock: {restockModal.currentStock} units</p>
+                </>
+              )}
+
+              <div className="bg-gray-50 rounded-xl p-3 flex justify-between items-center">
+                <span className="text-sm text-gray-600">Total Stock</span>
+                <span className="text-lg font-bold">{Object.values(editSizeStock).reduce((s,q) => s + (q||0), 0)}</span>
               </div>
             </div>
 
-            <div className="mb-6">
-              <label className="block text-sm font-medium text-gray-700 mb-2">Add quantity</label>
-              <input
-                type="number"
-                value={restockAmount}
-                onChange={(e) => setRestockAmount(parseInt(e.target.value) || 0)}
-                className="w-full px-4 py-3 bg-gray-50 border-0 rounded-xl focus:ring-2 focus:ring-gray-900 text-lg font-semibold"
-                min="1"
-                autoFocus
-              />
-            </div>
-
-            <div className="flex gap-3">
-              <button
-                onClick={() => setRestockModal(null)}
-                className="flex-1 px-5 py-3 border border-gray-200 text-gray-700 rounded-xl hover:bg-gray-50 transition-colors font-medium"
-              >
+            <div className="p-4 border-t border-gray-100 flex gap-3">
+              <button onClick={closeModal} className="flex-1 py-3 border border-gray-200 rounded-xl hover:bg-gray-50">
                 Cancel
               </button>
-              <button
-                onClick={handleRestock}
-                disabled={restockAmount <= 0}
-                className="flex-1 px-5 py-3 bg-gray-900 text-white rounded-xl hover:bg-gray-800 transition-colors font-medium disabled:opacity-50"
-              >
-                Add Stock
+              <button onClick={handleSaveStock} className="flex-1 py-3 bg-gray-900 text-white rounded-xl hover:bg-gray-800 flex items-center justify-center gap-2">
+                <Save size={18} /> Save
               </button>
             </div>
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+// Product Card Component
+function ProductCard({ product, onEdit, variant, getLowStockSizes }) {
+  const getTotalStock = (p) => {
+    if (p.sizeStock) {
+      return Object.values(p.sizeStock).reduce((sum, qty) => sum + (qty || 0), 0);
+    }
+    return p.currentStock ?? 0;
+  };
+
+  const totalStock = getTotalStock(product);
+  const sizes = product.availableSizes || [];
+  const sizeStock = product.sizeStock || {};
+  const borderColor = variant === "danger" ? "border-red-100" : "border-amber-100";
+
+  return (
+    <div className={`bg-white rounded-2xl p-5 border ${borderColor} hover:shadow-lg transition-shadow`}>
+      <div className="flex items-start justify-between gap-4">
+        <div className="flex items-center gap-4">
+          <div className="w-16 h-16 bg-gray-100 rounded-xl overflow-hidden shrink-0">
+            {product.mainImage ? (
+              <img src={product.mainImage} alt="" className="w-full h-full object-cover" />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center">
+                <Package className="text-gray-300" size={24} />
+              </div>
+            )}
+          </div>
+          <div>
+            <p className="font-semibold text-gray-900">{product.name}</p>
+            <p className="text-sm text-gray-400">{product.category} • ₹{product.price?.toLocaleString()}</p>
+            <div className="flex flex-wrap gap-1 mt-2">
+              {sizes.length > 0 ? sizes.sort((a,b) => a-b).map(size => (
+                <span key={size} className={`text-[10px] px-1.5 py-0.5 rounded ${
+                  (sizeStock[size] || 0) === 0 ? "bg-red-100 text-red-600" : 
+                  (sizeStock[size] || 0) <= 3 ? "bg-yellow-100 text-yellow-700" : "bg-gray-100 text-gray-600"
+                }`}>
+                  {size}:{sizeStock[size] || 0}
+                </span>
+              )) : null}
+            </div>
+            <span className={`inline-block mt-2 badge ${variant === "danger" ? "badge-danger" : "badge-warning"}`}>
+              {totalStock === 0 ? "Out of Stock" : `${totalStock} units total`}
+            </span>
+          </div>
+        </div>
+        <button
+          onClick={onEdit}
+          className="flex items-center gap-2 px-4 py-2 bg-gray-900 text-white rounded-xl hover:bg-gray-800 transition-colors font-medium text-sm shrink-0"
+        >
+          Restock
+        </button>
+      </div>
     </div>
   );
 }

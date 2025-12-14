@@ -113,7 +113,8 @@ export default defineSchema({
     name: v.string(),
     price: v.float64(),
     costPrice: v.optional(v.float64()), // Purchase/cost price for profit tracking
-    color: v.optional(v.string()), // Product color
+    color: v.optional(v.string()), // Primary product color
+    secondaryColor: v.optional(v.string()), // Secondary product color
     subcategories: v.optional(v.string()),
     type: v.optional(v.array(v.string())), // Array of product types
     // Size-based inventory tracking
@@ -646,6 +647,7 @@ export default defineSchema({
       productName: v.string(),
       productImage: v.optional(v.string()),
       itemId: v.string(),
+      size: v.optional(v.string()), // Size of the product
       price: v.float64(),
       quantity: v.number(),
     })),
@@ -683,4 +685,155 @@ export default defineSchema({
     .index("by_type", ["type"])
     .index("by_created", ["createdAt"])
     .index("by_created_by", ["createdBy"]),
+
+  // Returns/Exchanges table
+  returns: defineTable({
+    returnNumber: v.string(),
+    originalBillNumber: v.string(),
+    type: v.string(), // 'return', 'exchange'
+    items: v.array(v.object({
+      productId: v.string(),
+      productName: v.string(),
+      productImage: v.optional(v.string()),
+      itemId: v.string(),
+      size: v.optional(v.string()),
+      price: v.float64(),
+      quantity: v.number(),
+    })),
+    exchangeItems: v.optional(v.array(v.object({
+      productId: v.string(),
+      productName: v.string(),
+      productImage: v.optional(v.string()),
+      itemId: v.string(),
+      size: v.optional(v.string()),
+      price: v.float64(),
+      quantity: v.number(),
+    }))),
+    customerName: v.optional(v.string()),
+    customerPhone: v.optional(v.string()),
+    reason: v.string(),
+    refundAmount: v.float64(),
+    additionalPayment: v.optional(v.float64()), // For exchange with price difference
+    status: v.string(), // 'pending', 'approved', 'completed', 'rejected'
+    createdAt: v.string(),
+    processedAt: v.optional(v.string()),
+    createdBy: v.string(),
+    processedBy: v.optional(v.string()),
+  })
+    .index("by_return_number", ["returnNumber"])
+    .index("by_bill_number", ["originalBillNumber"])
+    .index("by_status", ["status"])
+    .index("by_created", ["createdAt"]),
+
+  // Customers table
+  customers: defineTable({
+    name: v.string(),
+    phone: v.string(),
+    email: v.optional(v.string()),
+    address: v.optional(v.string()),
+    totalPurchases: v.number(),
+    totalSpent: v.float64(),
+    lastVisit: v.string(),
+    notes: v.optional(v.string()),
+    createdAt: v.string(),
+    updatedAt: v.string(),
+  })
+    .index("by_phone", ["phone"])
+    .index("by_name", ["name"])
+    .index("by_total_spent", ["totalSpent"]),
+
+  // Suppliers table
+  suppliers: defineTable({
+    name: v.string(),
+    contactPerson: v.optional(v.string()),
+    phone: v.string(),
+    email: v.optional(v.string()),
+    address: v.optional(v.string()),
+    gstNumber: v.optional(v.string()),
+    paymentTerms: v.optional(v.string()),
+    notes: v.optional(v.string()),
+    isActive: v.boolean(),
+    createdAt: v.string(),
+    updatedAt: v.string(),
+  })
+    .index("by_name", ["name"])
+    .index("by_active", ["isActive"]),
+
+  // Purchase Orders table
+  purchaseOrders: defineTable({
+    poNumber: v.string(),
+    supplierId: v.id("suppliers"),
+    supplierName: v.string(),
+    items: v.array(v.object({
+      productId: v.optional(v.string()),
+      productName: v.string(),
+      itemId: v.optional(v.string()),
+      size: v.optional(v.string()),
+      quantity: v.number(),
+      unitCost: v.float64(),
+      totalCost: v.float64(),
+    })),
+    subtotal: v.float64(),
+    tax: v.optional(v.float64()),
+    shipping: v.optional(v.float64()),
+    total: v.float64(),
+    status: v.string(), // 'draft', 'sent', 'confirmed', 'received', 'cancelled'
+    expectedDelivery: v.optional(v.string()),
+    receivedAt: v.optional(v.string()),
+    notes: v.optional(v.string()),
+    createdAt: v.string(),
+    updatedAt: v.string(),
+    createdBy: v.string(),
+  })
+    .index("by_po_number", ["poNumber"])
+    .index("by_supplier", ["supplierId"])
+    .index("by_status", ["status"])
+    .index("by_created", ["createdAt"]),
+
+  // Expenses table
+  expenses: defineTable({
+    category: v.string(), // 'rent', 'utilities', 'salary', 'supplies', 'marketing', 'other'
+    description: v.string(),
+    amount: v.float64(),
+    paymentMethod: v.string(),
+    vendor: v.optional(v.string()),
+    receiptUrl: v.optional(v.string()),
+    date: v.string(),
+    isRecurring: v.boolean(),
+    recurringFrequency: v.optional(v.string()), // 'monthly', 'quarterly', 'yearly'
+    notes: v.optional(v.string()),
+    createdAt: v.string(),
+    createdBy: v.string(),
+  })
+    .index("by_category", ["category"])
+    .index("by_date", ["date"])
+    .index("by_created", ["createdAt"]),
+
+  // Daily Reports table
+  dailyReports: defineTable({
+    date: v.string(),
+    totalSales: v.float64(),
+    totalTransactions: v.number(),
+    cashSales: v.float64(),
+    cardSales: v.float64(),
+    upiSales: v.float64(),
+    totalReturns: v.float64(),
+    returnCount: v.number(),
+    totalExpenses: v.float64(),
+    netRevenue: v.float64(),
+    topSellingProducts: v.optional(v.array(v.object({
+      productId: v.string(),
+      productName: v.string(),
+      quantity: v.number(),
+      revenue: v.float64(),
+    }))),
+    openingCash: v.optional(v.float64()),
+    closingCash: v.optional(v.float64()),
+    cashDifference: v.optional(v.float64()),
+    notes: v.optional(v.string()),
+    closedBy: v.optional(v.string()),
+    closedAt: v.optional(v.string()),
+    createdAt: v.string(),
+  })
+    .index("by_date", ["date"]),
 });
