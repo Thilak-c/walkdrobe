@@ -14,9 +14,12 @@ services:
       - DOCUMENT_RETENTION_DELAY=172800
       - RUST_LOG=info
     healthcheck:
-      test: curl -f http://localhost:3210/version
-      interval: 5s
-      start_period: 10s
+      test: ["CMD", "curl", "-f", "http://localhost:3210"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 60s
+
 
   dashboard:
     image: ghcr.io/get-convex/convex-dashboard:latest
