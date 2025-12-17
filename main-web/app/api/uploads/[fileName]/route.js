@@ -35,18 +35,29 @@ export async function GET(req, { params }) {
       return NextResponse.json({ error: "Invalid filename format" }, { status: 400 });
     }
 
-    const uploadsDir = path.join(process.cwd(), "uploads_files");
-    const filePath = path.join(uploadsDir, sanitizedFileName);
+    // Check multiple upload directories
+    const uploadsDirs = [
+      path.join(process.cwd(), "public", "uploads"),  // New location
+      path.join(process.cwd(), "uploads_files"),       // Legacy location
+    ];
 
-    // SECURITY: Ensure resolved path is within uploads directory
-    const resolvedPath = path.resolve(filePath);
-    const resolvedUploadsDir = path.resolve(uploadsDir);
-    if (!resolvedPath.startsWith(resolvedUploadsDir)) {
-      console.warn(`Path escape attempt blocked: ${fileName}`);
-      return NextResponse.json({ error: "Access denied" }, { status: 403 });
+    let filePath = null;
+    let uploadsDir = null;
+
+    for (const dir of uploadsDirs) {
+      const testPath = path.join(dir, sanitizedFileName);
+      const resolvedPath = path.resolve(testPath);
+      const resolvedDir = path.resolve(dir);
+      
+      // SECURITY: Ensure resolved path is within uploads directory
+      if (resolvedPath.startsWith(resolvedDir) && fs.existsSync(testPath)) {
+        filePath = testPath;
+        uploadsDir = dir;
+        break;
+      }
     }
 
-    if (!fs.existsSync(filePath)) {
+    if (!filePath) {
       return NextResponse.json({ error: "File not found" }, { status: 404 });
     }
 

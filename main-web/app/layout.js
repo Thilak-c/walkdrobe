@@ -34,10 +34,7 @@ export const metadata = {
     default: "Walkdrobe - Premium Footwear Store in Patna",
     template: "%s | Walkdrobe"
   },
-  themeColor: [
-    { media: '(prefers-color-scheme: light)', color: '#FF0000' },
-    { media: '(prefers-color-scheme: dark)', color: '#FF0000' },
-  ],
+
   description: "Discover premium footwear at Walkdrobe, Patna's favorite shoe store. Shop sneakers, boots, sandals, and more. Visit us or shop online!",
   keywords: ["footwear", "shoes", "sneakers", "boots", "sandals", "Patna", "shoe store", "premium footwear", "walkdrobe"],
   authors: [{ name: "Walkdrobe" }],

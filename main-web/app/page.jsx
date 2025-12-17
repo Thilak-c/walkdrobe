@@ -358,12 +358,27 @@ function HeroSection() {
 
 // Categories Section - White Theme (Mobile Optimized)
 function CategoriesSection() {
-  const categories = [
-    { name: "Sneakers", image: "/banner/sneakers.png", count: "120+" },
-    { name: "Boots", image: "/banner/boots.png", count: "80+" },
-    { name: "Sandals", image: "/banner/sandals.png", count: "60+" },
-    { name: "Formal", image: "/banner/formal.png", count: "90+" },
-  ];
+  const products = useQuery(api.webStore.getAllProducts) || [];
+  
+  // Build categories from actual products
+  const categoryNames = ["Sneakers", "Boots", "Sandals", "Formal"];
+  const categories = categoryNames.map(name => {
+    const categoryProducts = products.filter(p => 
+      (p.category || "").toLowerCase() === name.toLowerCase()
+    );
+    return {
+      name,
+      image: categoryProducts[0]?.mainImage || null,
+      count: categoryProducts.length
+    };
+  }).filter(cat => cat.count > 0);
+
+  // If no products yet, show placeholder categories
+  const displayCategories = categories.length > 0 ? categories : categoryNames.map(name => ({
+    name,
+    image: null,
+    count: 0
+  }));
 
   return (
     <section className="py-12 md:py-20 bg-white">
@@ -379,7 +394,7 @@ function CategoriesSection() {
         </motion.div>
 
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-6">
-          {categories.map((cat, idx) => (
+          {displayCategories.map((cat, idx) => (
             <motion.div
               key={cat.name}
               initial={{ opacity: 0, y: 20 }}
@@ -389,8 +404,17 @@ function CategoriesSection() {
             >
               <Link href={`/shop?ct=${cat.name.toLowerCase()}`}>
                 <div className="group relative aspect-[4/5] md:aspect-[3/4] bg-gray-100 rounded-xl md:rounded-2xl overflow-hidden cursor-pointer hover:shadow-xl transition-shadow duration-500">
-                  {/* Placeholder - replace with actual images */}
-                  <div className="absolute inset-0 bg-gradient-to-br from-gray-100 to-gray-200 group-hover:scale-105 transition-transform duration-700" />
+                  {/* Category Image from Database */}
+                  {cat.image ? (
+                    <img
+                      src={cat.image}
+                      alt={cat.name}
+                      fill
+                      className="object-cover group-hover:scale-105 transition-transform duration-700"
+                    />
+                  ) : (
+                    <div className="absolute inset-0 bg-gradient-to-br from-gray-100 to-gray-200 group-hover:scale-105 transition-transform duration-700" />
+                  )}
 
                   {/* Content */}
                   <div className="absolute bottom-0 left-0 right-0 p-3 md:p-5 bg-gradient-to-t from-white via-white/95 to-transparent">
@@ -410,7 +434,7 @@ function CategoriesSection() {
 // Featured Products Section - White Theme (Mobile Optimized)
 function FeaturedProducts() {
   const router = useRouter();
-  const products = useQuery(api.products.getAllProducts, { limit: 8 });
+  const products = useQuery(api.webStore.getAllProducts);
 
   const handleProductClick = (productId) => {
     router.push(`/product/${productId}`);
@@ -452,7 +476,7 @@ function FeaturedProducts() {
               >
                 <div className="relative aspect-[3/4] bg-gray-100 rounded-lg md:rounded-xl overflow-hidden mb-2 md:mb-4">
                   {product.mainImage ? (
-                    <Image
+                    <img
                       src={product.mainImage}
                       alt={product.name}
                       fill
@@ -583,7 +607,7 @@ function TrendingSection() {
               >
                 <div className="relative aspect-square bg-gray-100 rounded-xl overflow-hidden hover:shadow-xl transition-shadow">
                   {product.mainImage ? (
-                    <Image
+                    <img
                       src={product.mainImage}
                       alt={product.name}
                       fill

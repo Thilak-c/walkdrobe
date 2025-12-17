@@ -1,16 +1,25 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  allowedDevOrigins: ['local-origin.dev', '*.local-origin.dev'],
-  experimental: {
-    turbo: {
-      root: process.cwd(),
-    },
-  },
-  // Increase body size limit for file uploads
-  api: {
-    bodyParser: {
-      sizeLimit: '50mb',
-    },
+  allowedDevOrigins: ["local-origin.dev", "*.local-origin.dev"],
+  images: {
+    remotePatterns: [
+      {
+        protocol: "http",
+        hostname: "localhost",
+        port: "3000",
+        pathname: "/api/uploads/**",
+      },
+      {
+        protocol: "https",
+        hostname: "walkdrobe.in",
+        pathname: "/api/uploads/**",
+      },
+      {
+        protocol: "https",
+        hostname: "*.walkdrobe.in",
+        pathname: "/api/uploads/**",
+      },
+    ],
   },
 };
 

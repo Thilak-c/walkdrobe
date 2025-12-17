@@ -24,6 +24,7 @@ import type * as emailService from "../emailService.js";
 import type * as insys from "../insys.js";
 import type * as inventory from "../inventory.js";
 import type * as mutations_shares from "../mutations/shares.js";
+import type * as offStore from "../offStore.js";
 import type * as orders from "../orders.js";
 import type * as products from "../products.js";
 import type * as reportGenerator from "../reportGenerator.js";
@@ -36,6 +37,7 @@ import type * as supportTickets from "../supportTickets.js";
 import type * as users from "../users.js";
 import type * as utils_helpers from "../utils/helpers.js";
 import type * as views from "../views.js";
+import type * as webStore from "../webStore.js";
 import type * as wishlist from "../wishlist.js";
 
 import type {
@@ -61,6 +63,7 @@ declare const fullApi: ApiFromModules<{
   insys: typeof insys;
   inventory: typeof inventory;
   "mutations/shares": typeof mutations_shares;
+  offStore: typeof offStore;
   orders: typeof orders;
   products: typeof products;
   reportGenerator: typeof reportGenerator;
@@ -73,6 +76,7 @@ declare const fullApi: ApiFromModules<{
   users: typeof users;
   "utils/helpers": typeof utils_helpers;
   views: typeof views;
+  webStore: typeof webStore;
   wishlist: typeof wishlist;
 }>;
 

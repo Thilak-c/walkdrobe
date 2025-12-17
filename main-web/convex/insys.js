@@ -732,3 +732,213 @@ export const getFullBackup = query({
     };
   },
 });
+
+
+// ============ WEBSITE INVENTORY ============
+
+export const updateWebsiteStock = mutation({
+  args: {
+    productId: v.id("products"),
+    websiteSizeStock: v.any(),
+    updatedBy: v.string(),
+  },
+  handler: async (ctx, { productId, websiteSizeStock, updatedBy }) => {
+    const product = await ctx.db.get(productId);
+    if (!product) throw new Error("Product not found");
+
+    const totalStock = Object.values(websiteSizeStock).reduce((sum, qty) => sum + (qty || 0), 0);
+    const oldStock = product.websiteStock || 0;
+
+    await ctx.db.patch(productId, {
+      websiteSizeStock,
+      websiteStock: totalStock,
+      websiteInStock: totalStock > 0,
+      updatedAt: nowIso(),
+      updatedBy,
+    });
+
+    // Log movement
+    await ctx.db.insert("inventoryMovements", {
+      productId: product.itemId,
+      productName: product.name,
+      productImage: product.mainImage,
+      type: "size_update",
+      quantity: totalStock - oldStock,
+      previousStock: oldStock,
+      newStock: totalStock,
+      reason: "Website stock update",
+      sizeDetails: websiteSizeStock,
+      createdAt: nowIso(),
+      createdBy: updatedBy,
+    });
+
+    return { success: true, totalStock };
+  },
+});
+
+export const getWebsiteInventory = query({
+  args: {},
+  handler: async (ctx) => {
+    const products = await ctx.db
+      .query("products")
+      .filter((q) => q.neq(q.field("isDeleted"), true))
+      .collect();
+
+    // Filter for products with website stock
+    return products
+      .filter(p => p.websiteStock > 0 || p.websiteInStock || Object.keys(p.websiteSizeStock || {}).length > 0)
+      .map(p => ({
+        _id: p._id,
+        itemId: p.itemId,
+        name: p.name,
+        category: p.category,
+        price: p.price,
+        costPrice: p.costPrice,
+        mainImage: p.mainImage,
+        websiteStock: p.websiteStock || 0,
+        websiteInStock: p.websiteInStock || false,
+        websiteSizeStock: p.websiteSizeStock || {},
+        availableSizes: p.availableSizes || [],
+        updatedAt: p.updatedAt,
+      }));
+  },
+});
+
+export const getWebsiteStats = query({
+  args: {},
+  handler: async (ctx) => {
+    const products = await ctx.db
+      .query("products")
+      .filter((q) => q.neq(q.field("isDeleted"), true))
+      .collect();
+
+    const websiteProducts = products.filter(p => 
+      p.websiteStock > 0 || p.websiteInStock || Object.keys(p.websiteSizeStock || {}).length > 0
+    );
+
+    const stats = {
+      totalProducts: websiteProducts.length,
+      totalStock: 0,
+      inStock: 0,
+      lowStock: 0,
+      outOfStock: 0,
+      totalValue: 0,
+      categoryBreakdown: {},
+    };
+
+    websiteProducts.forEach(p => {
+      const stock = p.websiteStock || 0;
+      stats.totalStock += stock;
+      stats.totalValue += stock * (p.price || 0);
+
+      if (stock === 0) {
+        stats.outOfStock++;
+      } else if (stock <= 10) {
+        stats.lowStock++;
+      } else {
+        stats.inStock++;
+      }
+
+      const cat = p.category || 'Uncategorized';
+      if (!stats.categoryBreakdown[cat]) {
+        stats.categoryBreakdown[cat] = { count: 0, stock: 0, value: 0 };
+      }
+      stats.categoryBreakdown[cat].count++;
+      stats.categoryBreakdown[cat].stock += stock;
+      stats.categoryBreakdown[cat].value += stock * (p.price || 0);
+    });
+
+    return stats;
+  },
+});
+
+export const getWebsiteLowStock = query({
+  args: { threshold: v.optional(v.number()) },
+  handler: async (ctx, { threshold = 10 }) => {
+    const products = await ctx.db
+      .query("products")
+      .filter((q) => q.neq(q.field("isDeleted"), true))
+      .collect();
+
+    return products
+      .filter(p => {
+        const stock = p.websiteStock || 0;
+        return (p.websiteInStock || Object.keys(p.websiteSizeStock || {}).length > 0) && stock <= threshold;
+      })
+      .map(p => ({
+        _id: p._id,
+        itemId: p.itemId,
+        name: p.name,
+        category: p.category,
+        websiteStock: p.websiteStock || 0,
+        websiteSizeStock: p.websiteSizeStock || {},
+        price: p.price,
+        mainImage: p.mainImage,
+      }))
+      .sort((a, b) => a.websiteStock - b.websiteStock);
+  },
+});
+
+
+// ============ ADD WEBSITE PRODUCT ============
+
+export const addWebsiteProduct = mutation({
+  args: {
+    itemId: v.string(),
+    name: v.string(),
+    category: v.optional(v.string()),
+    description: v.optional(v.string()),
+    price: v.float64(),
+    costPrice: v.optional(v.float64()),
+    mainImage: v.string(),
+    otherImages: v.optional(v.array(v.string())),
+    availableSizes: v.array(v.string()),
+    websiteSizeStock: v.any(),
+    websiteStock: v.number(),
+    color: v.optional(v.string()),
+    secondaryColor: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    // Check if product with same itemId exists
+    const existing = await ctx.db
+      .query("products")
+      .filter((q) => q.eq(q.field("itemId"), args.itemId))
+      .first();
+    
+    if (existing) {
+      throw new Error("Product with this SKU already exists");
+    }
+
+    const productId = await ctx.db.insert("products", {
+      itemId: args.itemId,
+      name: args.name,
+      category: args.category || "",
+      description: args.description || "",
+      price: args.price,
+      costPrice: args.costPrice || 0,
+      mainImage: args.mainImage,
+      otherImages: args.otherImages || [],
+      availableSizes: args.availableSizes,
+      color: args.color || "",
+      secondaryColor: args.secondaryColor || "",
+      // Website stock
+      websiteSizeStock: args.websiteSizeStock,
+      websiteStock: args.websiteStock,
+      websiteInStock: args.websiteStock > 0,
+      // Offline stock (empty for website-only products)
+      sizeStock: {},
+      currentStock: 0,
+      totalAvailable: 0,
+      inStock: false,
+      // Defaults
+      buys: 0,
+      inCart: 0,
+      isHidden: false,
+      isDeleted: false,
+      createdAt: nowIso(),
+      updatedAt: nowIso(),
+    });
+
+    return { success: true, productId };
+  },
+});

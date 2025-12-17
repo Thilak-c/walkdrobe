@@ -18,30 +18,40 @@ import {
   Globe,
   Store,
   Receipt,
-  RotateCcw,
-  Users,
-  Truck,
-  ClipboardList,
-  Wallet,
-  BarChart3,
+  Trash2,
+  Upload,
+  TrendingDown,
+  ShoppingCart,
 } from "lucide-react";
 import toast from "react-hot-toast";
-import UnderConstruction from "./UnderConstruction";
 
-const navItems = [
+
+// Offline Shop Navigation
+const offlineNavItems = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard, description: "Overview & stats" },
   { href: "/billing", label: "Billing", icon: Receipt, description: "Create & print bills" },
-  // { href: "/returns", label: "Returns", icon: RotateCcw, description: "Returns & exchanges" },
   { href: "/add-product", label: "Add Product", icon: PlusCircle, description: "New inventory item" },
   { href: "/products", label: "All Products", icon: Package, description: "Manage inventory" },
-  // { href: "/customers", label: "Customers", icon: Users, description: "Customer database" },
-  // { href: "/suppliers", label: "Suppliers", icon: Truck, description: "Vendor management" },
-  // { href: "/purchase-orders", label: "Purchase Orders", icon: ClipboardList, description: "Stock orders" },
-  // { href: "/expenses", label: "Expenses", icon: Wallet, description: "Track expenses" },
-  // { href: "/reports", label: "Reports", icon: BarChart3, description: "Sales & profit" },
+  { href: "/import", label: "Import", icon: Upload, description: "Bulk import products" },
   { href: "/alerts", label: "Low Stock", icon: AlertTriangle, description: "Items to restock" },
+  { href: "/dead-stock", label: "Dead Stock", icon: TrendingDown, description: "No sales products" },
   { href: "/history", label: "History", icon: History, description: "Stock movements" },
+  { href: "/trash", label: "Trash", icon: Trash2, description: "Deleted products" },
   { href: "/settings", label: "Settings", icon: Settings, description: "Preferences" },
+];
+
+// Website Store Navigation
+const websiteNavItems = [
+  { href: "/website", label: "Dashboard", icon: LayoutDashboard, description: "Website overview" },
+  { href: "/website/orders", label: "Orders", icon: ShoppingCart, description: "Customer orders" },
+  { href: "/website/add-product", label: "Add Product", icon: PlusCircle, description: "Add to website" },
+  { href: "/website/products", label: "All Products", icon: Package, description: "Website inventory" },
+  { href: "/website/import", label: "Import", icon: Upload, description: "Bulk import products" },
+  { href: "/website/alerts", label: "Low Stock", icon: AlertTriangle, description: "Items to restock" },
+  { href: "/website/dead-stock", label: "Dead Stock", icon: TrendingDown, description: "No sales products" },
+  { href: "/website/history", label: "History", icon: History, description: "Stock movements" },
+  { href: "/website/trash", label: "Trash", icon: Trash2, description: "Deleted products" },
+  { href: "/website/settings", label: "Settings", icon: Settings, description: "Preferences" },
 ];
 
 export default function Sidebar() {
@@ -51,7 +61,7 @@ export default function Sidebar() {
   const [storeType, setStoreType] = useState(null);
   const [showSwitcher, setShowSwitcher] = useState(false);
 
-  const [showUnderConstruction, setShowUnderConstruction] = useState(false);
+
 
   useEffect(() => {
     const authData = localStorage.getItem("insys_auth");
@@ -59,10 +69,7 @@ export default function Sidebar() {
       try {
         const parsed = JSON.parse(authData);
         setStoreType(parsed.storeType);
-        // Show under construction if website store is selected
-        if (parsed.storeType === "website") {
-          setShowUnderConstruction(true);
-        }
+        // Website store is now enabled - no more under construction
       } catch (e) { }
     }
   }, []);
@@ -75,12 +82,7 @@ export default function Sidebar() {
       localStorage.setItem("insys_auth", JSON.stringify(parsed));
       setStoreType(newType);
       setShowSwitcher(false);
-
-      if (newType === "website") {
-        setShowUnderConstruction(true);
-      } else {
-        toast.success("Switched to Offline Shop");
-      }
+      toast.success(`Switched to ${newType === "website" ? "Website Store" : "Offline Shop"}`);
     }
   };
 
@@ -92,9 +94,6 @@ export default function Sidebar() {
 
   return (
     <>
-      {/* Under Construction Modal */}
-      {showUnderConstruction && <UnderConstruction />}
-
       {/* Mobile menu button */}
       <button
         onClick={() => setMobileOpen(true)}
@@ -205,9 +204,9 @@ export default function Sidebar() {
         {/* Navigation */}
         <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
           <p className="text-[10px] font-semibold text-gray-400 tracking-widest uppercase px-3 mb-3">
-            Menu
+            {storeType === "website" ? "Website Store" : "Offline Shop"}
           </p>
-          {navItems.map((item, idx) => {
+          {(storeType === "website" ? websiteNavItems : offlineNavItems).map((item, idx) => {
             const isActive = pathname === item.href;
             const Icon = item.icon;
             return (

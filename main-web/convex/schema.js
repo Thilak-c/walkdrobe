@@ -99,7 +99,7 @@ export default defineSchema({
     .index("by_deleted_at", ["deletedAt"]),
 
 
-  // Existing products table
+  // Existing products table (for main website - customer facing)
   products: defineTable({
     buys: v.optional(v.float64()),
     inCart: v.optional(v.float64()),
@@ -112,26 +112,192 @@ export default defineSchema({
     itemId: v.string(),
     name: v.string(),
     price: v.float64(),
-    costPrice: v.optional(v.float64()), // Purchase/cost price for profit tracking
-    color: v.optional(v.string()), // Primary product color
-    secondaryColor: v.optional(v.string()), // Secondary product color
+    costPrice: v.optional(v.float64()),
+    color: v.optional(v.string()),
+    secondaryColor: v.optional(v.string()),
     subcategories: v.optional(v.string()),
-    type: v.optional(v.array(v.string())), // Array of product types
-    // Size-based inventory tracking
-    availableSizes: v.optional(v.array(v.string())), // ["6", "7", "8", "9", "10", "11", "12"]
-    sizeStock: v.optional(v.any()), // Flexible size stock object
-    // Legacy inventory fields (keeping for backward compatibility)
+    type: v.optional(v.array(v.string())),
+    availableSizes: v.optional(v.array(v.string())),
+    sizeStock: v.optional(v.any()),
+    websiteSizeStock: v.optional(v.any()),
+    websiteStock: v.optional(v.number()),
+    websiteInStock: v.optional(v.boolean()),
     inStock: v.optional(v.boolean()),
     totalAvailable: v.optional(v.number()),
     currentStock: v.optional(v.number()),
-    // Soft delete
     isDeleted: v.optional(v.boolean()),
     deletedAt: v.optional(v.string()),
     deletedBy: v.optional(v.id("users")),
-    // Add these missing fields
     updatedAt: v.optional(v.string()),
     updatedBy: v.optional(v.string()),
   }).index("by_deleted", ["isDeleted"]),
+
+  // ============ WEBSITE TRASH (web_trash) ============
+  web_trash: defineTable({
+    originalId: v.string(),
+    itemId: v.string(),
+    name: v.string(),
+    productData: v.any(), // Complete product data
+    deletedAt: v.string(),
+    deletedBy: v.optional(v.string()),
+  })
+    .index("by_itemId", ["itemId"])
+    .index("by_deleted", ["deletedAt"]),
+
+  // ============ OFFLINE TRASH (off_trash) ============
+  off_trash: defineTable({
+    originalId: v.string(),
+    itemId: v.string(),
+    name: v.string(),
+    productData: v.any(), // Complete product data
+    deletedAt: v.string(),
+    deletedBy: v.optional(v.string()),
+  })
+    .index("by_itemId", ["itemId"])
+    .index("by_deleted", ["deletedAt"]),
+
+  // ============ WEBSITE STORE PRODUCTS (web_products) ============
+  web_products: defineTable({
+    itemId: v.string(),
+    name: v.string(),
+    category: v.optional(v.string()),
+    description: v.optional(v.string()),
+    mainImage: v.string(),
+    otherImages: v.optional(v.array(v.string())),
+    price: v.float64(),
+    costPrice: v.optional(v.float64()),
+    color: v.optional(v.string()),
+    secondaryColor: v.optional(v.string()),
+    availableSizes: v.array(v.string()),
+    sizeStock: v.any(), // { "6": 5, "7": 10, ... }
+    totalStock: v.number(),
+    inStock: v.boolean(),
+    isHidden: v.optional(v.boolean()),
+    isDeleted: v.optional(v.boolean()),
+    createdAt: v.string(),
+    updatedAt: v.string(),
+  })
+    .index("by_itemId", ["itemId"])
+    .index("by_category", ["category"])
+    .index("by_deleted", ["isDeleted"]),
+
+  // ============ OFFLINE STORE PRODUCTS (off_products) ============
+  off_products: defineTable({
+    itemId: v.string(),
+    name: v.string(),
+    category: v.optional(v.string()),
+    description: v.optional(v.string()),
+    mainImage: v.string(),
+    otherImages: v.optional(v.array(v.string())),
+    price: v.float64(),
+    costPrice: v.optional(v.float64()),
+    color: v.optional(v.string()),
+    secondaryColor: v.optional(v.string()),
+    availableSizes: v.array(v.string()),
+    sizeStock: v.any(), // { "6": 5, "7": 10, ... }
+    totalStock: v.number(),
+    inStock: v.boolean(),
+    isHidden: v.optional(v.boolean()),
+    isDeleted: v.optional(v.boolean()),
+    createdAt: v.string(),
+    updatedAt: v.string(),
+  })
+    .index("by_itemId", ["itemId"])
+    .index("by_category", ["category"])
+    .index("by_deleted", ["isDeleted"]),
+
+  // ============ WEBSITE BILLS (web_bills) ============
+  web_bills: defineTable({
+    billNumber: v.string(),
+    orderId: v.optional(v.string()),
+    items: v.array(v.object({
+      productId: v.string(),
+      productName: v.string(),
+      productImage: v.optional(v.string()),
+      itemId: v.string(),
+      size: v.string(),
+      price: v.float64(),
+      quantity: v.number(),
+    })),
+    customerName: v.string(),
+    customerPhone: v.optional(v.string()),
+    customerEmail: v.optional(v.string()),
+    shippingAddress: v.optional(v.string()),
+    subtotal: v.float64(),
+    discount: v.optional(v.float64()),
+    shipping: v.optional(v.float64()),
+    tax: v.float64(),
+    total: v.float64(),
+    paymentMethod: v.string(),
+    paymentStatus: v.string(), // pending, paid, failed
+    orderStatus: v.string(), // pending, confirmed, shipped, delivered, cancelled
+    createdAt: v.string(),
+    updatedAt: v.string(),
+  })
+    .index("by_billNumber", ["billNumber"])
+    .index("by_status", ["orderStatus"])
+    .index("by_created", ["createdAt"]),
+
+  // ============ OFFLINE BILLS (off_bills) ============
+  off_bills: defineTable({
+    billNumber: v.string(),
+    items: v.array(v.object({
+      productId: v.string(),
+      productName: v.string(),
+      productImage: v.optional(v.string()),
+      itemId: v.string(),
+      size: v.string(),
+      price: v.float64(),
+      quantity: v.number(),
+    })),
+    customerName: v.optional(v.string()),
+    customerPhone: v.optional(v.string()),
+    subtotal: v.float64(),
+    discount: v.optional(v.float64()),
+    tax: v.float64(),
+    total: v.float64(),
+    paymentMethod: v.string(), // cash, card, upi
+    createdAt: v.string(),
+    createdBy: v.string(),
+  })
+    .index("by_billNumber", ["billNumber"])
+    .index("by_created", ["createdAt"]),
+
+  // ============ WEBSITE INVENTORY MOVEMENTS (web_movements) ============
+  web_movements: defineTable({
+    productId: v.string(),
+    productName: v.string(),
+    type: v.string(), // stock_in, stock_out, sale, return, adjustment
+    quantity: v.number(),
+    previousStock: v.number(),
+    newStock: v.number(),
+    reason: v.optional(v.string()),
+    sizeDetails: v.optional(v.any()),
+    orderId: v.optional(v.string()),
+    createdAt: v.string(),
+    createdBy: v.string(),
+  })
+    .index("by_product", ["productId"])
+    .index("by_type", ["type"])
+    .index("by_created", ["createdAt"]),
+
+  // ============ OFFLINE INVENTORY MOVEMENTS (off_movements) ============
+  off_movements: defineTable({
+    productId: v.string(),
+    productName: v.string(),
+    type: v.string(), // stock_in, stock_out, sale, return, adjustment
+    quantity: v.number(),
+    previousStock: v.number(),
+    newStock: v.number(),
+    reason: v.optional(v.string()),
+    sizeDetails: v.optional(v.any()),
+    billNumber: v.optional(v.string()),
+    createdAt: v.string(),
+    createdBy: v.string(),
+  })
+    .index("by_product", ["productId"])
+    .index("by_type", ["type"])
+    .index("by_created", ["createdAt"]),
 
   // Reviews table for product reviews
   reviews: defineTable({

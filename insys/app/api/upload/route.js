@@ -1,7 +1,6 @@
-import { writeFile, mkdir } from "fs/promises";
-import { existsSync } from "fs";
 import { NextResponse } from "next/server";
-import path from "path";
+
+const MAIN_WEB_URL = process.env.NEXT_PUBLIC_MAIN_WEB_URL || "http://localhost:3000";
 
 export async function POST(request) {
   try {
@@ -30,32 +29,28 @@ export async function POST(request) {
       );
     }
 
-    const bytes = await file.arrayBuffer();
-    const buffer = Buffer.from(bytes);
+    // Forward to main-web's upload API
+    const uploadFormData = new FormData();
+    uploadFormData.append("image", file);
 
-    // Create unique filename
-    const timestamp = Date.now();
-    const originalName = file.name.replace(/[^a-zA-Z0-9.-]/g, "_");
-    const ext = path.extname(originalName) || ".jpg";
-    const filename = `product_${timestamp}${ext}`;
+    const response = await fetch(`${MAIN_WEB_URL}/api/upload`, {
+      method: "POST",
+      body: uploadFormData,
+    });
 
-    // Ensure uploads directory exists in public folder
-    const uploadDir = path.join(process.cwd(), "public", "uploads");
-    if (!existsSync(uploadDir)) {
-      await mkdir(uploadDir, { recursive: true });
+    const result = await response.json();
+
+    if (!response.ok) {
+      return NextResponse.json(
+        { error: result.error || "Upload failed" },
+        { status: response.status }
+      );
     }
-
-    // Save file
-    const filePath = path.join(uploadDir, filename);
-    await writeFile(filePath, buffer);
-
-    // Return the public URL
-    const imageUrl = `/uploads/${filename}`;
 
     return NextResponse.json({
       success: true,
-      url: imageUrl,
-      filename: filename,
+      url: result.url,
+      filename: result.url.split("/").pop(),
     });
   } catch (error) {
     console.error("Upload error:", error);
@@ -66,27 +61,9 @@ export async function POST(request) {
   }
 }
 
-// GET endpoint to list all uploaded images
+// GET endpoint - not needed since images are on main-web
 export async function GET() {
-  try {
-    const { readdir } = await import("fs/promises");
-    const uploadDir = path.join(process.cwd(), "public", "uploads");
-
-    if (!existsSync(uploadDir)) {
-      return NextResponse.json({ images: [] });
-    }
-
-    const files = await readdir(uploadDir);
-    const images = files
-      .filter((f) => /\.(jpg|jpeg|png|webp|gif)$/i.test(f))
-      .map((f) => ({
-        filename: f,
-        url: `/uploads/${f}`,
-      }));
-
-    return NextResponse.json({ images });
-  } catch (error) {
-    console.error("List error:", error);
-    return NextResponse.json({ error: "Failed to list images" }, { status: 500 });
-  }
+  return NextResponse.json({ 
+    message: "Images are served from main-web. Use main-web URL to access images." 
+  });
 }

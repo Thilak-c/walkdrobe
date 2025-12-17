@@ -77,11 +77,17 @@ export const getAllInventory = query({
       name: p.name,
       category: p.category,
       price: p.price,
+      costPrice: p.costPrice,
       mainImage: p.mainImage,
+      // Offline store stock
       currentStock: p.currentStock ?? p.totalAvailable ?? 0,
       inStock: p.inStock ?? true,
       availableSizes: p.availableSizes || [],
       sizeStock: p.sizeStock || {},
+      // Website store stock
+      websiteStock: p.websiteStock ?? 0,
+      websiteInStock: p.websiteInStock ?? false,
+      websiteSizeStock: p.websiteSizeStock || {},
       updatedAt: p.updatedAt,
     }));
   },
@@ -525,5 +531,113 @@ export const getBillByNumber = query({
       .first();
 
     return bill;
+  },
+});
+
+
+// ============ TRASH FUNCTIONS ============
+
+// Move product to trash (for offline store using products table)
+export const moveToTrash = mutation({
+  args: { productId: v.id("products") },
+  handler: async (ctx, { productId }) => {
+    const product = await ctx.db.get(productId);
+    if (!product) throw new Error("Product not found");
+
+    // Save to offline trash
+    await ctx.db.insert("off_trash", {
+      originalId: productId,
+      itemId: product.itemId,
+      name: product.name,
+      productData: product,
+      deletedAt: nowIso(),
+      deletedBy: "admin",
+    });
+
+    // Delete from products
+    await ctx.db.delete(productId);
+
+    return { success: true };
+  },
+});
+
+// Restore product from trash (for offline store)
+export const restoreFromTrash = mutation({
+  args: { trashId: v.id("off_trash") },
+  handler: async (ctx, { trashId }) => {
+    const trashItem = await ctx.db.get(trashId);
+    if (!trashItem) throw new Error("Trash item not found");
+
+    // Check if itemId already exists
+    const existing = await ctx.db
+      .query("products")
+      .filter((q) => q.eq(q.field("itemId"), trashItem.itemId))
+      .first();
+    if (existing) throw new Error("Product with this SKU already exists");
+
+    // Restore product
+    const { _id, _creationTime, isDeleted, ...productData } = trashItem.productData;
+    await ctx.db.insert("products", {
+      ...productData,
+      isDeleted: false,
+      updatedAt: nowIso(),
+    });
+
+    // Remove from trash
+    await ctx.db.delete(trashId);
+
+    return { success: true };
+  },
+});
+
+// Get all trash items (for offline store)
+export const getTrash = query({
+  args: {},
+  handler: async (ctx) => {
+    return await ctx.db.query("off_trash").order("desc").collect();
+  },
+});
+
+// Get dead stock (products with zero sales)
+export const getDeadStock = query({
+  args: {
+    daysOld: v.optional(v.number()), // Optional: filter by products older than X days
+  },
+  handler: async (ctx, { daysOld = 30 }) => {
+    const products = await ctx.db
+      .query("products")
+      .filter((q) => q.neq(q.field("isDeleted"), true))
+      .collect();
+
+    const cutoffDate = new Date();
+    cutoffDate.setDate(cutoffDate.getDate() - daysOld);
+
+    return products
+      .filter(p => {
+        // No sales (buys = 0 or undefined)
+        const hasSales = (p.buys || 0) > 0;
+        if (hasSales) return false;
+
+        // Check if product is old enough
+        if (p.createdAt) {
+          const createdDate = new Date(p.createdAt);
+          return createdDate < cutoffDate;
+        }
+        return true; // Include if no createdAt
+      })
+      .map(p => ({
+        _id: p._id,
+        itemId: p.itemId,
+        name: p.name,
+        category: p.category,
+        price: p.price,
+        costPrice: p.costPrice || 0,
+        currentStock: p.currentStock || p.totalAvailable || 0,
+        mainImage: p.mainImage,
+        createdAt: p.createdAt,
+        buys: p.buys || 0,
+        stockValue: (p.costPrice || p.price || 0) * (p.currentStock || p.totalAvailable || 0),
+      }))
+      .sort((a, b) => b.stockValue - a.stockValue);
   },
 });

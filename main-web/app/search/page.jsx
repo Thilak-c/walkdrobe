@@ -21,15 +21,11 @@ export default function SearchPage() {
     sortBy: searchParams.get("sortBy") || "relevance",
   });
 
-  // Get search results
+  // Get search results from web_products
   const searchResults = useQuery(
-    api.products.searchProducts,
+    api.webStore.searchProducts,
     searchQuery.length >= 2
-      ? {
-        query: searchQuery,
-        limit: 50,
-        sortBy: filters.sortBy,
-      }
+      ? { query: searchQuery }
       : "skip"
   );
 
@@ -38,8 +34,8 @@ export default function SearchPage() {
     !filters.subcategory || product.subcategories === filters.subcategory
   );
 
-  // Get all subcategories for filter
-  const allProducts = useQuery(api.products.getAllProducts, { limit: 1000 });
+  // Get all products for subcategory filter
+  const allProducts = useQuery(api.webStore.getAllProducts);
   const subcategories = allProducts
     ?.map(p => p.subcategories)
     ?.filter(Boolean)

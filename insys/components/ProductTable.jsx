@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useMutation } from "convex/react";
 import { api } from "../../main-web/convex/_generated/api";
-import { Save, X, Package, Barcode as BarcodeIcon, Edit2, Plus } from "lucide-react";
+import { Save, X, Package, Barcode as BarcodeIcon, Edit2, Plus, Trash2 } from "lucide-react";
 import Barcode from "@/components/Barcode";
 import toast from "react-hot-toast";
 
@@ -16,6 +16,7 @@ export default function ProductTable({ products }) {
   const [showBarcodeId, setShowBarcodeId] = useState(null);
 
   const updateSizeStock = useMutation(api.inventory.updateSizeStock);
+  const moveToTrash = useMutation(api.inventory.moveToTrash);
 
   const getTotalStock = (product) => {
     if (product.sizeStock) {
@@ -37,6 +38,16 @@ export default function ProductTable({ products }) {
       closeModal();
     } catch (error) {
       toast.error("Failed to update stock");
+    }
+  };
+
+  const handleDelete = async (product) => {
+    if (!confirm(`Move "${product.name}" to trash?`)) return;
+    try {
+      await moveToTrash({ productId: product._id });
+      toast.success("Moved to trash!");
+    } catch (error) {
+      toast.error(error.message || "Failed to delete");
     }
   };
 
@@ -160,12 +171,21 @@ export default function ProductTable({ products }) {
                       <span className={`badge ${status.class}`}>{status.label}</span>
                     </td>
                     <td className="px-6 py-4">
-                      <button
-                        onClick={() => startEditing(product)}
-                        className="flex items-center gap-1 px-3 py-2 bg-gray-900 text-white rounded-lg text-xs font-medium hover:bg-gray-800"
-                      >
-                        <Edit2 size={14} /> Edit
-                      </button>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => startEditing(product)}
+                          className="flex items-center gap-1 px-3 py-2 bg-gray-900 text-white rounded-lg text-xs font-medium hover:bg-gray-800"
+                        >
+                          <Edit2 size={14} /> Edit
+                        </button>
+                        <button
+                          onClick={() => handleDelete(product)}
+                          className="flex items-center gap-1 px-3 py-2 bg-red-50 text-red-600 rounded-lg text-xs font-medium hover:bg-red-100"
+                          title="Move to Trash"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 );

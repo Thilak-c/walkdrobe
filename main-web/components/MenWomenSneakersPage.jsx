@@ -26,7 +26,7 @@ export default function MenWomenSneakersPage() {
   const ctParam = searchParams.get("ct")?.toLowerCase() || "sneakers";
   const activeCategory = categoryMap[ctParam] || "Sneakers";
 
-  const products = useQuery(api.category.getProductsByCategory, {
+  const products = useQuery(api.webStore.getProductsByCategory, {
     category: activeCategory,
   }) ?? [];
 

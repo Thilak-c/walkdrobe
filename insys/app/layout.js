@@ -26,7 +26,7 @@ export default function RootLayout({ children }) {
     <html lang="en">
       <body className={`${poppins.variable} ${inter.variable} font-inter antialiased`}>
         <ConvexProvider>
-          <Toaster 
+          <Toaster
             position="top-right"
             toastOptions={{
               style: {
