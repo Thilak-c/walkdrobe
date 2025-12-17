@@ -76,12 +76,17 @@ export default function WebsiteAddProduct() {
       toast.loading("Uploading...", { id: "upload" });
       const res = await fetch("/api/upload", { method: "POST", body: fd });
       const data = await res.json();
-      if (data.success) {
+      if (data.success && data.url) {
         if (isMain) setForm(f => ({ ...f, mainImage: data.url }));
         else setForm(f => ({ ...f, otherImages: [...f.otherImages, data.url] }));
         toast.success("Uploaded!", { id: "upload" });
-      } else toast.error("Upload failed", { id: "upload" });
-    } catch { toast.error("Upload failed", { id: "upload" }); }
+      } else {
+        toast.error(data.error || "Upload failed", { id: "upload" });
+      }
+    } catch (err) {
+      console.error("Upload error:", err);
+      toast.error("Upload failed - check if main-web is running", { id: "upload" });
+    }
   };
 
   if (success) {

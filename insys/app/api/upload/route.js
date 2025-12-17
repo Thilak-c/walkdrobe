@@ -30,15 +30,29 @@ export async function POST(request) {
     }
 
     // Forward to main-web's upload API
+    // Create a new File object with proper name for main-web
+    const bytes = await file.arrayBuffer();
+    const buffer = Buffer.from(bytes);
+    const blob = new Blob([buffer], { type: file.type });
+    
     const uploadFormData = new FormData();
-    uploadFormData.append("image", file);
+    uploadFormData.append("image", blob, file.name);
+
+    console.log("Uploading to:", `${MAIN_WEB_URL}/api/upload`);
+    
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 30000); // 30s timeout
 
     const response = await fetch(`${MAIN_WEB_URL}/api/upload`, {
       method: "POST",
       body: uploadFormData,
+      signal: controller.signal,
     });
+    
+    clearTimeout(timeoutId);
 
     const result = await response.json();
+    console.log("Upload result:", result);
 
     if (!response.ok) {
       return NextResponse.json(

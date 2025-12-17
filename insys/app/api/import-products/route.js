@@ -2,10 +2,14 @@ import { ConvexHttpClient } from "convex/browser";
 import { api } from "../../../../main-web/convex/_generated/api";
 import { NextResponse } from "next/server";
 
-const convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL);
-
 export async function POST(request) {
   try {
+    const convexUrl = process.env.NEXT_PUBLIC_CONVEX_URL;
+    if (!convexUrl) {
+      return NextResponse.json({ success: 0, failed: 0, errors: ["CONVEX_URL not configured"] }, { status: 500 });
+    }
+    
+    const convex = new ConvexHttpClient(convexUrl);
     const { products, store } = await request.json();
 
     if (!products || !Array.isArray(products)) {
