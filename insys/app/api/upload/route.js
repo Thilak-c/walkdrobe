@@ -34,8 +34,8 @@ export async function POST(request) {
     const ext = path.extname(file.name || ".png").toLowerCase() || ".png";
     const filename = `product_${Date.now()}${ext}`;
     
-    // Save to public/uploads directory
-    const uploadsDir = path.join(process.cwd(), "public", "uploads");
+    // Save to uploads_files directory (outside public, served via API)
+    const uploadsDir = path.join(process.cwd(), "uploads_files");
     
     // Create uploads directory if it doesn't exist
     if (!existsSync(uploadsDir)) {
@@ -49,9 +49,9 @@ export async function POST(request) {
     const buffer = Buffer.from(bytes);
     await writeFile(filePath, buffer);
 
-    // Return the full URL so main-web can access it
+    // Return URL via API route (no rebuild needed)
     const baseUrl = process.env.NEXT_PUBLIC_INSYS_URL || "https://insys.walkdrobe.in";
-    const url = `${baseUrl}/uploads/${filename}`;
+    const url = `${baseUrl}/api/uploads/${filename}`;
 
     return NextResponse.json({
       success: true,
