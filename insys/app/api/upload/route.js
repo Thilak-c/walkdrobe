@@ -43,20 +43,41 @@ export async function POST(request) {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 30000); // 30s timeout
 
-    const response = await fetch(`${MAIN_WEB_URL}/api/upload`, {
-      method: "POST",
-      body: uploadFormData,
-      signal: controller.signal,
-    });
+    let response;
+    try {
+      response = await fetch(`${MAIN_WEB_URL}/api/upload`, {
+        method: "POST",
+        body: uploadFormData,
+        signal: controller.signal,
+      });
+    } catch (fetchError) {
+      clearTimeout(timeoutId);
+      console.error("Fetch error:", fetchError.message);
+      return NextResponse.json(
+        { error: `Cannot connect to main-web at ${MAIN_WEB_URL}. Is it running?` },
+        { status: 503 }
+      );
+    }
     
     clearTimeout(timeoutId);
 
-    const result = await response.json();
+    let result;
+    try {
+      result = await response.json();
+    } catch (jsonError) {
+      const text = await response.text();
+      console.error("Response not JSON:", text);
+      return NextResponse.json(
+        { error: "Invalid response from main-web" },
+        { status: 500 }
+      );
+    }
+    
     console.log("Upload result:", result);
 
     if (!response.ok) {
       return NextResponse.json(
-        { error: result.error || "Upload failed" },
+        { error: result.error || "Upload failed on main-web" },
         { status: response.status }
       );
     }
@@ -67,9 +88,9 @@ export async function POST(request) {
       filename: result.url.split("/").pop(),
     });
   } catch (error) {
-    console.error("Upload error:", error);
+    console.error("Upload error:", error.message, error.cause);
     return NextResponse.json(
-      { error: "Failed to upload file" },
+      { error: `Upload failed: ${error.message}` },
       { status: 500 }
     );
   }
