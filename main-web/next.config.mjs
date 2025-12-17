@@ -19,6 +19,11 @@ const nextConfig = {
         hostname: "*.walkdrobe.in",
         pathname: "/api/uploads/**",
       },
+      {
+        protocol: "https",
+        hostname: "insys.walkdrobe.in",
+        pathname: "/uploads/**",
+      },
     ],
   },
 };

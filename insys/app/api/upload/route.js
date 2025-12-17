@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
-
-const MAIN_WEB_URL = process.env.NEXT_PUBLIC_MAIN_WEB_URL || "http://localhost:3000";
+import { writeFile, mkdir } from "fs/promises";
+import { existsSync } from "fs";
+import path from "path";
 
 export async function POST(request) {
   try {
@@ -29,66 +30,36 @@ export async function POST(request) {
       );
     }
 
-    // Forward to main-web's upload API
-    // Create a new File object with proper name for main-web
+    // Get file extension
+    const ext = path.extname(file.name || ".png").toLowerCase() || ".png";
+    const filename = `product_${Date.now()}${ext}`;
+    
+    // Save to public/uploads directory
+    const uploadsDir = path.join(process.cwd(), "public", "uploads");
+    
+    // Create uploads directory if it doesn't exist
+    if (!existsSync(uploadsDir)) {
+      await mkdir(uploadsDir, { recursive: true });
+    }
+
+    const filePath = path.join(uploadsDir, filename);
+    
+    // Convert file to buffer and save
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
-    const blob = new Blob([buffer], { type: file.type });
-    
-    const uploadFormData = new FormData();
-    uploadFormData.append("image", blob, file.name);
+    await writeFile(filePath, buffer);
 
-    console.log("Uploading to:", `${MAIN_WEB_URL}/api/upload`);
-    
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 30000); // 30s timeout
-
-    let response;
-    try {
-      response = await fetch(`${MAIN_WEB_URL}/api/upload`, {
-        method: "POST",
-        body: uploadFormData,
-        signal: controller.signal,
-      });
-    } catch (fetchError) {
-      clearTimeout(timeoutId);
-      console.error("Fetch error:", fetchError.message);
-      return NextResponse.json(
-        { error: `Cannot connect to main-web at ${MAIN_WEB_URL}. Is it running?` },
-        { status: 503 }
-      );
-    }
-    
-    clearTimeout(timeoutId);
-
-    let result;
-    try {
-      result = await response.json();
-    } catch (jsonError) {
-      const text = await response.text();
-      console.error("Response not JSON:", text);
-      return NextResponse.json(
-        { error: "Invalid response from main-web" },
-        { status: 500 }
-      );
-    }
-    
-    console.log("Upload result:", result);
-
-    if (!response.ok) {
-      return NextResponse.json(
-        { error: result.error || "Upload failed on main-web" },
-        { status: response.status }
-      );
-    }
+    // Return the full URL so main-web can access it
+    const baseUrl = process.env.NEXT_PUBLIC_INSYS_URL || "https://insys.walkdrobe.in";
+    const url = `${baseUrl}/uploads/${filename}`;
 
     return NextResponse.json({
       success: true,
-      url: result.url,
-      filename: result.url.split("/").pop(),
+      url: url,
+      filename: filename,
     });
   } catch (error) {
-    console.error("Upload error:", error.message, error.cause);
+    console.error("Upload error:", error.message);
     return NextResponse.json(
       { error: `Upload failed: ${error.message}` },
       { status: 500 }
@@ -96,9 +67,8 @@ export async function POST(request) {
   }
 }
 
-// GET endpoint - not needed since images are on main-web
 export async function GET() {
   return NextResponse.json({ 
-    message: "Images are served from main-web. Use main-web URL to access images." 
+    message: "POST an image file to upload" 
   });
 }
