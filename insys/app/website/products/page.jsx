@@ -18,18 +18,18 @@ export default function WebsiteProducts() {
   const [editing, setEditing] = useState(null);
   const [editForm, setEditForm] = useState({});
 
-  const products = useQuery(api.webStore.getAllProducts);
-  const updateProductFull = useMutation(api.webStore.updateProductFull);
-  const deleteProduct = useMutation(api.webStore.deleteProduct);
+  const products = useQuery(api.products.getAllProducts);
+  const updateProductFull = useMutation(api.products.updateProductFull);
+  const deleteProduct = useMutation(api.products.deleteProduct);
 
   let filtered = products || [];
   if (search) {
     const s = search.toLowerCase();
     filtered = filtered.filter(p => p.name.toLowerCase().includes(s) || p.itemId.toLowerCase().includes(s));
   }
-  if (filter === "in") filtered = filtered.filter(p => p.totalStock > 10);
-  if (filter === "low") filtered = filtered.filter(p => p.totalStock > 0 && p.totalStock <= 10);
-  if (filter === "out") filtered = filtered.filter(p => p.totalStock === 0);
+  if (filter === "in") filtered = filtered.filter(p => (p.currentStock || p.totalAvailable || 0) > 10);
+  if (filter === "low") filtered = filtered.filter(p => (p.currentStock || p.totalAvailable || 0) > 0 && (p.currentStock || p.totalAvailable || 0) <= 10);
+  if (filter === "out") filtered = filtered.filter(p => (p.currentStock || p.totalAvailable || 0) === 0);
 
   const handleEdit = (p) => {
     setEditing(p);
@@ -186,13 +186,13 @@ export default function WebsiteProducts() {
                         <td className="px-4 py-3 text-sm text-gray-500">{p.category || "-"}</td>
                         <td className="px-4 py-3 text-sm font-medium">₹{p.price}</td>
                         <td className="px-4 py-3">
-                          <span className={`text-sm font-bold ${p.totalStock === 0 ? "text-red-500" : p.totalStock <= 10 ? "text-amber-500" : "text-gray-900"}`}>
-                            {p.totalStock}
+                          <span className={`text-sm font-bold ${(p.currentStock || p.totalAvailable || 0) === 0 ? "text-red-500" : (p.currentStock || p.totalAvailable || 0) <= 10 ? "text-amber-500" : "text-gray-900"}`}>
+                            {p.currentStock || p.totalAvailable || 0}
                           </span>
                         </td>
                         <td className="px-4 py-3">
-                          <span className={`px-2 py-1 rounded text-xs font-medium ${p.totalStock === 0 ? "bg-red-100 text-red-600" : p.totalStock <= 10 ? "bg-amber-100 text-amber-600" : "bg-gray-100 text-gray-600"}`}>
-                            {p.totalStock === 0 ? "Out" : p.totalStock <= 10 ? "Low" : "In Stock"}
+                          <span className={`px-2 py-1 rounded text-xs font-medium ${(p.currentStock || p.totalAvailable || 0) === 0 ? "bg-red-100 text-red-600" : (p.currentStock || p.totalAvailable || 0) <= 10 ? "bg-amber-100 text-amber-600" : "bg-gray-100 text-gray-600"}`}>
+                            {(p.currentStock || p.totalAvailable || 0) === 0 ? "Out" : (p.currentStock || p.totalAvailable || 0) <= 10 ? "Low" : "In Stock"}
                           </span>
                         </td>
                         <td className="px-4 py-3">

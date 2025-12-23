@@ -21,7 +21,7 @@ export default function WebsiteAddProduct() {
     description: "", mainImage: "", otherImages: [],
   });
 
-  const addProduct = useMutation(api.webStore.addProduct);
+  const addProduct = useMutation(api.products.addProduct);
 
   const toggleSize = (size) => {
     const has = form.sizes.includes(size);

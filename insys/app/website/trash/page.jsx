@@ -11,8 +11,8 @@ export default function WebsiteTrash() {
   const [viewing, setViewing] = useState(null);
   const [viewMode, setViewMode] = useState("normal"); // normal or raw
 
-  const trash = useQuery(api.webStore.getTrash);
-  const restoreProduct = useMutation(api.webStore.restoreProduct);
+  const trash = useQuery(api.products.getTrash);
+  const restoreProduct = useMutation(api.products.restoreFromTrashById);
 
   const loading = trash === undefined;
 

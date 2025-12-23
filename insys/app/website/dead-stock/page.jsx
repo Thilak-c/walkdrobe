@@ -8,7 +8,7 @@ import { Package, TrendingDown, IndianRupee } from "lucide-react";
 
 export default function WebsiteDeadStockPage() {
   const [daysFilter, setDaysFilter] = useState(30);
-  const deadStock = useQuery(api.webStore.getDeadStock, { daysOld: daysFilter }) || [];
+  const deadStock = useQuery(api.products.getDeadStock, { daysOld: daysFilter }) || [];
 
   const totalValue = deadStock.reduce((sum, p) => sum + (p.stockValue || 0), 0);
   const totalItems = deadStock.reduce((sum, p) => sum + (p.totalStock || 0), 0);

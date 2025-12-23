@@ -9,7 +9,7 @@ export default function FooterSimple() {
       <div className="max-w-7xl mx-auto px-4 py-12">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
           {/* Brand */}
-          <div className="md:col-span-2">
+          <div className="md:col-span-1">
             <Image src="/logo.png" alt="Walkdrobe" width={140} height={36} className="h-8 w-auto mb-4" />
             <p className="text-gray-600 text-sm mb-4 max-w-sm">
               Step into style with Patna's premium footwear destination. Quality shoes for every occasion.
@@ -35,6 +35,33 @@ export default function FooterSimple() {
                   </Link>
                 </li>
               ))}
+            </ul>
+          </div>
+
+          {/* Help */}
+          <div>
+            <h4 className="text-black font-semibold text-sm mb-3 tracking-wider">HELP</h4>
+            <ul className="space-y-2">
+              <li>
+                <Link href="/size-chart" className="text-gray-500 hover:text-black transition-colors text-sm">
+                  Size Chart
+                </Link>
+              </li>
+              <li>
+                <Link href="/track-order" className="text-gray-500 hover:text-black transition-colors text-sm">
+                  Track Order
+                </Link>
+              </li>
+              <li>
+                <Link href="/faq" className="text-gray-500 hover:text-black transition-colors text-sm">
+                  FAQ
+                </Link>
+              </li>
+              <li>
+                <Link href="/contact" className="text-gray-500 hover:text-black transition-colors text-sm">
+                  Contact Us
+                </Link>
+              </li>
             </ul>
           </div>
 

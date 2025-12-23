@@ -19,6 +19,10 @@ import {
   Star,
   Ruler,
   X,
+  Shirt,
+  Footprints,
+  Activity,
+  TrendingUp,
 } from "lucide-react";
 
 // Dynamic import for 3D viewer (no SSR)
@@ -358,7 +362,7 @@ function HeroSection() {
 
 // Categories Section - White Theme (Mobile Optimized)
 function CategoriesSection() {
-  const products = useQuery(api.webStore.getAllProducts) || [];
+  const products = useQuery(api.products.getAllProducts) || [];
   
   // Build categories from actual products
   const categoryNames = ["Sneakers", "Boots", "Sandals", "Formal"];
@@ -434,7 +438,7 @@ function CategoriesSection() {
 // Featured Products Section - White Theme (Mobile Optimized)
 function FeaturedProducts() {
   const router = useRouter();
-  const products = useQuery(api.webStore.getAllProducts);
+  const products = useQuery(api.products.getAllProducts);
 
   const handleProductClick = (productId) => {
     router.push(`/product/${productId}`);
@@ -710,6 +714,7 @@ function Footer() {
             <h4 className="text-gray-900 font-semibold text-sm mb-4">Help</h4>
             <ul className="space-y-2.5">
               {[
+                { name: "Size Chart", href: "/size-chart" },
                 { name: "Track Order", href: "/track-order" },
                 { name: "Contact Us", href: "/contact" },
                 { name: "FAQ", href: "/faq" },
@@ -757,7 +762,7 @@ function Footer() {
   );
 }
 
-// Style & Size Preference Popup
+// Style & Size Preference Popup - Redesigned for Maximum Engagement
 function StylePopup({ onClose }) {
   const [step, setStep] = useState(1);
   const [preferences, setPreferences] = useState({
@@ -766,10 +771,10 @@ function StylePopup({ onClose }) {
   });
 
   const styles = [
-    { id: "casual", label: "Casual", icon: Star },
-    { id: "formal", label: "Formal", icon: Briefcase },
-    { id: "sporty", label: "Sporty", icon: Zap },
-    { id: "trendy", label: "Trendy", icon: Sparkles },
+    { id: "casual", label: "Casual", icon: Shirt },
+    { id: "formal", label: "Formal", icon: Footprints },
+    { id: "sporty", label: "Sporty", icon: Activity },
+    { id: "trendy", label: "Trendy", icon: TrendingUp },
   ];
 
   const sizes = ["6", "7", "8", "9", "10", "11", "12"];
@@ -796,54 +801,59 @@ function StylePopup({ onClose }) {
         className="bg-white rounded-2xl p-6 md:p-8 max-w-sm w-full shadow-2xl relative"
         onClick={(e) => e.stopPropagation()}
       >
+        
         {/* Close button */}
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition-colors"
+          className="absolute top-4 right-4 text-gray-400 hover:text-gray-900 transition-colors z-10 w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100"
         >
           <X className="w-5 h-5" />
         </button>
 
-        {/* Progress */}
+        {/* Progress indicator */}
         <div className="flex gap-2 mb-6">
-          <div className={`h-1 flex-1 rounded-full ${step >= 1 ? "bg-black" : "bg-gray-200"}`} />
-          <div className={`h-1 flex-1 rounded-full ${step >= 2 ? "bg-black" : "bg-gray-200"}`} />
+          <div className={`h-1 flex-1 rounded-full ${step >= 1 ? "bg-gray-900" : "bg-gray-200"}`} />
+          <div className={`h-1 flex-1 rounded-full ${step >= 2 ? "bg-gray-900" : "bg-gray-200"}`} />
         </div>
 
         <AnimatePresence mode="wait">
           {step === 1 ? (
             <motion.div
               key="step1"
-              initial={{ opacity: 0, x: 20 }}
+              initial={{ opacity: 0, x: 30 }}
               animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -20 }}
+              exit={{ opacity: 0, x: -30 }}
+              transition={{ duration: 0.3 }}
             >
-              <div className="text-center mb-4">
-                <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mx-auto">
-                  <Sparkles className="w-6 h-6 text-gray-700" />
+              {/* Header */}
+              <div className="text-center mb-6">
+                <div className="w-12 h-12 bg-gray-900 rounded-xl flex items-center justify-center mx-auto mb-4">
+                  <Sparkles className="w-6 h-6 text-white" />
                 </div>
+                <h3 className="text-xl font-bold text-gray-900 mb-2">What's your style?</h3>
+                <p className="text-gray-500 text-sm">Help us find your perfect pair</p>
               </div>
-              <h3 className="text-xl font-bold text-gray-900 mb-2 text-center">What's your style?</h3>
-              <p className="text-gray-500 text-sm mb-6 text-center">Help us find your perfect pair</p>
               
+              {/* Style options */}
               <div className="grid grid-cols-2 gap-3 mb-6">
                 {styles.map((style) => {
                   const IconComponent = style.icon;
+                  const isSelected = preferences.style === style.id;
                   return (
                     <button
                       key={style.id}
                       onClick={() => setPreferences({ ...preferences, style: style.id })}
                       className={`p-4 rounded-xl border-2 transition-all text-center ${
-                        preferences.style === style.id
-                          ? "border-black bg-gray-50"
+                        isSelected
+                          ? "border-gray-900 bg-gray-50"
                           : "border-gray-200 hover:border-gray-300"
                       }`}
                     >
                       <div className={`w-10 h-10 rounded-full flex items-center justify-center mx-auto mb-2 ${
-                        preferences.style === style.id ? "bg-black" : "bg-gray-100"
+                        isSelected ? "bg-gray-900" : "bg-gray-100"
                       }`}>
                         <IconComponent className={`w-5 h-5 ${
-                          preferences.style === style.id ? "text-white" : "text-gray-600"
+                          isSelected ? "text-white" : "text-gray-600"
                         }`} />
                       </div>
                       <span className="font-medium text-gray-900 text-sm">{style.label}</span>
@@ -857,7 +867,7 @@ function StylePopup({ onClose }) {
                 disabled={!preferences.style}
                 className={`w-full py-3 rounded-full font-medium transition-all ${
                   preferences.style
-                    ? "bg-black text-white hover:bg-gray-800"
+                    ? "bg-gray-900 text-white hover:bg-gray-800"
                     : "bg-gray-100 text-gray-400 cursor-not-allowed"
                 }`}
               >
@@ -867,18 +877,21 @@ function StylePopup({ onClose }) {
           ) : (
             <motion.div
               key="step2"
-              initial={{ opacity: 0, x: 20 }}
+              initial={{ opacity: 0, x: 30 }}
               animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -20 }}
+              exit={{ opacity: 0, x: -30 }}
+              transition={{ duration: 0.3 }}
             >
-              <div className="text-center mb-4">
-                <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mx-auto">
+              {/* Header */}
+              <div className="text-center mb-6">
+                <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
                   <Ruler className="w-6 h-6 text-gray-700" />
                 </div>
+                <h3 className="text-xl font-bold text-gray-900 mb-2">What's your size?</h3>
+                <p className="text-gray-500 text-sm">Select your usual shoe size (UK)</p>
               </div>
-              <h3 className="text-xl font-bold text-gray-900 mb-2 text-center">What's your size?</h3>
-              <p className="text-gray-500 text-sm mb-6 text-center">Select your usual shoe size (UK)</p>
               
+              {/* Size selection */}
               <div className="flex flex-wrap justify-center gap-2 mb-6">
                 {sizes.map((size) => (
                   <button
@@ -886,7 +899,7 @@ function StylePopup({ onClose }) {
                     onClick={() => setPreferences({ ...preferences, size })}
                     className={`w-11 h-11 rounded-full border-2 font-medium transition-all text-sm ${
                       preferences.size === size
-                        ? "border-black bg-black text-white"
+                        ? "border-gray-900 bg-gray-900 text-white"
                         : "border-gray-200 text-gray-700 hover:border-gray-300"
                     }`}
                   >
@@ -895,6 +908,7 @@ function StylePopup({ onClose }) {
                 ))}
               </div>
 
+              {/* Action buttons */}
               <div className="flex gap-3">
                 <button
                   onClick={() => setStep(1)}
@@ -908,7 +922,7 @@ function StylePopup({ onClose }) {
                   disabled={!preferences.size}
                   className={`flex-1 py-3 rounded-full font-medium transition-all ${
                     preferences.size
-                      ? "bg-black text-white hover:bg-gray-800"
+                      ? "bg-gray-900 text-white hover:bg-gray-800"
                       : "bg-gray-100 text-gray-400 cursor-not-allowed"
                   }`}
                 >

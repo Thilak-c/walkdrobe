@@ -21,9 +21,9 @@ export default function SearchPage() {
     sortBy: searchParams.get("sortBy") || "relevance",
   });
 
-  // Get search results from web_products
+  // Get search results from products table
   const searchResults = useQuery(
-    api.webStore.searchProducts,
+    api.products.searchProducts,
     searchQuery.length >= 2
       ? { query: searchQuery }
       : "skip"
@@ -35,7 +35,7 @@ export default function SearchPage() {
   );
 
   // Get all products for subcategory filter
-  const allProducts = useQuery(api.webStore.getAllProducts);
+  const allProducts = useQuery(api.products.getAllProducts);
   const subcategories = allProducts
     ?.map(p => p.subcategories)
     ?.filter(Boolean)

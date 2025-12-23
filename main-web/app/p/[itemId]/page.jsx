@@ -24,7 +24,7 @@ import {
   Package,
 } from "lucide-react";
 
-// This page loads products from web_products table (website store)
+// This page loads products from products table
 export default function WebProductPage() {
   const params = useParams();
   const router = useRouter();
@@ -49,9 +49,9 @@ export default function WebProductPage() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   }, [itemId]);
 
-  // Queries - using webStore for web_products table
+  // Queries - using products table
   const me = useQuery(api.users.meByToken, token ? { token } : "skip");
-  const product = useQuery(api.webStore.getProductByItemId, itemId ? { itemId } : "skip");
+  const product = useQuery(api.products.getProductByItemId, itemId ? { itemId } : "skip");
   const cartSummary = useQuery(api.cart.getCartSummary, me ? { userId: me._id } : "skip");
 
   // Mutations

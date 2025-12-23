@@ -99,6 +99,19 @@ export const getProductsByCategory = query({
   },
 });
 
+// Get product by itemId
+export const getProductByItemId = query({
+  args: { itemId: v.string() },
+  handler: async (ctx, { itemId }) => {
+    const products = await ctx.db
+      .query("products")
+      .filter((q) => q.neq(q.field("isDeleted"), true))
+      .collect();
+    
+    return products.find(p => p.itemId === itemId) || null;
+  },
+});
+
 // Get products by subcategory (case-insensitive)
 export const getProductsBySubcategory = query({
   args: { subcategory: v.string() },
@@ -415,7 +428,8 @@ export const getTopPicks = query(async ({ db }) => {
     category: p.category,
     price: p.price,
     mainImage: p.mainImage || p.image || "/products/placeholder.jpg", // Fallback for missing images
-    buys: p.buys
+    buys: p.buys,
+    createdAt: p.createdAt || null
   }));
 });
 
@@ -2376,5 +2390,299 @@ export const searchProductsForNavbar = query({
       .slice(0, limit);
 
     return searchResults.map(({ searchScore, ...product }) => product);
+  },
+});
+
+// ============ ADMIN FUNCTIONS FOR INSYS ============
+
+// Add product (for admin panel)
+export const addProduct = mutation({
+  args: {
+    itemId: v.string(),
+    name: v.string(),
+    category: v.optional(v.string()),
+    description: v.optional(v.string()),
+    mainImage: v.string(),
+    otherImages: v.optional(v.array(v.string())),
+    price: v.float64(),
+    costPrice: v.optional(v.float64()),
+    color: v.optional(v.string()),
+    secondaryColor: v.optional(v.string()),
+    availableSizes: v.array(v.string()),
+    sizeStock: v.any(),
+  },
+  handler: async (ctx, args) => {
+    // Check duplicate
+    const existing = await ctx.db.query("products")
+      .filter(q => q.eq(q.field("itemId"), args.itemId))
+      .first();
+    if (existing) throw new Error("Product with this SKU already exists");
+
+    const totalStock = Object.values(args.sizeStock).reduce((sum, qty) => sum + (qty || 0), 0);
+
+    const id = await ctx.db.insert("products", {
+      itemId: args.itemId,
+      name: args.name,
+      category: args.category || "",
+      description: args.description || "",
+      mainImage: args.mainImage,
+      otherImages: args.otherImages || [],
+      price: args.price,
+      costPrice: args.costPrice || 0,
+      color: args.color || "",
+      secondaryColor: args.secondaryColor || "",
+      availableSizes: args.availableSizes,
+      sizeStock: args.sizeStock,
+      currentStock: totalStock,
+      totalAvailable: totalStock,
+      inStock: totalStock > 0,
+      isHidden: false,
+      isDeleted: false,
+      buys: 0,
+      inCart: 0,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
+
+    // Log movement
+    await ctx.db.insert("inventoryMovements", {
+      productId: args.itemId,
+      productName: args.name,
+      productImage: args.mainImage,
+      type: "stock_in",
+      quantity: totalStock,
+      previousStock: 0,
+      newStock: totalStock,
+      reason: "Initial stock",
+      sizeDetails: args.sizeStock,
+      createdAt: new Date().toISOString(),
+      createdBy: "admin",
+    });
+
+    return { success: true, id };
+  },
+});
+
+// Update product full (for admin panel)
+export const updateProductFull = mutation({
+  args: {
+    id: v.id("products"),
+    name: v.string(),
+    category: v.optional(v.string()),
+    description: v.optional(v.string()),
+    mainImage: v.string(),
+    otherImages: v.optional(v.array(v.string())),
+    price: v.float64(),
+    costPrice: v.optional(v.float64()),
+    color: v.optional(v.string()),
+    secondaryColor: v.optional(v.string()),
+    availableSizes: v.array(v.string()),
+    sizeStock: v.any(),
+  },
+  handler: async (ctx, { id, ...args }) => {
+    const product = await ctx.db.get(id);
+    if (!product) throw new Error("Product not found");
+
+    const totalStock = Object.values(args.sizeStock).reduce((sum, qty) => sum + (qty || 0), 0);
+    const oldStock = product.currentStock || product.totalAvailable || 0;
+
+    await ctx.db.patch(id, {
+      name: args.name,
+      category: args.category || "",
+      description: args.description || "",
+      mainImage: args.mainImage,
+      otherImages: args.otherImages || [],
+      price: args.price,
+      costPrice: args.costPrice || 0,
+      color: args.color || "",
+      secondaryColor: args.secondaryColor || "",
+      availableSizes: args.availableSizes,
+      sizeStock: args.sizeStock,
+      currentStock: totalStock,
+      totalAvailable: totalStock,
+      inStock: totalStock > 0,
+      updatedAt: new Date().toISOString(),
+    });
+
+    // Log stock change if any
+    if (totalStock !== oldStock) {
+      await ctx.db.insert("inventoryMovements", {
+        productId: product.itemId,
+        productName: args.name,
+        productImage: args.mainImage,
+        type: totalStock > oldStock ? "stock_in" : "stock_out",
+        quantity: Math.abs(totalStock - oldStock),
+        previousStock: oldStock,
+        newStock: totalStock,
+        reason: "Product update",
+        sizeDetails: args.sizeStock,
+        createdAt: new Date().toISOString(),
+        createdBy: "admin",
+      });
+    }
+
+    return { success: true };
+  },
+});
+
+// Get inventory movements
+export const getInventoryMovements = query({
+  args: { limit: v.optional(v.number()) },
+  handler: async (ctx, { limit = 50 }) => {
+    return await ctx.db.query("inventoryMovements").order("desc").take(limit);
+  },
+});
+
+// Get trash items
+export const getTrash = query({
+  args: {},
+  handler: async (ctx) => {
+    return await ctx.db.query("trash").order("desc").collect();
+  },
+});
+
+// Get dead stock
+export const getDeadStock = query({
+  args: { daysOld: v.optional(v.number()) },
+  handler: async (ctx, { daysOld = 30 }) => {
+    const products = await ctx.db.query("products")
+      .filter(q => q.neq(q.field("isDeleted"), true))
+      .collect();
+
+    const cutoffDate = new Date();
+    cutoffDate.setDate(cutoffDate.getDate() - daysOld);
+
+    return products
+      .filter(p => {
+        if (p.createdAt) {
+          const createdDate = new Date(p.createdAt);
+          return createdDate < cutoffDate && (p.buys || 0) === 0;
+        }
+        return true;
+      })
+      .map(p => ({
+        _id: p._id,
+        itemId: p.itemId,
+        name: p.name,
+        category: p.category,
+        price: p.price,
+        costPrice: p.costPrice || 0,
+        totalStock: p.currentStock || p.totalAvailable || 0,
+        mainImage: p.mainImage,
+        createdAt: p.createdAt,
+        stockValue: (p.costPrice || p.price || 0) * (p.currentStock || p.totalAvailable || 0),
+      }))
+      .sort((a, b) => b.stockValue - a.stockValue);
+  },
+});
+
+
+// Restore product from trash by trash ID (for admin panel)
+export const restoreFromTrashById = mutation({
+  args: { trashId: v.id("trash") },
+  handler: async (ctx, { trashId }) => {
+    const trashItem = await ctx.db.get(trashId);
+    if (!trashItem) throw new Error("Trash item not found");
+
+    // Mark product as not deleted
+    const productId = trashItem.originalId;
+    const product = await ctx.db.get(productId);
+    
+    if (product) {
+      await ctx.db.patch(productId, {
+        isDeleted: false,
+        deletedAt: undefined,
+        deletedBy: undefined,
+        updatedAt: new Date().toISOString(),
+      });
+    }
+
+    // Remove from trash
+    await ctx.db.delete(trashId);
+
+    return { success: true };
+  },
+});
+
+
+// Update stock by size (for admin panel alerts)
+export const updateStockBySize = mutation({
+  args: {
+    id: v.id("products"),
+    sizeStock: v.any(),
+    reason: v.optional(v.string()),
+  },
+  handler: async (ctx, { id, sizeStock, reason }) => {
+    const product = await ctx.db.get(id);
+    if (!product) throw new Error("Product not found");
+
+    const oldStock = product.currentStock || product.totalAvailable || 0;
+    const newStock = Object.values(sizeStock).reduce((sum, qty) => sum + (qty || 0), 0);
+
+    await ctx.db.patch(id, {
+      sizeStock,
+      currentStock: newStock,
+      totalAvailable: newStock,
+      inStock: newStock > 0,
+      updatedAt: new Date().toISOString(),
+    });
+
+    // Log movement
+    await ctx.db.insert("inventoryMovements", {
+      productId: product.itemId,
+      productName: product.name,
+      productImage: product.mainImage,
+      type: newStock > oldStock ? "stock_in" : "stock_out",
+      quantity: Math.abs(newStock - oldStock),
+      previousStock: oldStock,
+      newStock,
+      reason: reason || "Stock update",
+      sizeDetails: sizeStock,
+      createdAt: new Date().toISOString(),
+      createdBy: "admin",
+    });
+
+    return { success: true, oldStock, newStock };
+  },
+});
+
+
+// Get stats for admin dashboard (compatible with insys)
+export const getAdminStats = query({
+  args: {},
+  handler: async (ctx) => {
+    const products = await ctx.db.query("products")
+      .filter(q => q.neq(q.field("isDeleted"), true))
+      .collect();
+
+    const stats = {
+      totalProducts: products.length,
+      totalStock: 0,
+      inStock: 0,
+      lowStock: 0,
+      outOfStock: 0,
+      totalValue: 0,
+      totalCost: 0,
+      categories: {},
+    };
+
+    products.forEach(p => {
+      const stock = p.currentStock || p.totalAvailable || 0;
+      stats.totalStock += stock;
+      stats.totalValue += stock * (p.price || 0);
+      stats.totalCost += stock * (p.costPrice || 0);
+
+      if (stock === 0) stats.outOfStock++;
+      else if (stock <= 10) stats.lowStock++;
+      else stats.inStock++;
+
+      const cat = p.category || "Uncategorized";
+      if (!stats.categories[cat]) stats.categories[cat] = { count: 0, stock: 0 };
+      stats.categories[cat].count++;
+      stats.categories[cat].stock += stock;
+    });
+
+    stats.potentialProfit = stats.totalValue - stats.totalCost;
+    return stats;
   },
 });

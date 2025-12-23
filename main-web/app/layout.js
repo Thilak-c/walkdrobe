@@ -1,5 +1,5 @@
 import { Geist, Geist_Mono } from "next/font/google";
-import { Poppins, Inter } from "next/font/google";
+import { Poppins, Inter, Anton } from "next/font/google";
 import "./globals.css";
 import { ConvexProvider, convex } from "../convexClient"; // Revert to named import
 import LayoutWrapper from "../components/LayoutWrapper";
@@ -26,6 +26,12 @@ const inter = Inter({
   variable: "--font-inter",
   subsets: ["latin"],
   weight: ["300", "400", "500", "600", "700", "800", "900"],
+});
+
+const anton = Anton({
+  variable: "--font-anton",
+  subsets: ["latin"],
+  weight: ["400"],
 });
 
 export const metadata = {
@@ -92,7 +98,7 @@ export default function RootLayout({ children }) {
         <OrganizationStructuredData />
       </head>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} ${poppins.variable} ${inter.variable} antialiased`}
+        className={`${geistSans.variable} ${geistMono.variable} ${poppins.variable} ${inter.variable} ${anton.variable} antialiased font-anton`}
       >
         <ConvexProvider client={convex}>
           {/* <AccessGate> */}

@@ -53,7 +53,7 @@ export default function ProductPage() {
 
   // Queries
   const me = useQuery(api.users.meByToken, token ? { token } : "skip");
-  const product = useQuery(api.webStore.getProductById, productId ? { productId } : "skip");
+  const product = useQuery(api.products.getProductById, productId ? { productId } : "skip");
   const cartSummary = useQuery(api.cart.getCartSummary, me ? { userId: me._id } : "skip");
   const reviews = useQuery(api.reviews.getProductReviews, productId ? { productId } : "skip");
   const reviewStats = useQuery(api.reviews.getProductReviewStats, productId ? { productId } : "skip");

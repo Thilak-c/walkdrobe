@@ -12,6 +12,10 @@
   font-family: var(--font-inter), system-ui, sans-serif;
 }
 
+.font-anton {
+  font-family: var(--font-anton), system-ui, sans-serif;
+}
+
 /* Clean scrollbar for white theme */
 ::-webkit-scrollbar {
   width: 6px;
@@ -156,6 +160,7 @@
     }
   body {
     @apply bg-background text-foreground;
+    font-family: var(--font-anton), system-ui, sans-serif;
     }
 }
 

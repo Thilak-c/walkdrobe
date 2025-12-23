@@ -1,16 +1,15 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
-import { motion } from "framer-motion";
-import { Loader2, Lock, CreditCard } from "lucide-react";
+import { Loader2, CheckCircle, XCircle, ShieldCheck } from "lucide-react";
 
-export default function RazorpayPaymentPage() {
+function PaymentContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const [isProcessing, setIsProcessing] = useState(true);
-  const [error, setError] = useState(null);
+  const [status, setStatus] = useState("loading"); // loading, processing, success, error
+  const [message, setMessage] = useState("Initializing payment...");
   const [paymentData, setPaymentData] = useState(null);
 
   const createOrderMutation = useMutation(api.orders.createOrder);
@@ -18,343 +17,254 @@ export default function RazorpayPaymentPage() {
 
   useEffect(() => {
     const token = searchParams.get("token");
-
     if (!token) {
-      setError("Invalid payment link");
-      setIsProcessing(false);
+      setStatus("error");
+      setMessage("Invalid payment request");
       return;
     }
 
     try {
-      // Decode payment data
       const decoded = JSON.parse(atob(token));
       setPaymentData(decoded);
-
-      // Load Razorpay and initiate payment
-      loadRazorpayAndPay(decoded);
+      initializePayment(decoded);
     } catch (err) {
-      console.error("Error decoding payment data:", err);
-      setError("Invalid payment data");
-      setIsProcessing(false);
+      setStatus("error");
+      setMessage("Failed to decode payment data");
     }
   }, [searchParams]);
 
-  const loadRazorpayScript = () => {
-    return new Promise((resolve) => {
-      if (window.Razorpay) {
-        resolve(window.Razorpay);
-        return;
-      }
+  const initializePayment = async (data) => {
+    setStatus("processing");
+    setMessage("Opening payment gateway...");
 
-      const script = document.createElement("script");
-      script.src = "https://checkout.razorpay.com/v1/checkout.js";
-      script.onload = () => resolve(window.Razorpay);
-      script.onerror = () => resolve(null);
-      document.body.appendChild(script);
-    });
+    // Load Razorpay script
+    const script = document.createElement("script");
+    script.src = "https://checkout.razorpay.com/v1/checkout.js";
+    script.onload = () => openRazorpay(data);
+    script.onerror = () => {
+      setStatus("error");
+      setMessage("Failed to load payment gateway");
+    };
+    document.body.appendChild(script);
   };
 
-  const loadRazorpayAndPay = async (data) => {
+  const openRazorpay = (data) => {
+    // Debug: Log the order_id being used
+    console.log("Opening Razorpay with order_id:", data.orderId);
+    console.log("Using key:", process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || "rzp_live_RtYKQ2F9glN6Vf");
+    
+    if (!data.orderId) {
+      setStatus("error");
+      setMessage("Order ID is missing. Please try again.");
+      return;
+    }
+    
+    const options = {
+      key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || "rzp_live_RtYKQ2F9glN6Vf",
+      amount: data.amount,
+      currency: data.currency || "INR",
+      name: "Walkdrobe",
+      description: data.isHybridPayment 
+        ? `Hybrid Payment - ₹${data.hybridDetails?.upfrontAmount} upfront` 
+        : "Order Payment",
+      order_id: data.orderId,
+      prefill: {
+        name: data.customerDetails?.fullName || "",
+        email: data.customerDetails?.email || "",
+        contact: data.customerDetails?.phone || "",
+      },
+      theme: { color: "#111827" },
+      handler: async (response) => {
+        await handlePaymentSuccess(response, data);
+      },
+      modal: {
+        ondismiss: () => {
+          setStatus("error");
+          setMessage("Payment cancelled");
+          setTimeout(() => router.push("/checkout"), 2000);
+        },
+      },
+    };
+
+    console.log("Razorpay options:", options);
+    
+    const razorpay = new window.Razorpay(options);
+    razorpay.on("payment.failed", (response) => {
+      console.error("Payment failed:", response.error);
+      setStatus("error");
+      setMessage(response.error?.description || "Payment failed");
+    });
+    razorpay.open();
+  };
+
+  const handlePaymentSuccess = async (response, data) => {
+    setStatus("processing");
+    setMessage("Verifying payment...");
+
     try {
-      const Razorpay = await loadRazorpayScript();
-      if (!Razorpay) {
-        throw new Error("Failed to load Razorpay");
-      }
-
-      // Map items to order format
-      let mappedItems;
-      if (data.isDirectPurchase) {
-        mappedItems = [
-          {
-            productId: data.items[0].productId,
-            name: data.items[0].productName,
-            price: data.items[0].price,
-            quantity: data.items[0].quantity,
-            size: data.items[0].size,
-            image: data.items[0].productImage,
-          },
-        ];
-      } else {
-        mappedItems = data.items.map((item) => ({
-          productId: item.productId,
-          name: item.productName,
-          price: item.price,
-          quantity: item.quantity,
-          size: item.size,
-          image: item.productImage,
-        }));
-      }
-
-      // Configure Razorpay options
-      const options = {
-        key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || "rzp_test_RAMQAuyK0c66gh",
-        amount: data.amount,
-        currency: data.currency,
-        name: "Walkdrobe",
-        description: `Order for ${data.customerDetails.fullName}`,
-        image: "https://walkdrobe.in/favicon.png",
-        order_id: data.orderId,
-        prefill: {
-          name: data.customerDetails.fullName,
-          email: data.customerDetails.email,
-          contact: data.customerDetails.phone,
-        },
-        notes: {
-          name: data.customerDetails.fullName,
-          email: data.customerDetails.email,
-          phone: data.customerDetails.phone,
-          address: `${data.customerDetails.address}, ${data.customerDetails.city}, ${data.customerDetails.state} - ${data.customerDetails.pincode}`,
-        },
-        theme: {
-          color: "#000000",
-        },
-        handler: async function (response) {
-          try {
-            setIsProcessing(true);
-
-            // Verify payment
-            const verifyResponse = await fetch("/api/verify-payment", {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify({
-                razorpay_order_id: response.razorpay_order_id,
-                razorpay_payment_id: response.razorpay_payment_id,
-                razorpay_signature: response.razorpay_signature,
-              }),
-            });
-
-            const verifyData = await verifyResponse.json();
-            if (verifyData.success) {
-              // Determine payment method and amounts based on hybrid or regular payment
-              const isHybrid = data.isHybridPayment;
-              const paymentMethod = isHybrid ? "hybrid" : "razorpay";
-              const paymentStatus = isHybrid ? "partial" : "paid";
-              
-              // Create order
-              const orderResult = await createOrderMutation({
-                userId: data.userId || null,
-                items: mappedItems,
-                shippingDetails: data.customerDetails,
-                paymentDetails: {
-                  razorpayOrderId: response.razorpay_order_id,
-                  razorpayPaymentId: response.razorpay_payment_id,
-                  amount: data.orderTotal,
-                  currency: "INR",
-                  status: paymentStatus,
-                  paidAt: Date.now(),
-                  paidBy: data.customerDetails.fullName,
-                  paymentMethod: paymentMethod,
-                  // Hybrid payment specific fields
-                  ...(isHybrid && {
-                    upfrontPaid: data.hybridDetails.upfrontAmount,
-                    codPending: data.hybridDetails.codAmount,
-                    discount: data.hybridDetails.discount,
-                    originalTotal: data.hybridDetails.originalTotal,
-                  }),
-                },
-                orderTotal: data.orderTotal,
-                status: "confirmed",
-              });
-
-              if (orderResult.success) {
-                // Send order confirmation email (non-blocking)
-                fetch("/api/send-order-confirmation", {
-                  method: "POST",
-                  headers: {
-                    "Content-Type": "application/json",
-                  },
-                  body: JSON.stringify({
-                    userEmail: data.customerDetails.email,
-                    userName: data.customerDetails.fullName,
-                    orderNumber: orderResult.orderNumber,
-                    orderItems: mappedItems,
-                    orderTotal: data.orderTotal,
-                    shippingDetails: data.customerDetails,
-                    paymentDetails: {
-                      razorpayOrderId: response.razorpay_order_id,
-                      razorpayPaymentId: response.razorpay_payment_id,
-                      amount: data.orderTotal,
-                      currency: "INR",
-                      status: paymentStatus,
-                      paidAt: Date.now(),
-                      paidBy: data.customerDetails.fullName,
-                      paymentMethod: paymentMethod,
-                      ...(isHybrid && {
-                        upfrontPaid: data.hybridDetails.upfrontAmount,
-                        codPending: data.hybridDetails.codAmount,
-                        discount: data.hybridDetails.discount,
-                      }),
-                    },
-                  }),
-                }).catch((emailError) => {
-                  console.error("Error sending order confirmation email:", emailError);
-                });
-
-                // Clear cart if not direct purchase
-                if (!data.isDirectPurchase && data.userId) {
-                  try {
-                    await clearCartMutation({ userId: data.userId });
-                  } catch (error) {
-                    console.error("Error clearing cart:", error);
-                  }
-                }
-
-                // Redirect to success page on main domain
-                window.location.href = `https://walkdrobe.in/order-success?orderNumber=${orderResult.orderNumber}`;
-              } else {
-                setError("Order creation failed. Please contact support.");
-                setIsProcessing(false);
-              }
-            } else {
-              setError("Payment verification failed. Please contact support.");
-              setIsProcessing(false);
-            }
-          } catch (error) {
-            console.error("Payment verification error:", error);
-            setError("Payment verification failed. Please contact support.");
-            setIsProcessing(false);
-          }
-        },
-        modal: {
-          ondismiss: function () {
-            // Redirect back to checkout with original parameters if direct purchase
-            if (data.isDirectPurchase && data.items && data.items.length > 0) {
-              const item = data.items[0];
-              const params = new URLSearchParams({
-                productId: item.productId,
-                productName: item.productName,
-                productImage: item.productImage,
-                price: item.price,
-                size: item.size,
-                quantity: item.quantity,
-                category: item.category || '',
-                brand: item.brand || '',
-                action: 'buyNow'
-              });
-              window.location.href = `https://walkdrobe.in/checkout?${params.toString()}`;
-            } else {
-              // Regular cart checkout
-              window.location.href = "https://walkdrobe.in/checkout";
-            }
-          },
-        },
-      };
-
-      // Open Razorpay checkout
-      const razorpayInstance = new Razorpay(options);
-
-      razorpayInstance.on("payment.failed", function (response) {
-        setError("Payment failed. Please try again.");
-        setIsProcessing(false);
-        setTimeout(() => {
-          // Redirect back to checkout with original parameters if direct purchase
-          if (data.isDirectPurchase && data.items && data.items.length > 0) {
-            const item = data.items[0];
-            const params = new URLSearchParams({
-              productId: item.productId,
-              productName: item.productName,
-              productImage: item.productImage,
-              price: item.price,
-              size: item.size,
-              quantity: item.quantity,
-              category: item.category || '',
-              brand: item.brand || '',
-              action: 'buyNow'
-            });
-            window.location.href = `https://walkdrobe.in/checkout?${params.toString()}`;
-          } else {
-            window.location.href = "https://walkdrobe.in/checkout";
-          }
-        }, 3000);
+      // Verify payment
+      const verifyRes = await fetch("/api/verify-payment", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          razorpay_order_id: response.razorpay_order_id,
+          razorpay_payment_id: response.razorpay_payment_id,
+          razorpay_signature: response.razorpay_signature,
+        }),
       });
 
-      razorpayInstance.open();
-      setIsProcessing(false);
+      const verifyData = await verifyRes.json();
+      if (!verifyData.success) throw new Error("Payment verification failed");
+
+      setMessage("Creating your order...");
+
+      // Map items for order
+      const mappedItems = data.items.map((item) => ({
+        productId: item.productId || "",
+        name: item.productName || item.name || "",
+        price: Number(item.price) || 0,
+        quantity: Number(item.quantity) || 1,
+        size: item.size || "Free",
+        image: item.productImage || item.image || "",
+      }));
+
+      // Ensure shipping details have all required fields
+      const shippingDetails = {
+        fullName: data.customerDetails?.fullName || "",
+        email: data.customerDetails?.email || "",
+        phone: data.customerDetails?.phone || "",
+        address: data.customerDetails?.address || "",
+        city: data.customerDetails?.city || "",
+        state: data.customerDetails?.state || "",
+        pincode: data.customerDetails?.pincode || "",
+        country: data.customerDetails?.country || "India",
+      };
+
+      // Create order in database
+      const orderResult = await createOrderMutation({
+        userId: data.userId || null,
+        items: mappedItems,
+        shippingDetails: shippingDetails,
+        paymentDetails: {
+          razorpayOrderId: response.razorpay_order_id,
+          razorpayPaymentId: response.razorpay_payment_id,
+          amount: Number(data.orderTotal) || 0,
+          currency: "INR",
+          status: data.isHybridPayment ? "partial" : "paid",
+          paymentMethod: data.isHybridPayment ? "hybrid" : "razorpay",
+        },
+        orderTotal: Number(data.orderTotal) || 0,
+        status: "confirmed",
+      });
+
+      if (!orderResult?.success) throw new Error(orderResult?.message || "Failed to create order");
+
+      // Send confirmation emails
+      await Promise.all([
+        fetch("/api/send-order-confirmation", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            userEmail: shippingDetails.email,
+            userName: shippingDetails.fullName,
+            orderNumber: orderResult.orderNumber,
+            orderItems: mappedItems,
+            orderTotal: data.orderTotal,
+            shippingDetails: shippingDetails,
+            paymentDetails: {
+              amount: data.orderTotal,
+              currency: "INR",
+              status: data.isHybridPayment ? "partial" : "paid",
+              paymentMethod: data.isHybridPayment ? "hybrid" : "razorpay",
+            },
+          }),
+        }).catch(console.error),
+        fetch("/api/send-admin-notification", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            orderNumber: orderResult.orderNumber,
+            customerName: shippingDetails.fullName,
+            customerEmail: shippingDetails.email,
+            orderTotal: data.orderTotal,
+            items: mappedItems,
+            shippingAddress: `${shippingDetails.address}, ${shippingDetails.city}, ${shippingDetails.state} - ${shippingDetails.pincode}`,
+            shippingDetails: shippingDetails,
+            paymentDetails: {
+              amount: data.orderTotal,
+              currency: "INR",
+              status: data.isHybridPayment ? "partial" : "paid",
+              paymentMethod: data.isHybridPayment ? "hybrid" : "razorpay",
+            },
+          }),
+        }).catch(console.error),
+      ]);
+
+      // Clear cart if not direct purchase
+      if (!data.isDirectPurchase && data.userId) {
+        try { await clearCartMutation({ userId: data.userId }); } catch (e) { console.error(e); }
+      }
+
+      setStatus("success");
+      setMessage("Payment successful!");
+      setTimeout(() => router.push(`/order-success?orderNumber=${orderResult.orderNumber}`), 1500);
+
     } catch (error) {
-      console.error("Error loading Razorpay:", error);
-      setError("Failed to load payment gateway. Please try again.");
-      setIsProcessing(false);
+      console.error("Payment processing error:", error);
+      setStatus("error");
+      setMessage(error.message || "Something went wrong");
     }
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center p-4">
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="max-w-md w-full bg-white rounded-2xl shadow-xl p-8 text-center"
-      >
-        {error ? (
+    <div className="min-h-screen bg-white flex items-center justify-center p-6">
+      <div className="text-center max-w-sm">
+        {status === "loading" || status === "processing" ? (
           <>
-            <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <svg
-                className="w-8 h-8 text-red-600"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M6 18L18 6M6 6l12 12"
-                />
-              </svg>
+            <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-6">
+              <Loader2 className="w-8 h-8 text-gray-900 animate-spin" />
             </div>
-            <h2 className="text-2xl font-bold text-gray-900 mb-2">Payment Error</h2>
-            <p className="text-gray-600 mb-6">{error}</p>
-            <button
-              onClick={() => {
-                // Redirect back to checkout with original parameters if direct purchase
-                if (paymentData?.isDirectPurchase && paymentData?.items && paymentData.items.length > 0) {
-                  const item = paymentData.items[0];
-                  const params = new URLSearchParams({
-                    productId: item.productId,
-                    productName: item.productName,
-                    productImage: item.productImage,
-                    price: item.price,
-                    size: item.size,
-                    quantity: item.quantity,
-                    category: item.category || '',
-                    brand: item.brand || '',
-                    action: 'buyNow'
-                  });
-                  window.location.href = `https://walkdrobe.in/checkout?${params.toString()}`;
-                } else {
-                  window.location.href = "https://walkdrobe.in/checkout";
-                }
-              }}
-              className="px-6 py-3 bg-black text-white rounded-lg font-medium hover:bg-gray-800 transition-colors"
-            >
-              Return to Checkout
-            </button>
+            <h2 className="text-xl font-bold text-gray-900 mb-2">Processing Payment</h2>
+            <p className="text-gray-500">{message}</p>
+          </>
+        ) : status === "success" ? (
+          <>
+            <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
+              <CheckCircle className="w-8 h-8 text-green-600" />
+            </div>
+            <h2 className="text-xl font-bold text-gray-900 mb-2">Payment Successful!</h2>
+            <p className="text-gray-500">Redirecting to order confirmation...</p>
           </>
         ) : (
           <>
-            <div className="w-16 h-16 bg-black rounded-full flex items-center justify-center mx-auto mb-4">
-              <Lock className="w-8 h-8 text-white" />
+            <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-6">
+              <XCircle className="w-8 h-8 text-red-600" />
             </div>
-            <h2 className="text-2xl font-bold text-gray-900 mb-2">Secure Payment</h2>
-            <p className="text-gray-600 mb-6">
-              {isProcessing
-                ? "Initializing secure payment gateway..."
-                : "Opening payment window..."}
-            </p>
-            <div className="flex items-center justify-center space-x-2 text-sm text-gray-500">
-              <Loader2 className="w-4 h-4 animate-spin" />
-              <span>Please wait...</span>
-            </div>
-            <div className="mt-6 pt-6 border-t border-gray-200">
-              <div className="flex items-center justify-center space-x-2 text-xs text-gray-400">
-                <Lock className="w-3 h-3" />
-                <span>256-bit SSL Encrypted</span>
-              </div>
-            </div>
+            <h2 className="text-xl font-bold text-gray-900 mb-2">Payment Failed</h2>
+            <p className="text-gray-500 mb-6">{message}</p>
+            <button onClick={() => router.push("/checkout")} className="px-6 py-3 bg-gray-900 text-white rounded-full font-medium">
+              Try Again
+            </button>
           </>
         )}
-      </motion.div>
+
+        <div className="mt-8 flex items-center justify-center gap-2 text-gray-400 text-sm">
+          <ShieldCheck className="w-4 h-4" />
+          <span>Secured by Razorpay</span>
+        </div>
+      </div>
     </div>
+  );
+}
+
+export default function PaymentPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <Loader2 className="w-8 h-8 text-gray-900 animate-spin" />
+      </div>
+    }>
+      <PaymentContent />
+    </Suspense>
   );
 }

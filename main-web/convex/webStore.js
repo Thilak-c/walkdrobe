@@ -438,3 +438,30 @@ export const getFeaturedProducts = query({
     return products;
   },
 });
+
+// Get top picks from web_products (sorted by stock/newest)
+export const getTopPicks = query({
+  args: { limit: v.optional(v.number()) },
+  handler: async (ctx, { limit = 10 }) => {
+    const products = await ctx.db.query("web_products")
+      .filter(q => q.and(
+        q.neq(q.field("isDeleted"), true),
+        q.neq(q.field("isHidden"), true),
+        q.eq(q.field("inStock"), true)
+      ))
+      .order("desc")
+      .collect();
+
+    // Return top products with necessary fields
+    return products.slice(0, limit).map(p => ({
+      _id: p._id,
+      itemId: p.itemId,
+      name: p.name,
+      category: p.category,
+      price: p.price,
+      mainImage: p.mainImage || "/products/placeholder.jpg",
+      createdAt: p.createdAt || null,
+      totalStock: p.totalStock,
+    }));
+  },
+});

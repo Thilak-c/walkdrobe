@@ -5,8 +5,8 @@ import { v } from "convex/values";
 export default defineSchema({
   // Users table for email/password auth
   users: defineTable({
-    email: v.string(),
-    passwordHash: v.string(),
+    email: v.optional(v.string()), // Made optional for phone-only auth
+    passwordHash: v.optional(v.string()), // Made optional for phone-only auth
     name: v.optional(v.string()),
     createdAt: v.string(),
     updatedAt: v.string(),
@@ -55,6 +55,7 @@ export default defineSchema({
     .index("by_email", ["email"])
     .index("by_role", ["role"])
     .index("by_deleted", ["isDeleted"])
+    .index("by_phone", ["phoneNumber"])
     .searchIndex("search_users", {
       searchField: "email",
       filterFields: ["isDeleted"],
@@ -80,6 +81,17 @@ export default defineSchema({
     verified: v.optional(v.boolean()),
   })
     .index("by_email", ["email"])
+    .index("by_otp", ["otp"]),
+
+  // Phone OTPs table for phone-based authentication
+  phoneOTPs: defineTable({
+    phone: v.string(),
+    otp: v.string(),
+    expiresAt: v.string(),
+    createdAt: v.string(),
+    used: v.boolean(),
+  })
+    .index("by_phone", ["phone"])
     .index("by_otp", ["otp"]),
 
   // Trash table for storing deleted items that can be restored

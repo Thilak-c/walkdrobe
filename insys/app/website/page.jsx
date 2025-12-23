@@ -7,9 +7,9 @@ import { Package, AlertTriangle, CheckCircle, XCircle, IndianRupee, TrendingUp, 
 import Link from "next/link";
 
 export default function WebsiteDashboard() {
-  const stats = useQuery(api.webStore.getStats);
-  const lowStock = useQuery(api.webStore.getLowStock, { threshold: 10 });
-  const movements = useQuery(api.webStore.getMovements, { limit: 5 });
+  const stats = useQuery(api.products.getAdminStats);
+  const lowStock = useQuery(api.products.getLowStockProducts, { threshold: 10 });
+  const movements = useQuery(api.products.getInventoryMovements, { limit: 5 });
 
   const isLoading = stats === undefined;
 
@@ -64,8 +64,8 @@ export default function WebsiteDashboard() {
                         <p className="text-sm font-medium text-gray-900 truncate">{p.name}</p>
                         <p className="text-xs text-gray-400">{p.itemId}</p>
                       </div>
-                      <div className={`px-2 py-1 rounded text-xs font-bold ${p.totalStock === 0 ? "bg-red-100 text-red-600" : "bg-amber-100 text-amber-600"}`}>
-                        {p.totalStock} left
+                      <div className={`px-2 py-1 rounded text-xs font-bold ${(p.currentStock || p.totalAvailable || 0) === 0 ? "bg-red-100 text-red-600" : "bg-amber-100 text-amber-600"}`}>
+                        {p.currentStock || p.totalAvailable || 0} left
                       </div>
                     </div>
                   ))}

@@ -7,7 +7,7 @@ export async function generateMetadata({ params }) {
 
   try {
     // Fetch product data for metadata
-    const product = await fetchQuery(api.webStore.getProductById, { productId });
+    const product = await fetchQuery(api.products.getProductById, { productId });
 
     if (!product) {
       return {

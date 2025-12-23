@@ -24,7 +24,7 @@ export default function WebsiteHistoryPage() {
   const [limit, setLimit] = useState(50);
   const [typeFilter, setTypeFilter] = useState("all");
 
-  const movements = useQuery(api.webStore.getMovements, { limit }) || [];
+  const movements = useQuery(api.products.getInventoryMovements, { limit }) || [];
 
   const filteredMovements = typeFilter === "all" 
     ? movements 

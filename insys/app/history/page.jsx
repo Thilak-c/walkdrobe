@@ -512,7 +512,7 @@ export default function HistoryPage() {
                   </div>
                 )}
                 <div className="flex justify-between text-sm">
-                  <span className="text-gray-500">Incl. GST (18%)</span>
+                  <span className="text-gray-500">Incl. GST (5%)</span>
                   <span className="text-gray-500">₹{selectedBill.tax?.toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between text-xl font-bold bg-gray-900 text-white -mx-8 px-8 py-4 mt-4">

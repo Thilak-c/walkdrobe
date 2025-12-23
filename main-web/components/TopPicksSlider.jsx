@@ -22,8 +22,6 @@ export default function TopPicksSlider() {
       try {
         setIsLoading(true);
 
-        const debugData = await convex.query("products:debugProducts");
-
         const result = await convex.query("products:getTopPicks");
         setProducts(result || []);
         setError(null);

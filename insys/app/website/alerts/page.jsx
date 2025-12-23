@@ -12,8 +12,8 @@ export default function WebsiteAlerts() {
   const [editStock, setEditStock] = useState({});
   const [search, setSearch] = useState("");
 
-  const lowStock = useQuery(api.webStore.getLowStock, { threshold: 10 });
-  const updateStock = useMutation(api.webStore.updateStock);
+  const lowStock = useQuery(api.products.getLowStockProducts, { threshold: 10 });
+  const updateStock = useMutation(api.products.updateStockBySize);
 
   const loading = lowStock === undefined;
 
@@ -23,9 +23,9 @@ export default function WebsiteAlerts() {
     filtered = filtered.filter(p => p.name.toLowerCase().includes(s) || p.itemId.toLowerCase().includes(s));
   }
 
-  const outOfStock = filtered.filter(p => p.totalStock === 0);
-  const critical = filtered.filter(p => p.totalStock > 0 && p.totalStock <= 5);
-  const low = filtered.filter(p => p.totalStock > 5);
+  const outOfStock = filtered.filter(p => (p.currentStock || p.totalAvailable || 0) === 0);
+  const critical = filtered.filter(p => (p.currentStock || p.totalAvailable || 0) > 0 && (p.currentStock || p.totalAvailable || 0) <= 5);
+  const low = filtered.filter(p => (p.currentStock || p.totalAvailable || 0) > 5);
 
   const handleEdit = (p) => {
     setEditing(p);
@@ -105,8 +105,10 @@ export default function WebsiteAlerts() {
               </div>
             ) : (
               <div className="divide-y divide-gray-100">
-                {filtered.map(p => (
-                  <div key={p._id} className={`p-4 flex items-center gap-4 ${p.totalStock === 0 ? "bg-red-50/50" : p.totalStock <= 5 ? "bg-amber-50/50" : ""}`}>
+                {filtered.map(p => {
+                  const stock = p.currentStock || p.totalAvailable || 0;
+                  return (
+                  <div key={p._id} className={`p-4 flex items-center gap-4 ${stock === 0 ? "bg-red-50/50" : stock <= 5 ? "bg-amber-50/50" : ""}`}>
                     <div className="w-12 h-12 bg-white rounded-lg overflow-hidden border border-gray-200 shrink-0">
                       {p.mainImage ? <img src={p.mainImage} className="w-full h-full object-cover" /> : <Package className="w-full h-full p-2 text-gray-300" />}
                     </div>
@@ -122,8 +124,8 @@ export default function WebsiteAlerts() {
                       </div>
                     </div>
                     <div className="text-right shrink-0">
-                      <p className={`text-xl font-bold ${p.totalStock === 0 ? "text-red-500" : p.totalStock <= 5 ? "text-amber-500" : "text-gray-900"}`}>
-                        {p.totalStock}
+                      <p className={`text-xl font-bold ${stock === 0 ? "text-red-500" : stock <= 5 ? "text-amber-500" : "text-gray-900"}`}>
+                        {stock}
                       </p>
                       <p className="text-xs text-gray-400">units</p>
                     </div>
@@ -131,7 +133,8 @@ export default function WebsiteAlerts() {
                       <Edit2 size={16} className="text-gray-500" />
                     </button>
                   </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>

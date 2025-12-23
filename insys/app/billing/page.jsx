@@ -534,7 +534,7 @@ export default function BillingPage() {
                                             </div>
                                         )}
                                         <div className="flex justify-between text-sm">
-                                            <span className="text-gray-400">Incl. GST (18%)</span>
+                                            <span className="text-gray-400">Incl. GST (5%)</span>
                                             <span className="text-gray-400">₹{tax.toFixed(2)}</span>
                                         </div>
                                         <div className="flex justify-between text-lg font-bold pt-2 border-t border-gray-100">
@@ -706,7 +706,7 @@ export default function BillingPage() {
                                     </div>
                                 )}
                                 <div className="flex justify-between text-sm">
-                                    <span className="text-gray-500">Incl. GST (18%)</span>
+                                    <span className="text-gray-500">Incl. GST (5%)</span>
                                     <span className="text-gray-500">₹{tax.toFixed(2)}</span>
                                 </div>
                                 <div className="flex justify-between text-xl font-bold bg-gray-900 text-white -mx-8 px-8 py-4 mt-4">

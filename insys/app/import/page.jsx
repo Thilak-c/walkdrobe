@@ -213,7 +213,7 @@ function FileImportTab() {
 }
 
 function WebsiteImportTab() {
-  const websiteProducts = useQuery(api.webStore.getAllProducts) || [];
+  const websiteProducts = useQuery(api.products.getAllProducts) || [];
   const [selected, setSelected] = useState([]);
   const [importing, setImporting] = useState(false);
   const [results, setResults] = useState(null);
