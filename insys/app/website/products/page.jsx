@@ -5,10 +5,15 @@ import { useQuery, useMutation } from "convex/react";
 import { api } from "../../../../main-web/convex/_generated/api";
 import Sidebar from "@/components/Sidebar";
 import { Package, Search, Edit2, Trash2, Plus, X, Save, Globe, Upload } from "lucide-react";
+import { SIZE_CHART_DATA } from "../../../../main-web/components/SizeChart";
 import toast from "react-hot-toast";
 import Link from "next/link";
 
-const SIZES = ["5", "6", "7", "8", "9", "10", "11", "12", "13"];
+const SIZES = (SIZE_CHART_DATA && Array.isArray(SIZE_CHART_DATA)
+  ? Array.from(new Set(SIZE_CHART_DATA.map(s => String(s.uk))))
+      .sort((a, b) => parseFloat(a) - parseFloat(b))
+  : ["5", "6", "7", "8", "9", "10", "11", "12", "13"]
+);
 const COLORS = ["Black", "White", "Brown", "Navy", "Grey", "Red", "Blue", "Green", "Beige", "Tan", "Multi"];
 const CATEGORIES = ["Sneakers", "Boots", "Sandals", "Formal", "Sports", "Casual", "Loafers", "Slippers", "Heels"];
 
@@ -87,7 +92,7 @@ export default function WebsiteProducts() {
   const handleDelete = async (p) => {
     if (!confirm(`Delete ${p.name}?`)) return;
     try {
-      await deleteProduct({ id: p._id });
+      await deleteProduct({ productId: p._id });
       toast.success("Deleted!");
     } catch (err) {
       toast.error(err.message || "Failed");

@@ -34,7 +34,7 @@ import {
 } from "lucide-react";
 import ProductCard from "@/components/ProductCard";
 import { ProductStructuredData, BreadcrumbStructuredData } from "@/components/StructuredData";
-import SizeChart from "@/components/SizeChart";
+import SizeChart, { SIZE_CHART_DATA } from "@/components/SizeChart";
 
 export default function ProductPage() {
   const [token, setToken] = useState(null);
@@ -178,9 +178,23 @@ export default function ProductPage() {
   const getSizeLabel = (size) => {
     const uk = parseFloat(size);
     if (isNaN(uk)) return size;
-    if (sizeSystem === "US") return (uk + 1).toString();
-    if (sizeSystem === "EU") return (uk + 33).toString();
-    return size;
+
+    // Try to find the canonical mapping in the shared size chart
+    const entry = Array.isArray(SIZE_CHART_DATA)
+      ? SIZE_CHART_DATA.find((r) => parseFloat(r.uk) === uk)
+      : null;
+
+    if (sizeSystem === "US") {
+      // Size chart doesn't include US in this dataset — fallback to uk+1
+      return entry && entry.us ? String(entry.us) : String(uk + 1);
+    }
+    if (sizeSystem === "EU") {
+      return entry && entry.euro ? String(entry.euro) : String(uk + 33);
+    }
+    if (sizeSystem === "CM") {
+      return entry && entry.cm ? String(entry.cm) : size;
+    }
+    return String(uk);
   };
 
   if (isLoading) {

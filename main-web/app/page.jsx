@@ -249,7 +249,7 @@ function HeroSection() {
   }, []);
 
   return (
-    <section className="relative bg-gray-50 overflow-hidden pt-16 md:pt-20">
+    <section className="relative bg-gray-50 overflow-hidden pt-16 md:pt-20 h-[70vh]">
       {/* Subtle pattern */}
       <div className="absolute inset-0 opacity-20">
         <div className="absolute inset-0" style={{
@@ -262,14 +262,14 @@ function HeroSection() {
       <div className="relative z-10">
         <div className="max-w-7xl mx-auto px-4 md:px-6 w-full py-8 md:py-16">
           {/* Mobile: Stack vertically, Desktop: Side by side */}
-          <div className="flex flex-col md:grid md:grid-cols-2 gap-6 md:gap-12 items-center min-h-[calc(100vh-120px)] md:min-h-[calc(100vh-160px)]">
+          <div className="flex flex-col md:grid md:grid-cols-2 gap-6 md:gap-12 items-center h-full">
 
             {/* 3D Shoe Viewer */}
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ duration: 0.6 }}
-              className="relative w-full aspect-square bg-gradient-to-br from-gray-50 to-gray-100 rounded-2xl md:rounded-3xl shadow-lg md:shadow-2xl overflow-hidden order-1 md:order-2 max-w-[280px] md:max-w-none mx-auto"
+              className="relative w-full aspect-square bg-gradient-to-br from-gray-50 to-gray-100 rounded-2xl md:rounded-3xl  overflow-hidden order-1 md:order-2 max-w-[280px] md:max-w-none mx-auto"
             >
               <ShoeViewer3D modelPath={shoeModels[currentModel]} />
               
@@ -432,6 +432,42 @@ function CategoriesSection() {
         </div>
       </div>
     </section>
+  );
+}
+
+// Intro Video overlay shown on first visit/load
+function VideoIntro({ videoSrc = "/asscet/intro-v1.mp4", onClose }) {
+  useEffect(() => {
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev || "";
+    };
+  }, []);
+
+  return (
+    <motion.div
+      initial={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.7 }}
+      className="fixed inset-0 z-[9999] bg-black flex items-center justify-center"
+    >
+      <video
+        src={videoSrc}
+        autoPlay
+        muted
+        playsInline
+        onEnded={() => onClose && onClose()}
+        className="w-full h-full object-cover"
+      />
+      <button
+        onClick={() => onClose && onClose()}
+        aria-label="Skip intro"
+        className="absolute top-6 right-6 z-[10000] bg-black/60 text-white px-4 py-2 rounded-md backdrop-blur"
+      >
+        Skip
+      </button>
+    </motion.div>
   );
 }
 
@@ -941,6 +977,7 @@ function StylePopup({ onClose }) {
 // Main Page Component
 export default function Home() {
   const [showStylePopup, setShowStylePopup] = useState(false);
+  const [showIntro, setShowIntro] = useState(true);
 
   useEffect(() => {
     // Check if popup was already shown
@@ -956,23 +993,33 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-white">
-      <Navbar />
-      <HeroSection />
-      <CategoriesSection />
-      <FeaturedProducts />
-      <StoreBanner />
-      <TrendingSection />
-      <Footer />
+      <AnimatePresence>
+        {showIntro && <VideoIntro onClose={() => setShowIntro(false)} />}
+      </AnimatePresence>
+
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={showIntro ? { opacity: 0, y: 20 } : { opacity: 1, y: 0 }}
+        transition={{ duration: 0.9, ease: [0.2, 0.8, 0.2, 1] }}
+      >
+        <Navbar />
+        <HeroSection />
+        <CategoriesSection />
+        <FeaturedProducts />
+        <StoreBanner />
+        <TrendingSection />
+        <Footer />
+      </motion.div>
 
       {/* Style Preference Popup */}
-      <AnimatePresence>
+      {/* <AnimatePresence>
         {showStylePopup && (
           <StylePopup onClose={() => {
             setShowStylePopup(false);
             localStorage.setItem("walkdrobe_popup_shown", "true");
           }} />
         )}
-      </AnimatePresence>
+      </AnimatePresence> */}
     </div>
   );
 }
