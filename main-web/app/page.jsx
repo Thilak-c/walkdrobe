@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import dynamic from "next/dynamic";
@@ -249,7 +249,7 @@ function HeroSection() {
   }, []);
 
   return (
-    <section className="relative bg-gray-50 overflow-hidden pt-16 md:pt-20 h-[70vh]">
+    <section className="relative bg-gray-50 overflow-hidden pt-16 md:pt-20 h-[80vh]">
       {/* Subtle pattern */}
       <div className="absolute inset-0 opacity-20">
         <div className="absolute inset-0" style={{
@@ -437,6 +437,8 @@ function CategoriesSection() {
 
 // Intro Video overlay shown on first visit/load
 function VideoIntro({ videoSrc = "/asscet/intro-v1.mp4", onClose }) {
+  const videoRef = useRef(null);
+
   useEffect(() => {
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
@@ -444,6 +446,28 @@ function VideoIntro({ videoSrc = "/asscet/intro-v1.mp4", onClose }) {
       document.body.style.overflow = prev || "";
     };
   }, []);
+
+  useEffect(() => {
+    const v = videoRef.current;
+    if (!v) return;
+
+    // Request only metadata first and assign src programmatically
+    v.preload = "metadata";
+    v.src = videoSrc;
+    v.load();
+
+    // Attempt autoplay (may be blocked by some browsers) but catch errors
+    const p = v.play();
+    if (p && p.catch) p.catch(() => {});
+
+    return () => {
+      try {
+        v.pause();
+        v.removeAttribute("src");
+        v.load();
+      } catch (e) {}
+    };
+  }, [videoSrc]);
 
   return (
     <motion.div
@@ -453,7 +477,8 @@ function VideoIntro({ videoSrc = "/asscet/intro-v1.mp4", onClose }) {
       className="fixed inset-0 z-[9999] bg-black flex items-center justify-center"
     >
       <video
-        src={videoSrc}
+        ref={videoRef}
+        preload="metadata"
         autoPlay
         muted
         playsInline
@@ -978,6 +1003,7 @@ function StylePopup({ onClose }) {
 export default function Home() {
   const [showStylePopup, setShowStylePopup] = useState(false);
   const [showIntro, setShowIntro] = useState(true);
+  const [contentReady, setContentReady] = useState(false);
 
   useEffect(() => {
     // Check if popup was already shown
@@ -991,16 +1017,23 @@ export default function Home() {
     }
   }, []);
 
+  // Ensure main content only animates in after the intro overlay has fully exited
+  // If intro was already disabled, mark content ready on mount
+  useEffect(() => {
+    if (!showIntro) setContentReady(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   return (
     <div className="min-h-screen bg-white">
-      <AnimatePresence>
+      <AnimatePresence onExitComplete={() => setContentReady(true)}>
         {showIntro && <VideoIntro onClose={() => setShowIntro(false)} />}
       </AnimatePresence>
 
       <motion.div
         initial={{ opacity: 0, y: 20 }}
-        animate={showIntro ? { opacity: 0, y: 20 } : { opacity: 1, y: 0 }}
-        transition={{ duration: 0.9, ease: [0.2, 0.8, 0.2, 1] }}
+        animate={contentReady ? { opacity: 1, y: 0 } : { opacity: 0, y: 20 }}
+        transition={{ duration: 0.6, ease: [0.2, 0.8, 0.2, 1] }}
       >
         <Navbar />
         <HeroSection />
