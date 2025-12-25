@@ -1,4 +1,6 @@
 import { NextResponse } from 'next/server';
+import fs from 'fs/promises';
+import path from 'path';
 
 export async function POST(request) {
   try {
@@ -11,50 +13,36 @@ export async function POST(request) {
       );
     }
 
-    // Get stored OTP data
-    if (!global.otpStore && !global.otpStorePersistent) {
-      return NextResponse.json(
-        { success: false, message: 'No OTP found. Please request a new one.' },
-        { status: 400 }
-      );
+    // Read persisted OTPs
+    const filePath = path.resolve(process.cwd(), 'main-web', 'uploads_files', 'otps.json');
+    let current = [];
+    try {
+      const raw = await fs.readFile(filePath, 'utf8');
+      current = JSON.parse(raw || '[]');
+    } catch (e) {
+      current = [];
     }
 
-    // Try to get OTP from both stores
-    let storedData = global.otpStore?.get(email) || global.otpStorePersistent?.get(email);
-
+    const storedData = current.find((o) => o.email === email);
     if (!storedData) {
-      return NextResponse.json(
-        { success: false, message: 'No OTP found. Please request a new one.' },
-        { status: 400 }
-      );
+      return NextResponse.json({ success: false, message: 'No OTP found. Please request a new one.' }, { status: 400 });
     }
 
-    // Check if OTP has expired
     const now = Date.now();
-    const isExpired = now > storedData.expiresAt;
-    
-    if (isExpired) {
-      global.otpStore?.delete(email);
-      global.otpStorePersistent?.delete(email);
-      return NextResponse.json(
-        { success: false, message: 'OTP has expired. Please request a new one.' },
-        { status: 400 }
-      );
+    if (!storedData.expiresAt || now > storedData.expiresAt) {
+      // remove expired
+      const filtered = current.filter((o) => o.email !== email && (!o.expiresAt || o.expiresAt > now));
+      try { await fs.writeFile(filePath, JSON.stringify(filtered, null, 2), 'utf8'); } catch (e) { console.error('Failed to update otps file', e); }
+      return NextResponse.json({ success: false, message: 'OTP has expired. Please request a new one.' }, { status: 400 });
     }
 
-    // Verify OTP
-    const isOtpValid = storedData.otp === otp;
-    
-    if (!isOtpValid) {
-      return NextResponse.json(
-        { success: false, message: 'Invalid OTP. Please check and try again.' },
-        { status: 400 }
-      );
+    if (storedData.otp !== otp) {
+      return NextResponse.json({ success: false, message: 'Invalid OTP. Please check and try again.' }, { status: 400 });
     }
 
-    // OTP is valid - remove it from both stores
-    global.otpStore?.delete(email);
-    global.otpStorePersistent?.delete(email);
+    // Valid OTP - remove it from persisted store
+    const remaining = current.filter((o) => o.email !== email);
+    try { await fs.writeFile(filePath, JSON.stringify(remaining, null, 2), 'utf8'); } catch (e) { console.error('Failed to remove used otp', e); }
 
     return NextResponse.json({
       success: true,

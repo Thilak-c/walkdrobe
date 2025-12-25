@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
 import { useQuery, useMutation } from "convex/react";
+import { useGuestCart } from "@/hooks/useGuestCart";
 import { api } from "@/convex/_generated/api";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
@@ -37,6 +38,7 @@ export default function CartPage() {
 
   // Get user data
   const me = useQuery(api.users.meByToken, token ? { token } : "skip");
+  const { guestCart, removeFromGuestCart, updateGuestCartQuantity, clearGuestCart, getGuestCartSummary } = useGuestCart();
   
   useEffect(() => {
     if (me) {
@@ -132,37 +134,83 @@ export default function CartPage() {
   };
 
   if (!isLoggedIn) {
+    const guestSummary = getGuestCartSummary();
+    if (!guestSummary || guestSummary.items.length === 0) {
+      return (
+        <div className="min-h-screen bg-gradient-to-br from-gray-50 to-white flex items-center justify-center px-3">
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="text-center space-y-4 max-w-sm mx-auto"
+          >
+            <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto">
+              <Lock className="w-8 h-8 text-gray-600" />
+            </div>
+            <h2 className="text-xl font-bold text-gray-900">Your cart is empty</h2>
+            <p className="text-sm text-gray-600">Add items to your cart — no login required.</p>
+            <div className="flex flex-col space-y-2">
+              <Link href="/shop" className="w-full">
+                <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} className="w-full px-4 py-2.5 bg-gray-900 text-white rounded-lg font-medium hover:bg-gray-800 transition-colors text-sm">Browse Shop</motion.button>
+              </Link>
+              <Link href="/login" className="w-full">
+                <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} className="w-full px-4 py-2.5 bg-white text-gray-900 rounded-lg font-medium border border-gray-900 hover:bg-gray-900 hover:text-white transition-colors text-sm">Login</motion.button>
+              </Link>
+            </div>
+          </motion.div>
+        </div>
+      );
+    }
+
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-white flex items-center justify-center px-3">
-        <motion.div 
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="text-center space-y-4 max-w-sm mx-auto"
-        >
-          <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto">
-            <Lock className="w-8 h-8 text-gray-600" />
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50 pb-16 lg:pb-0">
+        <motion.header initial={{ y: -100, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ type: "spring", stiffness: 100 }} className="border-b border-gray-100 bg-white/80 backdrop-blur-md sticky top-0 z-50 shadow-sm">
+          <div className="max-w-7xl mx-auto px-3 lg:px-8">
+            <div className="flex items-center justify-between h-14 lg:h-20">
+              <motion.button whileHover={{ x: -3 }} whileTap={{ scale: 0.95 }} onClick={() => router.back()} className="flex items-center text-gray-600 hover:text-gray-900 transition-all duration-200 group"><ArrowLeft className="w-4 h-4 text-black lg:w-5 lg:h-5 mr-1.5 lg:mr-2 group-hover:-translate-x-1 transition-transform" /><span className="font-medium text-sm hidden text-black sm:inline">Back</span></motion.button>
+              <h1 className="text-base sm:text-lg lg:text-2xl font-bold text-gray-900 flex justify-center items-center space-x-1.5 lg:space-x-2"><ShoppingCart className="w-4 h-4 sm:w-5 sm:h-5 lg:w-7 lg:h-7" /><span className="hidden sm:inline">Shopping Cart</span><span className="sm:hidden">Cart</span></h1>
+              <div className="w-16 lg:w-20"></div>
+            </div>
           </div>
-          <h2 className="text-xl font-bold text-gray-900">Login Required</h2>
-          <p className="text-sm text-gray-600">Please login to view your cart and manage your items.</p>
-          <div className="flex flex-col space-y-2">
-            <Link href="/login" className="w-full">
-              <motion.button 
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                className="w-full px-4 py-2.5 bg-gray-900 text-white rounded-lg font-medium hover:bg-gray-800 transition-colors text-sm"
-              >
-                Login
-              </motion.button>
-            </Link>
-            <Link href="/signup" className="w-full">
-              <motion.button 
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                className="w-full px-4 py-2.5 bg-white text-gray-900 rounded-lg font-medium border border-gray-900 hover:bg-gray-900 hover:text-white transition-colors text-sm"
-              >
-                Sign Up
-              </motion.button>
-            </Link>
+        </motion.header>
+
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="max-w-7xl mx-auto px-3 lg:px-8 py-4 lg:py-12">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-8">
+            <div className="lg:col-span-2 space-y-3 lg:space-y-6">
+              <h2 className="text-base sm:text-lg lg:text-xl font-bold text-gray-900">Cart Items ({guestSummary.totalItems})</h2>
+              <div className="space-y-2.5 lg:space-y-4">
+                {guestSummary.items.map((item, index) => (
+                  <div key={index} className="bg-white rounded-lg lg:rounded-2xl border border-gray-200 p-3 lg:p-6 shadow-sm hover:shadow-md transition-shadow flex items-start justify-between">
+                    <div className="flex items-start space-x-4">
+                      <div className="w-[80px] h-[100px] rounded-lg overflow-hidden bg-gray-100 flex-shrink-0"><img src={item.productImage} className="w-full h-full object-cover" /></div>
+                      <div>
+                        <h3 className="font-semibold text-gray-900 text-sm">{item.productName}</h3>
+                        <p className="text-gray-600 text-xs">Size: {item.size}</p>
+                        <p className="font-bold text-gray-900 mt-2">₹{item.price}</p>
+                        <div className="flex items-center gap-2 mt-3">
+                          <button onClick={() => updateGuestCartQuantity(item.productId, item.size, Math.max(1, item.quantity - 1))} className="p-1 border border-gray-200 rounded">-</button>
+                          <span className="font-bold">{item.quantity}</span>
+                          <button onClick={() => updateGuestCartQuantity(item.productId, item.size, item.quantity + 1)} className="p-1 border border-gray-200 rounded">+</button>
+                          <button onClick={() => removeFromGuestCart(item.productId, item.size)} className="ml-3 text-sm text-red-600">Remove</button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="hidden lg:block lg:col-span-1">
+              <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm sticky top-24">
+                <h3 className="text-xl font-bold text-gray-900 mb-6">Order Summary</h3>
+                <div className="space-y-4 mb-6">
+                  <div className="flex justify-between text-gray-600"><span>Items ({guestSummary.totalItems})</span><span>₹{guestSummary.totalPrice}</span></div>
+                  <div className="flex justify-between text-gray-600"><span>Protection Fee</span><span>₹{guestSummary.totalItems * 9}</span></div>
+                  <div className="flex justify-between text-gray-600"><span>Delivery</span><span className={guestSummary.totalPrice >= 999 ? 'text-green-600 font-medium' : 'text-gray-600'}>{guestSummary.totalPrice >= 999 ? 'Free' : '₹50.00'}</span></div>
+                </div>
+                <button onClick={() => router.push('/checkout')} className="w-full py-3 bg-gray-900 text-white rounded-full">Checkout</button>
+                <button onClick={() => clearGuestCart()} className="w-full mt-3 py-2 bg-white border border-gray-200 rounded-full">Clear Cart</button>
+              </div>
+            </div>
           </div>
         </motion.div>
       </div>

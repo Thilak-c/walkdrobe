@@ -1,14 +1,14 @@
 import { NextResponse } from 'next/server';
 import nodemailer from 'nodemailer';
 
-// Configure email transporter
+// Configure email transporter (use env vars and avoid hidden unicode in host)
 const transporter = nodemailer.createTransport({
-  host: "﻿​﻿smtp.hostinger.com", // or your provider’s SMTP host
-      port: 465,
-      secure: true, 
+  host: process.env.SMTP_HOST || "smtp.hostinger.com",
+  port: process.env.SMTP_PORT ? Number(process.env.SMTP_PORT) : 465,
+  secure: process.env.SMTP_PORT ? Number(process.env.SMTP_PORT) === 465 : true,
   auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS,
+    user: process.env.EMAIL_USER || process.env.SMTP_USER,
+    pass: process.env.EMAIL_PASS || process.env.SMTP_PASS,
   },
 });
 
@@ -59,9 +59,10 @@ export async function POST(request) {
 
     // Email content
     const mailOptions = {
-      from: `AesthetX Ways <${process.env.EMAIL_USER}>`,
+      from: process.env.EMAIL_FROM || `Walkdrobe <${process.env.EMAIL_USER}>`,
       to: userEmail,
       subject: `Order Confirmation`,
+      text: `Hi ${userName},\n\nThank you for your purchase!\nOrder Number: ${orderNumber}\nTotal: ${orderTotal}\nExpected delivery: ${formattedDeliveryDate}\n\nIf you have questions, reply to this email.`,
       html: `
 <body style="margin:0; padding:0; background-color:#f8f9fa; font-family: Arial, sans-serif;">
     <table width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#f8f9fa">
@@ -167,7 +168,7 @@ export async function POST(request) {
             <!-- CTA -->
             <tr>
               <td align="center" style="padding:24px;">
-                <a href="https://aesthetxways.com/orders" 
+                <a href="https://walkdrobe.in/orders" 
                    style="background:#000000; color:#ffffff; text-decoration:none; padding:14px 28px; 
                           border-radius:6px; font-size:14px; font-weight:600; display:inline-block;">
                   Track Your Order
@@ -189,6 +190,14 @@ export async function POST(request) {
   </body>
 
       `,
+      headers: {
+        'List-Unsubscribe': `<mailto:${process.env.UNSUBSCRIBE_EMAIL || 'unsubscribe@walkdrobe.in'}>, <https://${process.env.NEXT_PUBLIC_SITE_DOMAIN || 'walkdrobe.in'}/unsubscribe>`
+      },
+      replyTo: process.env.REPLY_TO || process.env.EMAIL_USER || process.env.SMTP_USER,
+      envelope: {
+        from: process.env.EMAIL_FROM || process.env.EMAIL_USER || process.env.SMTP_USER,
+        to: userEmail
+      }
     };
 
     // Send email

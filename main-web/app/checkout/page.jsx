@@ -1,9 +1,11 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
+import { useForm } from "react-hook-form";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { motion, AnimatePresence } from "framer-motion";
+import { useGuestCart } from "@/hooks/useGuestCart";
 import {
   ArrowLeft, ShoppingCart, CreditCard, Truck, Shield, Check, Lock, MapPin,
   Phone, Mail, AlertCircle, Loader2, Smartphone, Landmark, Wallet, Banknote, Home, X, Package
@@ -30,37 +32,39 @@ export default function CheckoutPage() {
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
-  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState("hybrid");
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState("upi");
   const [showCODConfirmation, setShowCODConfirmation] = useState(false);
   const [showHybridConfirmation, setShowHybridConfirmation] = useState(false);
-  const [showMissDiscountPrompt, setShowMissDiscountPrompt] = useState(false);
-  const [pendingPaymentMethod, setPendingPaymentMethod] = useState(null);
-  const [useDefaultAddress, setUseDefaultAddress] = useState(true);
+  const saveTimeoutRef = useRef(null);
+  const formInitializedRef = useRef(false);
+  // Only use custom address now
 
   const [shippingDetails, setShippingDetails] = useState({
-    fullName: "", email: "", phone: "", houseNo: "", street: "", landmark: "",
+    fullName: "", email: "", phone: "", flatNo: "", area: "", landmark: "",
     address: "", city: "", state: "", pincode: "", country: "India",
   });
 
-  const [customAddress, setCustomAddress] = useState({
-    fullName: "", email: "", phone: "", houseNo: "", street: "", landmark: "",
-    address: "", city: "", state: "", pincode: "", country: "India",
+  const { register, handleSubmit, watch, setValue, getValues } = useForm({
+    defaultValues: {
+      fullName: "",
+      email: "",
+      phone: "",
+      flatNo: "",
+      area: "",
+      landmark: "",
+      address: "",
+      city: "",
+      state: "",
+      pincode: "",
+      country: "India",
+    },
   });
 
   const handlePaymentMethodChange = (method) => {
-    if (selectedPaymentMethod === "hybrid" && method !== "hybrid") {
-      setPendingPaymentMethod(method);
-      setShowMissDiscountPrompt(true);
-    } else {
-      setSelectedPaymentMethod(method);
-    }
+    setSelectedPaymentMethod(method);
   };
 
-  const confirmSwitchPayment = () => {
-    setSelectedPaymentMethod(pendingPaymentMethod);
-    setShowMissDiscountPrompt(false);
-    setPendingPaymentMethod(null);
-  };
+
 
   const loadRazorpayScript = () => {
     return new Promise((resolve) => {
@@ -83,39 +87,66 @@ export default function CheckoutPage() {
   const me = useQuery(api.users.meByToken, token ? { token } : "skip");
 
   useEffect(() => {
-    if (me) {
-      setIsLoggedIn(true);
-      if (me.name) setShippingDetails((prev) => ({ ...prev, fullName: me.name }));
-      if (me.email) setShippingDetails((prev) => ({ ...prev, email: me.email }));
-      if (me.phoneNumber) setShippingDetails((prev) => ({ ...prev, phone: me.phoneNumber }));
-      if (me.address && typeof me.address === "object") {
-        if (me.address.fullAddress) setShippingDetails((prev) => ({ ...prev, address: me.address.fullAddress }));
-        if (me.address.city) setShippingDetails((prev) => ({ ...prev, city: me.address.city }));
-        if (me.address.state) setShippingDetails((prev) => ({ ...prev, state: me.address.state }));
-        if (me.address.pinCode) setShippingDetails((prev) => ({ ...prev, pincode: me.address.pinCode }));
-      } else if (me.address && typeof me.address === "string") {
-        setShippingDetails((prev) => ({ ...prev, address: me.address }));
-      }
-      if (me.city) setShippingDetails((prev) => ({ ...prev, city: me.city }));
-      if (me.state) setShippingDetails((prev) => ({ ...prev, state: me.state }));
-      if (me.pincode) setShippingDetails((prev) => ({ ...prev, pincode: me.pincode }));
-      setCustomAddress({
-        fullName: me.name || "", email: me.email || "", phone: me.phoneNumber || "",
-        address: me.address?.fullAddress || me.address || "", city: me.address?.city || me.city || "",
-        state: me.address?.state || me.state || "", pincode: me.address?.pinCode || me.pincode || "", country: "India",
-      });
-    } else if (token && !me) { setIsLoggedIn(false); }
-  }, [me, token]);
+    if (!me) {
+      if (token && !me) setIsLoggedIn(false);
+      return;
+    }
+    setIsLoggedIn(true);
+    // Only prefill once and do not overwrite fields the user has already edited.
+    if (formInitializedRef.current) {
+      console.log("checkout: me effect skipped (form already initialized)");
+      return;
+    }
+    console.log("checkout: prefill address from me.address:", me.address);
+    const current = typeof getValues === 'function' ? getValues() : {};
+    if (!current.fullName) setValue("fullName", me.name || "");
+    if (!current.email) setValue("email", me.email || "");
+    if (!current.phone) setValue("phone", me.phoneNumber || "");
+    if (!current.flatNo) setValue("flatNo", me.address?.flatNo || me.address?.houseNo || "");
+    if (!current.area) setValue("area", me.address?.area || me.address?.street || "");
+    if (!current.landmark) setValue("landmark", me.address?.landmark || "");
+    if (!current.address) setValue("address", me.address?.fullAddress || me.address || "");
+    if (!current.city) setValue("city", me.address?.city || me.city || "");
+    if (!current.state) setValue("state", me.address?.state || me.state || "");
+    if (!current.pincode) setValue("pincode", me.address?.pinCode || me.pincode || "");
+    setValue("country", "India");
+    formInitializedRef.current = true;
+  }, [me, token, setValue, getValues]);
 
   useEffect(() => { loadRazorpayScript(); }, []);
 
+  useEffect(() => {
+    return () => {
+      if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+    };
+  }, []);
+
+  // Watch form values and autosave with debounce
+  useEffect(() => {
+    const subscription = watch((value) => {
+      console.log("checkout: watch ->", value);
+      if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+      saveTimeoutRef.current = setTimeout(() => {
+        const vals = getValues();
+        console.log("checkout: autosave values ->", vals);
+        updateUserAddressConvex(vals);
+      }, 600);
+    });
+    return () => subscription.unsubscribe();
+  }, [watch, getValues]);
+
   const userCart = useQuery(api.cart.getUserCart, me && !isDirectPurchase ? { userId: me._id } : "skip");
+  const { guestCart, getGuestCartSummary, clearGuestCart } = useGuestCart();
   const clearCartMutation = useMutation(api.cart.clearCart);
   const createOrderMutation = useMutation(api.orders.createOrder);
 
   const showToastMessage = (message) => { setToastMessage(message); setShowToast(true); setTimeout(() => setShowToast(false), 3000); };
 
-  const cartProductIds = userCart?.items?.map((item) => item.productId) || [];
+  const guestSummary = getGuestCartSummary();
+  const effectiveCartItems = isDirectPurchase ? [] : (me ? (userCart?.items || []) : (guestSummary.items || []));
+  const effectiveCartTotals = isDirectPurchase ? { totalPrice: 0, totalItems: 0 } : (me ? { totalPrice: userCart?.totalPrice || 0, totalItems: userCart?.totalItems || 0 } : { totalPrice: guestSummary.totalPrice || 0, totalItems: guestSummary.totalItems || 0 });
+
+  const cartProductIds = effectiveCartItems?.map((item) => item.productId) || [];
   const cartProducts = useQuery(api.products.getProductsByIds, cartProductIds.length > 0 ? { productIds: cartProductIds } : "skip");
   const directPurchaseProduct = useQuery(api.products.getProductById, isDirectPurchase && directPurchaseItem?.productId ? { productId: directPurchaseItem.productId } : "skip");
 
@@ -128,11 +159,11 @@ export default function CheckoutPage() {
       if (availableStock < directPurchaseItem.quantity) return { isValid: false, message: `Only ${availableStock} available` };
       return { isValid: true, message: "In stock" };
     } else {
-      if (!userCart?.items?.length) return { isValid: false, message: "Cart is empty" };
+      if (!effectiveCartItems || effectiveCartItems.length === 0) return { isValid: false, message: "Cart is empty" };
       if (!cartProducts) return { isValid: false, message: "Loading..." };
       const productMap = new Map();
       cartProducts.forEach((p) => { if (p) { productMap.set(p._id, p); productMap.set(p.itemId, p); } });
-      for (const item of userCart.items) {
+      for (const item of effectiveCartItems) {
         const product = productMap.get(item.productId);
         if (!product || product.isHidden || product.isDeleted || !product.inStock) return { isValid: false, message: `${item.productName} unavailable` };
         if (!product.availableSizes?.includes(item.size)) return { isValid: false, message: `Size ${item.size} unavailable` };
@@ -141,39 +172,86 @@ export default function CheckoutPage() {
       return { isValid: true, message: "All items in stock" };
     }
   };
-
   const getCurrentShippingDetails = () => {
-    const details = useDefaultAddress ? shippingDetails : customAddress;
+    const details = typeof getValues === 'function' ? getValues() : {};
     let finalAddress = details.address;
-    if (details.houseNo || details.street || details.landmark) {
-      const parts = [details.houseNo, details.street, details.landmark].filter(Boolean);
+    if (details.flatNo || details.area || details.landmark) {
+      const parts = [details.flatNo, details.area, details.landmark].filter(Boolean);
       if (parts.length > 0) finalAddress = parts.join(", ");
     }
-    return { fullName: details.fullName || "", email: details.email || "", phone: details.phone || "", address: finalAddress || "", city: details.city || "", state: details.state || "", pincode: details.pincode || "", country: "India" };
+    return {
+      fullName: details.fullName || "",
+      email: details.email || "",
+      phone: details.phone || "",
+      address: finalAddress || "",
+      flatNo: details.flatNo || "",
+      area: details.area || "",
+      landmark: details.landmark || "",
+      city: details.city || "",
+      state: details.state || "",
+      pincode: details.pincode || "",
+      country: details.country || "India",
+    };
   };
 
   const isFormValid = () => {
     const d = getCurrentShippingDetails();
-    return d.fullName && d.email && d.phone && d.address && d.city && d.pincode;
+    return d.fullName && d.email && d.phone && d.address && d.flatNo && d.area && d.city && d.pincode;
+  };
+
+  const updateUserAddressConvex = async (addressData) => {
+    if (me && me._id) {
+      try {
+            console.log("updateUserAddressConvex called with:", addressData, "me:", me && me._id);
+            // Convex `updateUserProfile` validator expects address to only contain
+            // { state, city, pinCode, fullAddress } — remove extra fields.
+            // Normalize address to ensure `fullAddress` is a string.
+            const addressField = addressData.address;
+            let addressString = "";
+            if (typeof addressField === "string") {
+              addressString = addressField;
+            } else if (addressField && typeof addressField === "object") {
+              addressString = addressField.fullAddress || [addressField.flatNo || addressField.houseNo, addressField.area || addressField.street, addressField.landmark].filter(Boolean).join(", ") || addressField.city || "";
+            }
+            const fullAddress = addressString || [addressData.flatNo || addressData.houseNo, addressData.area || addressData.street, addressData.landmark].filter(Boolean).join(", ");
+            const payload = {
+              userId: me._id,
+              name: addressData.fullName || undefined,
+              phoneNumber: addressData.phone || undefined,
+              address: {
+                flatNo: addressData.flatNo || (addressField && addressField.flatNo) || "",
+                area: addressData.area || (addressField && addressField.area) || "",
+                landmark: addressData.landmark || (addressField && addressField.landmark) || "",
+                state: addressData.state || (addressField && addressField.state) || "",
+                city: addressData.city || (addressField && addressField.city) || "",
+                pinCode: addressData.pincode || (addressField && addressField.pinCode) || "",
+                fullAddress: fullAddress || "",
+              },
+            };
+            console.log("updateUserAddressConvex payload:", payload);
+            const res = await fetch("/api/convex/users/updateUserProfile", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(payload),
+        });
+        const result = await res.json();
+        console.log("updateUserAddressConvex result:", result);
+        if (!result || !result.success) {
+          showToastMessage("Failed saving address");
+        }
+      } catch (e) {
+        console.error("updateUserAddressConvex error:", e);
+        showToastMessage("Failed saving address");
+      }
+    }
   };
 
   const handleInputChange = (field, value) => {
-    if (useDefaultAddress) setShippingDetails((prev) => ({ ...prev, [field]: value }));
-    else setCustomAddress((prev) => ({ ...prev, [field]: value }));
+    // legacy handler - not used when using react-hook-form
+    setValue(field, value);
   };
 
-  const handleAddressToggle = (useDefault) => {
-    setUseDefaultAddress(useDefault);
-    if (useDefault) {
-      setShippingDetails((prev) => ({
-        ...prev, fullName: me?.name || "", email: me?.email || "", phone: me?.phoneNumber || "",
-        address: me?.address?.fullAddress || me?.address || "", city: me?.address?.city || me?.city || "",
-        state: me?.address?.state || me?.state || "", pincode: me?.address?.pinCode || me?.pincode || "", country: "India",
-      }));
-    } else {
-      setCustomAddress({ fullName: "", email: "", phone: "", address: "", city: "", state: "", pincode: "", country: "India" });
-    }
-  };
+  // Removed address toggle logic
 
   const getOrderTotals = () => {
     if (isDirectPurchase) {
@@ -182,22 +260,22 @@ export default function CheckoutPage() {
       const protectPromiseFee = directPurchaseItem.quantity * 9;
       return { subtotal, deliveryFee, protectPromiseFee, finalTotal: subtotal + protectPromiseFee + deliveryFee };
     } else {
-      if (!userCart) return { subtotal: 0, deliveryFee: 0, protectPromiseFee: 0, finalTotal: 0 };
-      const deliveryFee = userCart.totalPrice >= 999 ? 0 : 50;
-      return { subtotal: userCart.totalPrice, deliveryFee, protectPromiseFee: userCart.totalItems * 9, finalTotal: userCart.totalPrice + userCart.totalItems * 9 + deliveryFee };
+      if (!effectiveCartItems) return { subtotal: 0, deliveryFee: 0, protectPromiseFee: 0, finalTotal: 0 };
+      const deliveryFee = effectiveCartTotals.totalPrice >= 999 ? 0 : 50;
+      return { subtotal: effectiveCartTotals.totalPrice, deliveryFee, protectPromiseFee: effectiveCartTotals.totalItems * 9, finalTotal: effectiveCartTotals.totalPrice + effectiveCartTotals.totalItems * 9 + deliveryFee };
     }
   };
 
-  const { subtotal, deliveryFee, protectPromiseFee, finalTotal } = (!isDirectPurchase && !userCart) ? { subtotal: 0, deliveryFee: 0, protectPromiseFee: 0, finalTotal: 0 } : getOrderTotals();
+  const { subtotal, deliveryFee, protectPromiseFee, finalTotal } = (isDirectPurchase ? getOrderTotals() : (effectiveCartItems.length === 0 ? { subtotal: 0, deliveryFee: 0, protectPromiseFee: 0, finalTotal: 0 } : getOrderTotals()));
   const hybridDiscount = Math.round(finalTotal * 0.05);
   const hybridFinalTotal = finalTotal - hybridDiscount;
   const hybridUpfrontAmount = Math.round(hybridFinalTotal * 0.20);
   const hybridCodAmount = hybridFinalTotal - hybridUpfrontAmount;
 
   const createRazorpayOrder = async () => {
-    const response = await fetch("/api/create-order", {
+      const response = await fetch("/api/create-order", {
       method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ amount: finalTotal, currency: "INR", receipt: `order_${Date.now()}`, notes: { userId: me?._id || "guest", userEmail: getCurrentShippingDetails().email, userName: getCurrentShippingDetails().fullName, isGuestCheckout: !me } }),
+        body: JSON.stringify({ amount: finalTotal, currency: "INR", receipt: `order_${Date.now()}`, notes: { userId: me?._id || "guest", userEmail: getCurrentShippingDetails().email, userName: getCurrentShippingDetails().fullName, isGuestCheckout: !me } }),
     });
     const data = await response.json();
     if (!data.success) throw new Error(data.error || "Failed to create order");
@@ -260,6 +338,15 @@ export default function CheckoutPage() {
         status: "confirmed",
       });
 
+      // Save address to user table if logged in
+      if (me && me._id) {
+        await fetch("/api/update-user-address", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ userId: me._id, address: shippingDetails }),
+        });
+      }
+
       if (!orderResult?.success) throw new Error(orderResult?.message || "Failed to create order");
 
       // Send confirmation emails
@@ -304,8 +391,12 @@ export default function CheckoutPage() {
       ]);
 
       // Clear cart if not direct purchase
-      if (!paymentData.isDirectPurchase && paymentData.userId) {
-        try { await clearCartMutation({ userId: paymentData.userId }); } catch (e) { console.error(e); }
+      if (!paymentData.isDirectPurchase) {
+        if (paymentData.userId) {
+          try { await clearCartMutation({ userId: paymentData.userId }); } catch (e) { console.error(e); }
+        } else {
+          try { clearGuestCart(); } catch (e) { console.error(e); }
+        }
       }
 
       showToastMessage("Payment successful! Redirecting...");
@@ -371,6 +462,12 @@ export default function CheckoutPage() {
     setShowHybridConfirmation(false);
     setIsProcessing(true);
     try {
+      const currentShippingDetails = getCurrentShippingDetails();
+      if (!currentShippingDetails.fullName || !currentShippingDetails.email || !currentShippingDetails.phone || !currentShippingDetails.address || !currentShippingDetails.city || !currentShippingDetails.pincode || !currentShippingDetails.flatNo || !currentShippingDetails.area) {
+        showToastMessage("Please fill all required fields");
+        setIsProcessing(false);
+        return;
+      }
       const response = await fetch("/api/create-order", {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ amount: hybridUpfrontAmount, currency: "INR", receipt: `hybrid_${Date.now()}`, notes: { userId: me?._id || "guest", userEmail: getCurrentShippingDetails().email, userName: getCurrentShippingDetails().fullName, paymentType: "hybrid", totalAmount: hybridFinalTotal, codAmount: hybridCodAmount, discount: hybridDiscount } }),
@@ -392,17 +489,20 @@ export default function CheckoutPage() {
     setIsProcessing(true);
     try {
       const currentShippingDetails = getCurrentShippingDetails();
-      if (!currentShippingDetails.fullName || !currentShippingDetails.email || !currentShippingDetails.phone || !currentShippingDetails.address || !currentShippingDetails.city || !currentShippingDetails.pincode) {
+      if (!currentShippingDetails.fullName || !currentShippingDetails.email || !currentShippingDetails.phone || !currentShippingDetails.address || !currentShippingDetails.flatNo || !currentShippingDetails.area || !currentShippingDetails.city || !currentShippingDetails.pincode) {
         showToastMessage("Please fill all required fields"); setIsProcessing(false); return;
       }
       const mappedItems = isDirectPurchase ? [{ productId: directPurchaseItem.productId, name: directPurchaseItem.productName, price: directPurchaseItem.price, quantity: directPurchaseItem.quantity, size: directPurchaseItem.size, image: directPurchaseItem.productImage }]
         : userCart.items.map((item) => ({ productId: item.productId, name: item.productName, price: item.price, quantity: item.quantity, size: item.size, image: item.productImage }));
       const orderResult = await createOrderMutation({ userId: me?._id || null, items: mappedItems, shippingDetails: currentShippingDetails, paymentDetails: { amount: finalTotal, currency: "INR", status: "pending", paymentMethod: "cod" }, orderTotal: finalTotal, status: "confirmed" });
-      if (orderResult?.success) {
+        if (orderResult?.success) {
         showToastMessage("Order placed successfully!");
         fetch("/api/send-order-confirmation", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ userEmail: currentShippingDetails.email, userName: currentShippingDetails.fullName, orderNumber: orderResult.orderNumber, orderItems: mappedItems, orderTotal: finalTotal, shippingDetails: currentShippingDetails, paymentDetails: { amount: finalTotal, currency: "INR", status: "pending", paymentMethod: "cod" } }) }).catch(console.error);
         fetch("/api/send-admin-notification", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ orderNumber: orderResult.orderNumber, customerName: currentShippingDetails.fullName, customerEmail: currentShippingDetails.email, orderTotal: finalTotal, items: mappedItems, shippingAddress: `${currentShippingDetails.address}, ${currentShippingDetails.city}, ${currentShippingDetails.state} - ${currentShippingDetails.pincode}`, shippingDetails: currentShippingDetails, paymentDetails: { amount: finalTotal, currency: "INR", status: "pending", paymentMethod: "cod" } }) }).catch(console.error);
-        if (!isDirectPurchase && me) { try { await clearCartMutation({ userId: me._id }); } catch (e) { console.error(e); } }
+        if (!isDirectPurchase) {
+          if (me) { try { await clearCartMutation({ userId: me._id }); } catch (e) { console.error(e); } }
+          else { try { clearGuestCart(); } catch (e) { console.error(e); } }
+        }
         setTimeout(() => { router.push(`/order-success?orderNumber=${orderResult.orderNumber}`); }, 1500);
       } else { showToastMessage(orderResult?.message || "Order failed"); }
     } catch (error) { showToastMessage(`Failed: ${error.message}`); }
@@ -533,45 +633,27 @@ export default function CheckoutPage() {
                 Delivery Address
               </h2>
 
-              {/* Address Toggle */}
-              <div className="flex gap-3 mb-5">
-                {me && (
-                  <button onClick={() => handleAddressToggle(true)} className={`flex-1 p-3 rounded-xl border-2 text-left transition-all ${useDefaultAddress ? "border-gray-900 bg-white" : "border-gray-200 hover:border-gray-300"}`}>
-                    <div className="flex items-center gap-2 mb-1">
-                      <Home className="w-4 h-4" />
-                      <span className="font-medium text-sm">Default Address</span>
-                    </div>
-                    <p className="text-xs text-gray-500 truncate">{me?.address?.fullAddress || me?.address || "No address saved"}</p>
-                  </button>
-                )}
-                <button onClick={() => handleAddressToggle(false)} className={`flex-1 p-3 rounded-xl border-2 text-left transition-all ${!useDefaultAddress ? "border-gray-900 bg-white" : "border-gray-200 hover:border-gray-300"}`}>
-                  <div className="flex items-center gap-2 mb-1">
-                    <MapPin className="w-4 h-4" />
-                    <span className="font-medium text-sm">New Address</span>
+              {/* Address Form - Always visible and sticky */}
+              <div className="sticky top-0 z-40 bg-gray-50 rounded-2xl p-5 shadow-xl">
+                <h2 className="text-base font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                  <MapPin className="w-5 h-5" />
+                  Enter Delivery Address
+                </h2>
+                  <div className="grid grid-cols-2 gap-3">
+                    <input type="text" placeholder="Full Name *" {...register('fullName')} onBlur={() => updateUserAddressConvex(getValues())} className="col-span-2 px-4 py-3 bg-white border border-gray-900 rounded-xl text-sm focus:ring-2 focus:ring-gray-900 focus:border-transparent" />
+                    <input type="email" placeholder="Email *" {...register('email')} onBlur={() => updateUserAddressConvex(getValues())} className="px-4 py-3 bg-white border border-gray-900 rounded-xl text-sm focus:ring-2 focus:ring-gray-900 focus:border-transparent" />
+                    <input type="tel" placeholder="Phone No *" {...register('phone')} onBlur={() => updateUserAddressConvex(getValues())} className="px-4 py-3 bg-white border border-gray-900 rounded-xl text-sm focus:ring-2 focus:ring-gray-900 focus:border-transparent" />
+                    <input type="text" placeholder="Flat/House No. *" {...register('flatNo')} onBlur={() => updateUserAddressConvex(getValues())} className="px-4 py-3 bg-white border border-gray-900 rounded-xl text-sm focus:ring-2 focus:ring-gray-900 focus:border-transparent" />
+                    <input type="text" placeholder="Area / Locality *" {...register('area')} onBlur={() => updateUserAddressConvex(getValues())} className="px-4 py-3 bg-white border border-gray-900 rounded-xl text-sm focus:ring-2 focus:ring-gray-900 focus:border-transparent" />
+                    <input type="text" placeholder="Landmark (Optional)" {...register('landmark')} onBlur={() => updateUserAddressConvex(getValues())} className="col-span-2 px-4 py-3 bg-white border border-gray-900 rounded-xl text-sm focus:ring-2 focus:ring-gray-900 focus:border-transparent" />
+                    <input type="text" placeholder="City *" {...register('city')} onBlur={() => updateUserAddressConvex(getValues())} className="px-4 py-3 bg-white border border-gray-900 rounded-xl text-sm focus:ring-2 focus:ring-gray-900 focus:border-transparent" />
+                    <input type="text" placeholder="State *" {...register('state')} onBlur={() => updateUserAddressConvex(getValues())} className="px-4 py-3 bg-white border border-gray-900 rounded-xl text-sm focus:ring-2 focus:ring-gray-900 focus:border-transparent" />
+                    <input type="text" placeholder="Pincode *" {...register('pincode')} onBlur={() => updateUserAddressConvex(getValues())} className="px-4 py-3 bg-white border border-gray-900 rounded-xl text-sm focus:ring-2 focus:ring-gray-900 focus:border-transparent" />
+                    <input type="text" value="India" disabled className="px-4 py-3 bg-gray-100 border border-gray-900 rounded-xl text-sm text-gray-500" />
                   </div>
-                  <p className="text-xs text-gray-500">Enter a different address</p>
-                </button>
               </div>
 
-              {/* Address Form */}
-              <AnimatePresence>
-                {!useDefaultAddress && (
-                  <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="space-y-4 overflow-hidden">
-                    <div className="grid grid-cols-2 gap-3">
-                      <input type="text" placeholder="Full Name *" value={getCurrentShippingDetails().fullName} onChange={(e) => handleInputChange("fullName", e.target.value)} className="col-span-2 px-4 py-3 bg-white border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-gray-900 focus:border-transparent" />
-                      <input type="email" placeholder="Email *" value={getCurrentShippingDetails().email} onChange={(e) => handleInputChange("email", e.target.value)} className="px-4 py-3 bg-white border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-gray-900 focus:border-transparent" />
-                      <input type="tel *" placeholder="Phone No" value={getCurrentShippingDetails().phone} onChange={(e) => handleInputChange("phone", e.target.value)} className="px-4 py-3 bg-white border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-gray-900 focus:border-transparent" />
-                      <input type="text" placeholder="House/Flat No. *" value={useDefaultAddress ? shippingDetails.houseNo : customAddress.houseNo} onChange={(e) => handleInputChange("houseNo", e.target.value)} className="px-4 py-3 bg-white border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-gray-900 focus:border-transparent" />
-                      <input type="text" placeholder="Street/Area *" value={useDefaultAddress ? shippingDetails.street : customAddress.street} onChange={(e) => handleInputChange("street", e.target.value)} className="px-4 py-3 bg-white border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-gray-900 focus:border-transparent" />
-                      <input type="text" placeholder="Landmark (Optional)" value={useDefaultAddress ? shippingDetails.landmark : customAddress.landmark} onChange={(e) => handleInputChange("landmark", e.target.value)} className="col-span-2 px-4 py-3 bg-white border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-gray-900 focus:border-transparent" />
-                      <input type="text" placeholder="City *" value={getCurrentShippingDetails().city} onChange={(e) => handleInputChange("city", e.target.value)} className="px-4 py-3 bg-white border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-gray-900 focus:border-transparent" />
-                      <input type="text" placeholder="State *" value={getCurrentShippingDetails().state} onChange={(e) => handleInputChange("state", e.target.value)} className="px-4 py-3 bg-white border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-gray-900 focus:border-transparent" />
-                      <input type="text" placeholder="Pincode *" value={getCurrentShippingDetails().pincode} onChange={(e) => handleInputChange("pincode", e.target.value)} className="px-4 py-3 bg-white border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-gray-900 focus:border-transparent" />
-                      <input type="text" value="India" disabled className="px-4 py-3 bg-gray-100 border border-gray-200 rounded-xl text-sm text-gray-500" />
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
+             
             </div>
    
 
@@ -583,7 +665,7 @@ export default function CheckoutPage() {
               </h2>
               <div className="space-y-3">
                 {/* Hybrid - Recommended */}
-                <button onClick={() => setSelectedPaymentMethod("hybrid")} className={`w-full p-4 rounded-xl border-2 text-left transition-all relative ${selectedPaymentMethod === "hybrid" ? "border-gray-900 bg-white" : "border-gray-200 hover:border-gray-300"}`}>
+                {/* <button onClick={() => setSelectedPaymentMethod("hybrid")} className={`w-full p-4 rounded-xl border-2 text-left transition-all relative ${selectedPaymentMethod === "hybrid" ? "border-gray-900 bg-white" : "border-gray-200 hover:border-gray-300"}`}>
                   <span className="absolute -top-2 right-3 bg-green-500 text-white text-xs px-2 py-0.5 rounded-full font-medium">5% OFF</span>
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center">
@@ -597,7 +679,7 @@ export default function CheckoutPage() {
                       {selectedPaymentMethod === "hybrid" && <Check className="w-3 h-3 text-white" />}
                     </div>
                   </div>
-                </button>
+                </button> */}
 
                 {/* UPI */}
                 <button onClick={() => handlePaymentMethodChange("upi")} className={`w-full p-4 rounded-xl border-2 text-left transition-all ${selectedPaymentMethod === "upi" ? "border-gray-900 bg-white" : "border-gray-200 hover:border-gray-300"}`}>
@@ -723,30 +805,7 @@ export default function CheckoutPage() {
         </div>
       </div>
 
-      {/* Miss Discount Prompt Modal */}
-      <AnimatePresence>
-        {showMissDiscountPrompt && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm" onClick={() => setShowMissDiscountPrompt(false)}>
-            <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }} onClick={(e) => e.stopPropagation()} className="bg-white rounded-3xl shadow-2xl max-w-sm w-full overflow-hidden">
-              <div className="p-6 text-center">
-                <div className="text-4xl mb-3">😮</div>
-                <h3 className="text-xl font-bold text-gray-900 mb-2">Wait! Are you sure?</h3>
-                <p className="text-gray-500 text-sm mb-4">You're about to miss out on 5% savings!</p>
-                <div className="bg-green-50 border border-green-200 rounded-xl p-4 mb-4">
-                  <p className="text-green-700 font-semibold text-lg">Save ₹{hybridDiscount}</p>
-                  <p className="text-green-600 text-xs">with Hybrid Payment</p>
-                </div>
-                <button onClick={() => { setShowMissDiscountPrompt(false); setSelectedPaymentMethod("hybrid"); setPendingPaymentMethod(null); }} className="w-full bg-gray-900 text-white py-3 rounded-full font-semibold mb-2">
-                  Yes! Give me 5% OFF
-                </button>
-                <button onClick={confirmSwitchPayment} className="w-full text-gray-500 py-2 text-sm">
-                  No thanks, continue without discount
-                </button>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {/* Miss Discount Prompt removed per request */}
 
       {/* COD Confirmation Modal */}
       <AnimatePresence>
@@ -801,81 +860,9 @@ export default function CheckoutPage() {
         )}
       </AnimatePresence>
 
-      {/* Hybrid Confirmation Modal */}
-      <AnimatePresence>
-        {showHybridConfirmation && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/50 backdrop-blur-sm" onClick={() => setShowHybridConfirmation(false)}>
-            <motion.div initial={{ y: 100, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 100, opacity: 0 }} onClick={(e) => e.stopPropagation()} className="bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl max-w-lg w-full max-h-[85vh] overflow-y-auto">
-              <div className="p-5">
-                <div className="flex items-center justify-between mb-4">
-                  <div>
-                    <h3 className="text-lg font-bold text-gray-900">Hybrid Payment</h3>
-                    <p className="text-xs text-green-600 font-medium">5% OFF Applied!</p>
-                  </div>
-                  <button onClick={() => setShowHybridConfirmation(false)} className="p-2 text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
-                </div>
-
-                {/* Savings */}
-                <div className="bg-green-50 border border-green-200 rounded-xl p-4 mb-4">
-                  <div className="flex justify-between text-sm mb-2">
-                    <span className="text-gray-600">Original Total</span>
-                    <span className="text-gray-400 line-through">₹{finalTotal}</span>
-                  </div>
-                  <div className="flex justify-between text-sm mb-2">
-                    <span className="text-green-600">Discount (5%)</span>
-                    <span className="text-green-600">-₹{hybridDiscount}</span>
-                  </div>
-                  <div className="flex justify-between font-bold border-t border-green-200 pt-2">
-                    <span className="text-gray-900">Final Total</span>
-                    <span className="text-green-600 text-lg">₹{hybridFinalTotal}</span>
-                  </div>
-                </div>
-
-                {/* Payment Split */}
-                <div className="grid grid-cols-2 gap-3 mb-4">
-                  <div className="bg-gray-50 rounded-xl p-4 text-center">
-                    <CreditCard className="w-6 h-6 text-gray-600 mx-auto mb-2" />
-                    <p className="text-xs text-gray-500">Pay Now</p>
-                    <p className="text-xl font-bold text-gray-900">₹{hybridUpfrontAmount}</p>
-                  </div>
-                  <div className="bg-gray-50 rounded-xl p-4 text-center">
-                    <Truck className="w-6 h-6 text-gray-600 mx-auto mb-2" />
-                    <p className="text-xs text-gray-500">On Delivery</p>
-                    <p className="text-xl font-bold text-gray-900">₹{hybridCodAmount}</p>
-                  </div>
-                </div>
-
-                {/* Items */}
-                <div className="space-y-2 mb-4 max-h-24 overflow-y-auto">
-                  {items.map((item, i) => (
-                    <div key={i} className="flex items-center gap-3 p-2 bg-gray-50 rounded-xl">
-                      <img src={item.productImage} alt="" className="w-10 h-10 object-cover rounded-lg" />
-                      <div className="flex-1 min-w-0">
-                        <p className="font-medium text-gray-900 text-xs truncate">{item.productName}</p>
-                        <p className="text-xs text-gray-500">{item.size} × {item.quantity}</p>
-                      </div>
-                      <p className="font-semibold text-xs">₹{item.price}</p>
-                    </div>
-                  ))}
-                </div>
-
-                {/* Address */}
-                <div className="bg-gray-50 rounded-xl p-3 mb-4">
-                  <p className="font-medium text-gray-900 text-sm">{getCurrentShippingDetails().fullName}</p>
-                  <p className="text-xs text-gray-500 truncate">{getCurrentShippingDetails().address}, {getCurrentShippingDetails().city} - {getCurrentShippingDetails().pincode}</p>
-                </div>
-
-                <div className="flex gap-3">
-                  <button onClick={() => setShowHybridConfirmation(false)} className="flex-1 py-3 border border-gray-300 text-gray-600 rounded-full font-medium">Cancel</button>
-                  <button onClick={handleHybridPayment} disabled={isProcessing} className="flex-[2] py-3 bg-gray-900 text-white rounded-full font-semibold disabled:opacity-50 flex items-center justify-center gap-2">
-                    {isProcessing ? <><Loader2 className="w-4 h-4 animate-spin" /> Processing...</> : <><CreditCard className="w-4 h-4" /> Pay ₹{hybridUpfrontAmount}</>}
-                  </button>
-                </div>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+     
+    
     </div>
   );
 }
+

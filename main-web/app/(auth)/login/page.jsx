@@ -12,17 +12,15 @@ export default function LoginPage() {
   const searchParams = useSearchParams();
   const returnUrl = searchParams.get("returnUrl") || "/";
   
-  const [step, setStep] = useState(1); // 1: phone, 2: otp
-  const [phone, setPhone] = useState("");
+  const [step, setStep] = useState(1); // 1: email, 2: otp
+  const [email, setEmail] = useState("");
   const [otp, setOtp] = useState(["", "", "", "", "", ""]);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [resendTimer, setResendTimer] = useState(0);
   
   const otpRefs = useRef([]);
-  
-  const sendOtpMutation = useMutation(api.auth.sendPhoneOTP);
-  const verifyOtpMutation = useMutation(api.auth.verifyPhoneOTP);
+  const createSessionMutation = useMutation(api.auth.createSessionForEmail);
   
   // Check if already logged in
   const getToken = () => {
@@ -48,32 +46,31 @@ export default function LoginPage() {
     }
   }, [resendTimer]);
 
-  const formatPhone = (value) => {
-    const digits = value.replace(/\D/g, "").slice(0, 10);
-    return digits;
-  };
-
-  const handlePhoneChange = (e) => {
-    setPhone(formatPhone(e.target.value));
+  const handleEmailChange = (e) => {
+    setEmail(e.target.value);
     setError("");
   };
 
   const handleSendOTP = async () => {
-    if (phone.length !== 10) {
-      setError("Please enter a valid 10-digit phone number");
+    if (!email || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
+      setError("Please enter a valid email address");
       return;
     }
-    
+
     setLoading(true);
     setError("");
-    
+
     try {
-      const result = await sendOtpMutation({ phone: `+91${phone}` });
-      
+      const res = await fetch("/api/send-otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: email.trim().toLowerCase() }),
+      });
+      const result = await res.json();
+
       if (result.success) {
         setStep(2);
         setResendTimer(30);
-        // Focus first OTP input
         setTimeout(() => otpRefs.current[0]?.focus(), 100);
       } else {
         setError(result.message || "Failed to send OTP");
@@ -131,16 +128,24 @@ export default function LoginPage() {
     setError("");
     
     try {
-      const result = await verifyOtpMutation({ phone: `+91${phone}`, otp: code });
-      
+      const res = await fetch("/api/verify-otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: email.trim().toLowerCase(), otp: code }),
+      });
+      const result = await res.json();
+
       if (result.success) {
-        // Set session cookie
-        const isSecure = window.location.protocol === "https:";
-        const cookieOptions = `Path=/; SameSite=Lax; Max-Age=${60 * 60 * 24 * 30}${isSecure ? "; Secure" : ""}`;
-        document.cookie = `sessionToken=${result.sessionToken}; ${cookieOptions}`;
-        
-        // Redirect
-        router.push(returnUrl);
+        // create session via Convex
+        const sessionResp = await createSessionMutation({ email: email.trim().toLowerCase() });
+        if (sessionResp && sessionResp.success && sessionResp.sessionToken) {
+          const isSecure = window.location.protocol === "https:";
+          const cookieOptions = `Path=/; SameSite=Lax; Max-Age=${60 * 60 * 24 * 30}${isSecure ? "; Secure" : ""}`;
+          document.cookie = `sessionToken=${sessionResp.sessionToken}; ${cookieOptions}`;
+          router.push(returnUrl);
+        } else {
+          setError(sessionResp.message || "Failed to create session");
+        }
       } else {
         setError(result.message || "Invalid OTP");
         setOtp(["", "", "", "", "", ""]);
@@ -173,7 +178,7 @@ export default function LoginPage() {
         <AnimatePresence mode="wait">
           {step === 1 ? (
             <motion.div
-              key="phone"
+              key="email"
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: 20 }}
@@ -181,24 +186,19 @@ export default function LoginPage() {
             >
               {/* Title */}
               <div className="space-y-2">
-                <h1 className="text-3xl font-bold text-gray-900">Enter your phone</h1>
-                <p className="text-gray-500">We'll send you a verification code</p>
+                <h1 className="text-3xl font-bold text-gray-900">Sign in with email</h1>
+                <p className="text-gray-500">Enter your email and we'll send a one-time code</p>
               </div>
 
-              {/* Phone Input */}
+              {/* Email Input */}
               <div className="space-y-4">
-                <div className="flex items-center gap-3 p-4 bg-gray-50 rounded-2xl border-2 border-transparent focus-within:border-gray-900 focus-within:bg-white transition-all">
-                  <div className="flex items-center gap-2 text-gray-500 font-medium">
-                    <span className="text-lg">🇮🇳</span>
-                    <span>+91</span>
-                  </div>
+                <div className="p-4 bg-gray-50 rounded-2xl border-2 border-transparent focus-within:border-gray-900 focus-within:bg-white transition-all">
                   <input
-                    type="tel"
-                    value={phone}
-                    onChange={handlePhoneChange}
-                    placeholder="00000 00000"
-                    className="flex-1 bg-transparent text-xl font-medium text-gray-900 placeholder:text-gray-300 focus:outline-none tracking-wide"
-                    maxLength={10}
+                    type="email"
+                    value={email}
+                    onChange={handleEmailChange}
+                    placeholder="you@example.com"
+                    className="w-full bg-transparent text-xl font-medium text-gray-900 placeholder:text-gray-300 focus:outline-none"
                     autoFocus
                   />
                 </div>
@@ -214,7 +214,7 @@ export default function LoginPage() {
               <motion.button
                 whileTap={{ scale: 0.98 }}
                 onClick={handleSendOTP}
-                disabled={phone.length !== 10 || loading}
+                disabled={!email || loading}
                 className="w-full py-4 bg-gray-900 text-white rounded-2xl font-semibold text-lg flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {loading ? (
@@ -246,7 +246,7 @@ export default function LoginPage() {
               <div className="space-y-2">
                 <h1 className="text-3xl font-bold text-gray-900">Verify OTP</h1>
                 <p className="text-gray-500">
-                  Code sent to <span className="text-gray-900 font-medium">+91 {phone}</span>
+                  Code sent to <span className="text-gray-900 font-medium">{email}</span>
                 </p>
               </div>
 
@@ -305,12 +305,12 @@ export default function LoginPage() {
                 )}
               </div>
 
-              {/* Change Number */}
+              {/* Change Email */}
               <button
                 onClick={() => { setStep(1); setOtp(["", "", "", "", "", ""]); setError(""); }}
                 className="w-full text-gray-500 text-sm"
               >
-                Wrong number? <span className="text-gray-900 font-medium underline">Change</span>
+                Wrong email? <span className="text-gray-900 font-medium underline">Change</span>
               </button>
             </motion.div>
           )}

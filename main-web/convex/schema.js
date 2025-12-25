@@ -25,6 +25,9 @@ export default defineSchema({
     // Onboarding fields
     address: v.optional(
       v.object({
+        flatNo: v.optional(v.string()),
+        area: v.optional(v.string()),
+        landmark: v.optional(v.string()),
         state: v.string(),
         city: v.string(),
         pinCode: v.string(),
@@ -44,6 +47,9 @@ export default defineSchema({
     // Permanent address fields (immutable once set) - for backward compatibility
     permanentAddress: v.optional(
       v.object({
+        flatNo: v.optional(v.string()),
+        area: v.optional(v.string()),
+        landmark: v.optional(v.string()),
         state: v.string(),
         city: v.string(),
         pinCode: v.string(),

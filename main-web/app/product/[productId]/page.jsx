@@ -33,8 +33,11 @@ import {
   Activity,
 } from "lucide-react";
 import ProductCard from "@/components/ProductCard";
+import EmailOtpModal from "@/components/EmailOtpModal";
 import { ProductStructuredData, BreadcrumbStructuredData } from "@/components/StructuredData";
 import SizeChart, { SIZE_CHART_DATA } from "@/components/SizeChart";
+import FooterSimple from "@/components/FooterSimple";
+import React from "react";
 
 export default function ProductPage() {
   const [token, setToken] = useState(null);
@@ -58,6 +61,8 @@ export default function ProductPage() {
   const [isWishlisting, setIsWishlisting] = useState(false);
   const [showImageModal, setShowImageModal] = useState(false);
   const [modalImageIndex, setModalImageIndex] = useState(0);
+  const [showOtpModal, setShowOtpModal] = useState(false);
+  const [otpReturnUrl, setOtpReturnUrl] = useState(null);
   const [showSizeGuide, setShowSizeGuide] = useState(false);
   const [touchStart, setTouchStart] = useState(null);
   const [touchEnd, setTouchEnd] = useState(null);
@@ -125,7 +130,16 @@ export default function ProductPage() {
   const showToastMsg = (msg) => { setToastMessage(msg); setShowToast(true); setTimeout(() => setShowToast(false), 3000); };
 
   const handleAddToCart = async () => {
-    if (!isLoggedIn || !me) { router.push(`/login?returnUrl=${encodeURIComponent(window.location.pathname)}&action=addToCart`); return; }
+    if (!isLoggedIn || !me) {
+      if (!selectedSize) { showToastMsg("Please select your size"); return; }
+      if (!product) { showToastMsg("Product not available"); return; }
+      // Add to guest cart so user doesn't lose the item, then prompt for OTP to save to account
+      addToGuestCart({ productId: product.itemId, productName: product.name, productImage: product.mainImage, price: product.price, size: selectedSize, quantity, category: product.category, brand: product.brand });
+      setOtpReturnUrl('/cart');
+      setShowOtpModal(true);
+      showToastMsg("Added to cart!");
+      return;
+    }
     if (!selectedSize) { showToastMsg("Please select your size"); return; }
     if (!product) { showToastMsg("Product not available"); return; }
     if (quantity > (product.sizeStock?.[selectedSize] || 0)) { showToastMsg(`Only ${product.sizeStock?.[selectedSize] || 0} pairs available`); return; }
@@ -140,7 +154,17 @@ export default function ProductPage() {
     if (!product) { showToastMsg("Product not available"); return; }
     if (selectedSize && product.sizeStock?.[selectedSize] !== undefined && quantity > product.sizeStock[selectedSize]) { showToastMsg(`Only ${product.sizeStock[selectedSize]} pairs available`); return; }
     const params = new URLSearchParams({ productId, productName: product.name, productImage: product.mainImage, price: product.price.toString(), size: selectedSize, quantity: quantity.toString(), category: product.category, brand: product.brand || "", action: "buyNow" });
-    router.push(`/checkout?${params.toString()}`);
+    const checkoutUrl = `/checkout?${params.toString()}`;
+    if (!isLoggedIn || !me) {
+      // Open OTP modal and redirect to checkout after verification
+      setOtpReturnUrl(checkoutUrl);
+      setShowOtpModal(true);
+      // Also add to guest cart so checkout has items if user closes modal
+      addToGuestCart({ productId: product.itemId, productName: product.name, productImage: product.mainImage, price: product.price, size: selectedSize, quantity, category: product.category, brand: product.brand });
+      showToastMsg("sign in");
+      return;
+    }
+    router.push(checkoutUrl);
   };
 
   const handleWishlistToggle = async () => {
@@ -233,7 +257,7 @@ export default function ProductPage() {
   ];
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-white overflow-x-hidden">
       <ProductStructuredData product={product} reviews={reviews} reviewStats={reviewStats} />
       <BreadcrumbStructuredData items={[{ name: "Home", url: "/" }, { name: "Shop", url: "/shop" }, { name: product?.category, url: `/shop?category=${product?.category}` }, { name: product?.name, url: `/product/${productId}` }]} />
 
@@ -244,21 +268,21 @@ export default function ProductPage() {
             <motion.button whileTap={{ scale: 0.95 }} onClick={() => router.back()} className="flex items-center text-gray-600 hover:text-gray-900 transition-colors">
               <ArrowLeft className="w-5 h-5" />
             </motion.button>
-            <div className="flex items-center gap-2">
-              {isLoggedIn && (
-                <Link href="/cart">
-                  <motion.button whileTap={{ scale: 0.95 }} className="relative p-3 text-gray-600 hover:text-gray-900 transition-colors">
-                    <ShoppingCart className="w-5 h-5" />
-                    {cartSummary?.totalItems > 0 && <span className="absolute top-1 right-1 w-5 h-5 bg-gray-900 text-white text-xs rounded-full flex items-center justify-center font-bold">{cartSummary.totalItems > 9 ? "9+" : cartSummary.totalItems}</span>}
-                  </motion.button>
-                </Link>
-              )}
+            <div className="flex items-center gap-1">
+              <Link href="/cart">
+                <motion.button whileTap={{ scale: 0.95 }} className="relative p-3 text-gray-600 hover:text-gray-900 transition-colors">
+                  <ShoppingCart className="w-5 h-5" />
+                  {((me && cartSummary?.totalItems) || (!me && getGuestCartSummary().totalItems)) > 0 && (
+                    <span className="absolute top-1 right-1 w-5 h-5 bg-gray-900 text-white text-xs rounded-full flex items-center justify-center font-bold">{((me && cartSummary?.totalItems) || (!me && getGuestCartSummary().totalItems)) > 9 ? "9+" : ((me && cartSummary?.totalItems) || (!me && getGuestCartSummary().totalItems))}</span>
+                  )}
+                </motion.button>
+              </Link>
               <motion.button whileTap={{ scale: 0.95 }} onClick={() => { navigator.share ? navigator.share({ title: product?.name, url: window.location.href }) : (navigator.clipboard.writeText(window.location.href), showToastMsg("Link copied!")); }} className="p-3 text-gray-600 hover:text-gray-900 transition-colors">
                 <Share2 className="w-5 h-5" />
               </motion.button>
-              <motion.button whileTap={{ scale: 0.95 }} onClick={handleWishlistToggle} disabled={isWishlisting} className={`p-3 transition-colors ${isWishlisted ? "text-red-500" : "text-gray-600 hover:text-gray-900"}`}>
+              {/* <motion.button whileTap={{ scale: 0.95 }} onClick={handleWishlistToggle} disabled={isWishlisting} className={`p-3 transition-colors ${isWishlisted ? "text-red-500" : "text-gray-600 hover:text-gray-900"}`}>
                 <Heart className={`w-5 h-5 ${isWishlisted ? "fill-current" : ""}`} />
-              </motion.button>
+              </motion.button> */}
             </div>
           </div>
         </div>
@@ -403,9 +427,13 @@ export default function ProductPage() {
         </div>
 
         {/* Tabs Section */}
-        <div className="max-w-7xl mx-auto px-4 lg:px-8 py-12 border-t border-gray-100">
-          <div className="flex gap-1 p-1 bg-gray-100 rounded-full w-fit mx-auto mb-8 overflow-x-auto">
-            {tabs.map((tab) => { const Icon = tab.icon; return (<button key={tab.id} onClick={() => setActiveTab(tab.id)} className={`flex items-center gap-2 px-6 py-3 rounded-full text-sm font-medium transition-all whitespace-nowrap ${activeTab === tab.id ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-900"}`}><Icon className="w-4 h-4" />{tab.label}</button>); })}
+        <div className="max-w-7xl mx-auto px-4 lg:px-8 py-12 border-t border-gray-100 overflow-x-hidden">
+            <div className="flex gap-1 p-1 bg-gray-100 rounded-full w-fit mx-auto mb-8 overflow-x-auto">
+            {tabs.map((tab) => { const Icon = tab.icon; return (
+              <motion.button key={tab.id} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} onClick={() => setActiveTab(tab.id)} className={`flex items-center gap-2 px-6 py-3 rounded-full text-sm font-medium transition-all whitespace-nowrap ${activeTab === tab.id ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-900"}`}>
+                <Icon className="w-4 h-4" />{tab.label}
+              </motion.button>
+            ); })}
           </div>
 
           <AnimatePresence mode="wait">
@@ -565,6 +593,8 @@ export default function ProductPage() {
           </div>
         )}
       </div>
+    <EmailOtpModal open={showOtpModal} onClose={() => setShowOtpModal(false)} returnUrl={otpReturnUrl} />
+       <FooterSimple />
     </div>
   );
 }

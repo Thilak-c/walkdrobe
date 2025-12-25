@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server';
 import nodemailer from 'nodemailer';
+import fs from 'fs/promises';
+import path from 'path';
 
 // Configure email transporter
 const transporter = nodemailer.createTransport({
@@ -26,30 +28,42 @@ export async function POST(request) {
     // Generate 6-digit OTP
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
 
-    // Store OTP in memory (in production, use Redis or database)
-    // For now, we'll use a simple in-memory store with better persistence
-    if (!global.otpStore) {
-      global.otpStore = new Map();
-    }
-
-    // Also store in a more persistent way for development
-    if (!global.otpStorePersistent) {
-      global.otpStorePersistent = new Map();
-    }
-
     const otpData = {
+      email,
       otp,
       expiresAt: Date.now() + 5 * 60 * 1000, // 5 minutes
-      createdAt: Date.now()
+      createdAt: Date.now(),
     };
 
-    // Store OTP with expiration (5 minutes)
-    global.otpStore.set(email, otpData);
-    global.otpStorePersistent.set(email, otpData);
+    // Persist OTPs to disk (simple DB substitute). File path: uploads_files/otps.json
+    try {
+      const filePath = path.resolve(process.cwd(), 'main-web', 'uploads_files', 'otps.json');
+      let current = [];
+      try {
+        const raw = await fs.readFile(filePath, 'utf8');
+        current = JSON.parse(raw || '[]');
+      } catch (e) {
+        current = [];
+      }
+
+      // Remove expired entries first
+      const now = Date.now();
+      current = current.filter((o) => !o.expiresAt || o.expiresAt > now);
+
+      // Replace or add
+      const idx = current.findIndex((o) => o.email === email);
+      if (idx >= 0) current[idx] = otpData;
+      else current.push(otpData);
+
+      await fs.mkdir(path.dirname(filePath), { recursive: true });
+      await fs.writeFile(filePath, JSON.stringify(current, null, 2), 'utf8');
+    } catch (err) {
+      console.error('Failed to persist OTP to file:', err);
+    }
 
     // Email content
     const mailOptions = {
-      from: `AesthetX Ways <${process.env.EMAIL_USER}>`,
+      from: `Walkdrobe <${process.env.EMAIL_USER}>`,
       to: email,
       subject: 'Email Verification OTP',
       html: `
@@ -69,7 +83,7 @@ export async function POST(request) {
                 <h2 style="color:#111111; margin-bottom:25px; font-size:24px;">Verify Your Email Address</h2>
                 
                 <p style="color:#555555; line-height:1.7; margin-bottom:35px; font-size:15px;">
-                  Thank you for signing up with <strong>AesthetX Ways</strong>! To complete your account setup, please use the verification code below:
+                  Thank you for signing up with <strong>Walkdrobe</strong>! To complete your account setup, please use the verification code below:
                 </p>
                 
                 <!-- OTP Box -->
@@ -105,7 +119,7 @@ export async function POST(request) {
             <tr>
               <td style="background:#111111; color:#ffffff; text-align:center; padding:20px;">
                 <p style="margin:0; font-size:12px; opacity:0.8;">
-                  AesthetX Ways - Premium Fashion & Lifestyle Store
+                  Walkdrobe - Premium Fashion & Lifestyle Store
                 </p>
               </td>
             </tr>

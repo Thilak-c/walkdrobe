@@ -91,7 +91,7 @@ export default function Navbar() {
         <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
           <img
             src="/logo.png"
-            alt="aesthetx.ways"
+            alt="walkdrobe"
             width={200}
             height={40}
             className="object-contain"

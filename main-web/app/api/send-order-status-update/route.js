@@ -303,7 +303,7 @@ export async function POST(request) {
           <!-- CTA -->
           <tr>
             <td align="center" style="padding:20px 24px;">
-              <a class="cta-button" href="${process.env.NEXT_PUBLIC_BASE_URL || "https://aesthetxways.com"}/orders" 
+              <a class="cta-button" href="${process.env.NEXT_PUBLIC_BASE_URL || "https://walkdrobe.in"}/orders" 
                  style="background:#000000; color:#ffffff; text-decoration:none; padding:12px 28px; 
                         border-radius:6px; font-size:13px; font-weight:600; display:inline-block;">
                 Track Your Order
@@ -314,7 +314,7 @@ export async function POST(request) {
           <!-- Footer -->
           <tr>
             <td style="padding:20px 24px; background:#f8f9fa; color:#999999; font-size:11px; text-align:center; line-height:1.4;">
-              © ${new Date().getFullYear()} AesthetX Ways. All rights reserved.
+              © ${new Date().getFullYear()} Walkdrobe. All rights reserved.
             </td>
           </tr>
 
@@ -328,7 +328,7 @@ export async function POST(request) {
 
     // Send email
     const info = await transporter.sendMail({
-      from: `"AesthetX Ways" <${process.env.EMAIL_USER}>`,
+      from: `"Walkdrobe" <${process.env.EMAIL_USER}>`,
       to: customerEmail,
       subject: `${statusInfo.title} - Order #${orderNumber}`,
       html: emailHtml,

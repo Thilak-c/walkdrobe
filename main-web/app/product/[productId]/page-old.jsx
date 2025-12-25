@@ -653,10 +653,10 @@ export default function ProductPage() {
 
   // Breadcrumb data for structured data
   const breadcrumbItems = [
-    { name: "Home", url: "https://aesthetxways.com" },
-    { name: "Shop", url: "https://aesthetxways.com/shop" },
-    { name: product?.category || "Products", url: `https://aesthetxways.com/shop?category=${product?.category}` },
-    { name: product?.name || "Product", url: `https://aesthetxways.com/product/${productId}` },
+    { name: "Home", url: "https://walkdrobe.in" },
+    { name: "Shop", url: "https://walkdrobe.in/shop" },
+    { name: product?.category || "Products", url: `https://walkdrobe.in/shop?category=${product?.category}` },
+    { name: product?.name || "Product", url: `https://walkdrobe.in/product/${productId}` },
   ];
 
   return (
@@ -672,7 +672,7 @@ export default function ProductPage() {
         transition={{ type: "spring", stiffness: 100 }}
         className={`border-b border-gray-100 bg-white/95 backdrop-blur-md sticky top-0 z-50 shadow-sm ${fontClasses.poppins}`}
       >
-        <div className="max-w-7xl mx-auto px-4 lg:px-8">
+        <div className="max-w-7xl mx-auto px-4 lg:px-8 overflow-x-hidden">
           <div className="flex items-center justify-between h-16 lg:h-20">
             <motion.button
               whileHover={{ x: -5 }}

@@ -52,8 +52,8 @@ export async function POST(request) {
                 <!-- Logo Section -->
                 <tr>
                   <td align="center" style="padding: 28px 20px 20px;">
-                    <img src="https://aesthetxways.com/fav.png" alt="AesthetX" width="56" height="56" style="width: 56px; height: 56px; border-radius: 14px; display: block; margin: 0 auto;">
-                    <h1 style="color: #ffffff; margin: 16px 0 0; font-size: 22px; font-weight: 700; letter-spacing: -0.5px;">AesthetX Ways</h1>
+                    <img src="https://walkdrobe.in/fav.png" alt="Walkdrobe" width="56" height="56" style="width: 56px; height: 56px; border-radius: 14px; display: block; margin: 0 auto;">
+                    <h1 style="color: #ffffff; margin: 16px 0 0; font-size: 22px; font-weight: 700; letter-spacing: -0.5px;">Walkdrobe</h1>
                   </td>
                 </tr>
                 
@@ -120,7 +120,7 @@ export async function POST(request) {
                 <tr>
                   <td align="center" style="padding: 20px 24px 24px;">
                     <p style="color: #444444; font-size: 11px; margin: 0;">
-                      © ${new Date().getFullYear()} AesthetX Ways
+                      © ${new Date().getFullYear()} Walkdrobe
                     </p>
                     <p style="color: #333333; font-size: 10px; margin: 8px 0 0;">
                       This is an automated message
@@ -140,7 +140,7 @@ export async function POST(request) {
 
     // Send email
     await transporter.sendMail({
-      from: `"AesthetX Ways" <${process.env.EMAIL_USER}>`,
+      from: `"Walkdrobe" <${process.env.EMAIL_USER}>`,
       to: email,
       subject: `${otp} - Your Password Reset OTP`,
       html: htmlContent,

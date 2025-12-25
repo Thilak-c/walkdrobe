@@ -866,6 +866,9 @@ export const updateUserProfile = mutation({
 		userId: v.id("users"),
 		name: v.optional(v.string()),
 		address: v.optional(v.object({
+			flatNo: v.optional(v.string()),
+			area: v.optional(v.string()),
+			landmark: v.optional(v.string()),
 			state: v.string(),
 			city: v.string(),
 			pinCode: v.string(),

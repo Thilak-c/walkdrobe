@@ -24,9 +24,9 @@ export async function POST(req) {
 
     // Email content
     const mailOptions = {
-      from: `AesthetX Ways <${process.env.EMAIL_USER}>`,
+      from: `Walkdrobe <${process.env.EMAIL_USER}>`,
       to: to,
-      subject: 'Re: Your message to AESTHETX WAYS',
+      subject: 'Re: Your message to WALKDROBE',
       html: `
         <!DOCTYPE html>
         <html>
@@ -86,7 +86,7 @@ export async function POST(req) {
         </head>
         <body>
           <div class="header">
-            <h1 style="margin: 0; font-weight: 300;">AESTHETX WAYS</h1>
+              <h1 style="margin: 0; font-weight: 300;">WALKDROBE</h1>
           </div>
           
           <div class="content">
@@ -105,16 +105,16 @@ export async function POST(req) {
             
             <p>If you have any more questions, feel free to reply to this email or contact us at:</p>
             <ul style="list-style: none; padding: 0;">
-              <li>📧 Email: team@aesthetxways.com</li>
+                <li>📧 Email: team@walkdrobe.in</li>
               <li>📞 Phone: +91 7033769997</li>
-              <li>📸 Instagram: @aesthetx.ways_</li>
+                <li>📸 Instagram: @walkdrobe</li>
             </ul>
             
-            <a href="https://aesthetxways.com" class="button">Visit Our Website</a>
+              <a href="https://walkdrobe.in" class="button">Visit Our Website</a>
           </div>
           
           <div class="footer">
-            <p>© ${new Date().getFullYear()} AESTHETX WAYS. All rights reserved.</p>
+              <p>© ${new Date().getFullYear()} WALKDROBE. All rights reserved.</p>
             <p>This email was sent in response to your inquiry.</p>
           </div>
         </body>

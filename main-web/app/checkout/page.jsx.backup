@@ -419,9 +419,9 @@ export default function CheckoutPage() {
           process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || "rzp_test_RAMQAuyK0c66gh",
         amount: order.amount,
         currency: order.currency,
-        name: "AesthetX Ways",
+        name: "Walkdrobe",
         description: `Order for ${shippingDetails.fullName}`,
-        image: "https://aesthetxways.com/favicon.png",
+        image: "https://walkdrobe.in/favicon.png",
         order_id: order.id,
         prefill: {
           name: getCurrentShippingDetails().fullName,

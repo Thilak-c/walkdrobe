@@ -657,3 +657,66 @@ export const verifyPhoneOTP = mutation({
 		}
 	},
 });
+
+	// Mutation: Create session for email after OTP verification (used by email-OTP flow)
+	export const createSessionForEmail = mutation({
+		args: {
+			email: v.string(),
+		},
+		handler: async (ctx, { email }) => {
+			try {
+				const normalizedEmail = email.toLowerCase().trim();
+
+				// Find user by email (ignore deleted)
+				let user = await ctx.db
+					.query("users")
+					.withIndex("by_email", (q) => q.eq("email", normalizedEmail))
+					.first();
+
+				if (!user) {
+					// Create new user for this email
+					const userId = await ctx.db.insert("users", {
+						email: normalizedEmail,
+						phoneNumber: "",
+						name: "",
+						createdAt: nowIso(),
+						updatedAt: nowIso(),
+						role: "user",
+						isActive: true,
+						onboardingStep: 4,
+						onboardingCompleted: true,
+						interests: [],
+					});
+					user = await ctx.db.get(userId);
+				} else {
+					// Update last login
+					await ctx.db.patch(user._id, {
+						updatedAt: nowIso(),
+						isActive: true,
+					});
+				}
+
+				// Generate session
+				const sessionToken = generateSessionToken();
+				const expiresAt = calculateSessionExpiry();
+
+				// Create session
+				await ctx.db.insert("sessions", {
+					userId: user._id,
+					sessionToken,
+					expiresAt,
+					createdAt: nowIso(),
+				});
+
+				return {
+					success: true,
+					sessionToken,
+					userId: user._id,
+					isNewUser: !user.name,
+				};
+			} catch (error) {
+				console.error("createSessionForEmail error:", error);
+				return { success: false, message: "Failed to create session for email" };
+			}
+		},
+	});

@@ -213,7 +213,7 @@ export default function ProductPage() {
       </header>
 
       {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 py-6 lg:py-12">
+      <main className="max-w-7xl mx-auto px-4 py-6 lg:py-12 overflow-x-hidden">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-16">
           
           {/* Images */}

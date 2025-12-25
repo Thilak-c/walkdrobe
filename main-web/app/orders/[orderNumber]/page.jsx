@@ -78,7 +78,7 @@ export default function OrderDetailsPage({ params }) {
       <head>
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Invoice #${order.orderNumber} - AESTHETX WAYS</title>
+        <title>Invoice #${order.orderNumber} - WALKDROBE</title>
         <style>
           @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
           
@@ -501,11 +501,11 @@ export default function OrderDetailsPage({ params }) {
         <div class="invoice-container">
           <!-- Header -->
           <div class="header">
-            <div class="company-logo">AESTHETX WAYS</div>
+            <div class="company-logo">WALKDROBE</div>
             <div class="company-details">
               <div class="company-detail">
                 <strong>Email</strong>
-                support@aesthetx.ways
+                support@walkdrobe.in
               </div>
               <div class="company-detail">
                 <strong>Phone</strong>
@@ -659,11 +659,11 @@ export default function OrderDetailsPage({ params }) {
               <div class="footer-divider"></div>
               <div class="footer-text">
                 <strong>Contact Support:</strong><br>
-                Email: support@aesthetx.ways | Phone: +91 98765 43210
+                Email: support@walkdrobe.in | Phone: +91 98765 43210
               </div>
               <div class="footer-legal">
                 This is a computer-generated invoice. No signature required.<br>
-                AESTHETX WAYS - Premium Fashion & Lifestyle Store
+                WALKDROBE - Premium Fashion & Lifestyle Store
               </div>
             </div>
           </div>
@@ -677,7 +677,7 @@ export default function OrderDetailsPage({ params }) {
     const url = window.URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `Invoice-${order.orderNumber}-AESTHETX-WAYS.html`;
+    link.download = `Invoice-${order.orderNumber}-WALKDROBE.html`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);

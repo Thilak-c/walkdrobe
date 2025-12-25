@@ -55,7 +55,7 @@ export async function POST(request) {
 
     // Admin emails to notify
     const adminEmails = [
-      "aesthetxways07@gmail.com",
+      "walkdrobe07@gmail.com",
       'yashodanandkumar15@gmail.com',
       'thilak8797@gmail.com',
       'maskeyishere@gmail.com'
@@ -76,7 +76,7 @@ export async function POST(request) {
 
     // Email content for admin
     const adminMailOptions = {
-      from: `AesthetX Ways Orders <${process.env.EMAIL_USER}>`,
+      from: `Walkdrobe Orders <${process.env.EMAIL_USER}>`,
       to: adminEmails.join(', '),
       subject: `🛍️ New Order - ${orderNumber} - ₹${orderTotal.toLocaleString()}`,
       html: `
@@ -100,7 +100,7 @@ export async function POST(request) {
                 🛍️ New Order Received
               </h1>
               <p style="margin: 8px 0 0 0; color: #9ca3af; font-size: 14px;">
-                AesthetX Ways - Admin Notification
+                Walkdrobe - Admin Notification
               </p>
             </td>
           </tr>
@@ -267,7 +267,7 @@ export async function POST(request) {
           <!-- CTA Button -->
           <tr>
             <td align="center" style="padding: 0 32px 32px 32px;">
-              <a href="https://aesthetxways.com/admin/orders" 
+              <a href="https://walkdrobe.in/admin/orders" 
                  style="display: inline-block; background: #000000; color: #ffffff; text-decoration: none; padding: 14px 32px; border-radius: 8px; font-size: 16px; font-weight: 600;">
                 View Order in Admin Panel →
               </a>
@@ -278,10 +278,10 @@ export async function POST(request) {
           <tr>
             <td style="padding: 24px 32px; background: #f9fafb; text-align: center; border-top: 1px solid #e5e7eb;">
               <p style="margin: 0 0 8px 0; color: #6b7280; font-size: 12px;">
-                This is an automated notification from AesthetX Ways
+                This is an automated notification from Walkdrobe
               </p>
               <p style="margin: 0; color: #9ca3af; font-size: 12px;">
-                © ${new Date().getFullYear()} AesthetX Ways. All rights reserved.
+                © ${new Date().getFullYear()} Walkdrobe. All rights reserved.
               </p>
             </td>
           </tr>

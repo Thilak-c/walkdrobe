@@ -60,10 +60,17 @@ export async function POST(request) {
       return NextResponse.json({ error: "userId is required for POST requests" }, { status: 400 });
     }
 
-    // Example: Update user profile. Assuming updateUserProfile exists and takes userId and updateData.
-    // You might need to adjust the specific mutation and its arguments based on your Convex backend.
-    const result = await fetchMutation(api.users.updateUserProfile, { userId: userId, ...updateData });
-    return NextResponse.json(result);
+    // Log incoming payload for debugging
+    console.log("/api/convex POST payload:", { userId, updateData });
+    // Call Convex mutation
+    try {
+      const result = await fetchMutation(api.users.updateUserProfile, { userId: userId, ...updateData });
+      console.log("/api/convex mutation result:", result);
+      return NextResponse.json(result);
+    } catch (err) {
+      console.error("/api/convex mutation error:", err && err.message ? err.message : err);
+      return NextResponse.json({ error: err && err.message ? err.message : String(err) }, { status: 500 });
+    }
   } catch (error) {
     console.error("Error in POST /api/convex:", error);
     return NextResponse.json({ error: "Failed to update data" }, { status: 500 });
