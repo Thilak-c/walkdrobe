@@ -811,7 +811,7 @@ function Footer() {
       <div className="border-t border-gray-200 bg-white">
         <div className="max-w-7xl mx-auto px-4 py-5 flex flex-col sm:flex-row justify-between items-center gap-3">
           <p className="text-gray-400 text-xs">
-            © {new Date().getFullYear()} Walkdrobe. Made with ❤️ in Patna
+            © {new Date().getFullYear()} Walkdrobe. Made with Thilak-c ❤️ in Patna
           </p>
           <div className="flex gap-5 text-gray-400 text-xs">
             <Link href="/privacy" className="hover:text-gray-900 transition-colors">Privacy</Link>
