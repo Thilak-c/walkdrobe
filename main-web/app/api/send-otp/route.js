@@ -3,14 +3,18 @@ import nodemailer from 'nodemailer';
 import fs from 'fs/promises';
 import path from 'path';
 
-// Configure email transporter
+// Configure email transporter using env vars to avoid hardcoded values
 const transporter = nodemailer.createTransport({
-  host: "﻿​﻿smtp.hostinger.com", // or your provider’s SMTP host
-  port: 465,
-  secure: true,
+  host: process.env.SMTP_HOST || 'smtp.hostinger.com',
+  port: parseInt(process.env.SMTP_PORT || '465', 10),
+  secure: (process.env.SMTP_SECURE || 'true') === 'true',
   auth: {
     user: process.env.EMAIL_USER,
     pass: process.env.EMAIL_PASS,
+  },
+  tls: {
+    // allow self-signed certs in some VPS setups; remove if not needed
+    rejectUnauthorized: process.env.SMTP_REJECT_UNAUTHORIZED !== 'false',
   },
 });
 
