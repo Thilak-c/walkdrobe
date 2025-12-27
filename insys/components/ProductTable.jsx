@@ -7,7 +7,7 @@ import { Save, X, Package, Barcode as BarcodeIcon, Edit2, Plus, Trash2 } from "l
 import Barcode from "@/components/Barcode";
 import toast from "react-hot-toast";
 
-const ALL_SIZES = ["5", "6", "7", "8", "9", "10", "11", "12", "13"];
+const ALL_SIZES = ["41","42","43","44","45","46"];
 
 export default function ProductTable({ products }) {
   const [editingProduct, setEditingProduct] = useState(null);

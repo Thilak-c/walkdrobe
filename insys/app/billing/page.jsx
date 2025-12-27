@@ -23,9 +23,9 @@ export default function BillingPage() {
     const [selectedProduct, setSelectedProduct] = useState(null); // For size selection
     const printRef = useRef(null);
 
-    const products = useQuery(api.inventory.getAllInventory, {});
-    const removeSizeStock = useMutation(api.inventory.removeSizeStock);
-    const createBill = useMutation(api.inventory.createBill);
+    const products = useQuery(api.offStore.getAllProducts, {});
+    const removeSizeStock = useMutation(api.offStore.updateStock);
+    const createBill = useMutation(api.offStore.createBill);
 
     // Load logo
     useEffect(() => {
@@ -76,17 +76,45 @@ export default function BillingPage() {
 
     // Handle barcode scan
     const handleBarcodeScan = (barcode) => {
-        const product = products?.find(p => p.itemId === barcode);
+        if (!barcode) {
+            toast.error("Scanned empty barcode");
+            return;
+        }
+
+        // Normalize scanned input: trim and remove non-printable chars
+        const normalized = String(barcode).trim().replace(/[^\x20-\x7E]/g, "");
+
+        // Normalize keys by removing non-alphanumeric characters so hyphens/slashes are equivalent
+        const normalizeKey = (s) => String(s || "").trim().replace(/[^A-Za-z0-9]/g, "").toLowerCase();
+        const lcKey = normalizeKey(normalized);
+
+        const candidates = (products || []).map(p => {
+            const pid = String(p.itemId || "");
+            const pidKey = normalizeKey(pid);
+            const exact = pidKey === lcKey && pidKey !== "";
+            const contains = (pidKey && lcKey) ? (pidKey.includes(lcKey) || lcKey.includes(pidKey)) : false;
+            return { product: p, pid, pidKey, exact, contains };
+        }).filter(Boolean);
+
+        const product = candidates.find(c => c.exact)?.product || candidates.find(c => c.contains)?.product;
+
+        console.debug("Barcode scan details", { barcode, normalized, lcKey, productsCount: products?.length || 0, sampleCandidates: candidates.slice(0,10).map(c=>({pid:c.pid,pidKey:c.pidKey,exact:c.exact,contains:c.contains})) });
+
         if (product) {
             if (product.availableSizes?.length > 0) {
                 setSelectedProduct(product);
+                // Notify barcode input to clear visible field after a short delay
+                if (typeof window !== "undefined") {
+                    window.dispatchEvent(new CustomEvent("barcode-scan-success"));
+                }
             } else {
                 toast.error("Product has no sizes configured");
             }
+            // Clear manual search field only when a product is found
+            setSearchQuery("");
         } else {
             toast.error("Product not found");
         }
-        setSearchQuery("");
     };
 
     // Open size selector
@@ -191,79 +219,81 @@ export default function BillingPage() {
 
     const executePrint = async () => {
         const printContent = printRef.current;
-        const printWindow = window.open("", "", "width=350,height=600");
-        printWindow.document.write(`
-      <html>
-        <head>
-          <title>Bill - ${billNumber}</title>
-          <style>
-            @page {
-              size: 80mm auto;
-              margin: 2mm;
-            }
-            * { margin: 0; padding: 0; box-sizing: border-box; }
-            body { 
-              font-family: 'Courier New', monospace; 
-              width: 76mm;
-              padding: 2mm; 
-              font-size: 11px; 
-              color: #000;
-              background: white;
-            }
-            .text-center { text-align: center; }
-            .text-right { text-align: right; }
-            .font-bold { font-weight: 700; }
-            .font-semibold { font-weight: 600; }
-            .text-sm { font-size: 10px; }
-            .text-xs { font-size: 9px; }
-            .text-gray-900, .text-gray-600, .text-gray-500 { color: #000; }
-            .text-gray-400 { color: #666; }
-            .text-white { color: #fff; }
-            .text-emerald-600 { color: #000; }
-            .bg-gray-900 { background: #000; }
-            .bg-gray-50 { background: #f5f5f5; }
-            .border-b-2 { border-bottom: 2px solid #000; }
-            .border-t-2 { border-top: 2px solid #000; }
-            .border-b { border-bottom: 1px solid #ccc; }
-            .border-gray-900 { border-color: #000; }
-            .border-gray-300 { border-color: #ccc; }
-            .border-dashed { border-style: dashed; }
-            .mb-6 { margin-bottom: 4mm; }
-            .mb-4 { margin-bottom: 3mm; }
-            .mb-2 { margin-bottom: 2mm; }
-            .mt-8 { margin-top: 5mm; }
-            .mt-6 { margin-top: 4mm; }
-            .mt-4 { margin-top: 3mm; }
-            .mt-1 { margin-top: 1mm; }
-            .pb-6 { padding-bottom: 4mm; }
-            .pb-4 { padding-bottom: 3mm; }
-            .pt-4 { padding-top: 3mm; }
-            .py-3 { padding-top: 2mm; padding-bottom: 2mm; }
-            .px-8 { padding-left: 3mm; padding-right: 3mm; }
-            .p-8 { padding: 3mm; }
-            .p-4 { padding: 2mm; }
-            .space-y-3 > * + * { margin-top: 2mm; }
-            .space-y-1 > * + * { margin-top: 1mm; }
-            .rounded-lg { border-radius: 2mm; }
-            table { width: 100%; border-collapse: collapse; }
-            th, td { padding: 1mm 0; }
-            th { text-align: left; }
-            img { height: 10mm; width: auto; max-width: 30mm; object-fit: contain; margin: 0 auto; display: block; }
-            .-mx-8 { margin-left: -3mm; margin-right: -3mm; }
-            .text-xl { font-size: 14px; }
-            .flex { display: flex; }
-            .justify-between { justify-content: space-between; }
-            @media print {
-              body { width: 76mm; }
-            }
-          </style>
-        </head>
-        <body>${printContent.innerHTML}</body>
-      </html>
-    `);
-        printWindow.document.close();
-        printWindow.print();
-        printWindow.close();
+                const printWindow = window.open("", "", "width=600,height=900");
+                printWindow.document.write(`
+            <html>
+                <head>
+                    <title>Bill - ${billNumber}</title>
+                    <style>
+                        /* 4x6 label: width 4in, height 6in (portrait) */
+                        @page { size: 4in 6in; margin: 0.125in; }
+                        * { margin: 0; padding: 0; box-sizing: border-box; }
+                        body {
+                            font-family: 'Courier New', monospace;
+                            width: calc(4in - 0.25in);
+                            height: calc(6in - 0.25in);
+                            padding: 0.125in;
+                            font-size: 13px; /* larger font for label printing */
+                            color: #000;
+                            background: white;
+                        }
+                        .text-center { text-align: center; }
+                        .text-right { text-align: right; }
+                        .font-bold { font-weight: 700; }
+                        .font-semibold { font-weight: 600; }
+                        .text-sm { font-size: 12px; }
+                        .text-xs { font-size: 11px; }
+                        .text-gray-900, .text-gray-600, .text-gray-500 { color: #000; }
+                        .text-gray-400 { color: #444; }
+                        .bg-gray-900 { background: #000; }
+                        .bg-gray-50 { background: #f5f5f5; }
+                        .border-b-2 { border-bottom: 2px solid #000; }
+                        .border-t-2 { border-top: 2px solid #000; }
+                        .border-b { border-bottom: 1px solid #ccc; }
+                        .border-dashed { border-style: dashed; }
+                        .mb-6 { margin-bottom: 8px; }
+                        .mb-4 { margin-bottom: 6px; }
+                        .mb-2 { margin-bottom: 4px; }
+                        .mt-8 { margin-top: 12px; }
+                        .mt-6 { margin-top: 10px; }
+                        .mt-4 { margin-top: 8px; }
+                        .mt-1 { margin-top: 2px; }
+                        .pb-6 { padding-bottom: 8px; }
+                        .pb-4 { padding-bottom: 6px; }
+                        .pt-4 { padding-top: 6px; }
+                        .py-3 { padding-top: 6px; padding-bottom: 6px; }
+                        .px-8 { padding-left: 8px; padding-right: 8px; }
+                        .p-8 { padding: 8px; }
+                        .p-4 { padding: 6px; }
+                        .space-y-3 > * + * { margin-top: 6px; }
+                        .space-y-1 > * + * { margin-top: 4px; }
+                        .rounded-lg { border-radius: 4px; }
+                        table { width: 100%; border-collapse: collapse; }
+                        th, td { padding: 4px 0; }
+                        th { text-align: left; }
+                        img { height: 28mm; width: auto; max-width: 70mm; object-fit: contain; margin: 0 auto; display: block; }
+                        .text-xl { font-size: 18px; }
+                        .flex { display: flex; }
+                        .justify-between { justify-content: space-between; }
+                        @media print {
+                            html, body { width: 4in; height: 6in; }
+                        }
+                    </style>
+                </head>
+                <body>
+                    <div style="transform: scale(1); transform-origin: top left;">
+                        ${printContent.innerHTML}
+                    </div>
+                </body>
+            </html>
+        `);
+                printWindow.document.close();
+                // Give browser a moment to layout before printing
+                setTimeout(() => {
+                    printWindow.focus();
+                    printWindow.print();
+                    printWindow.close();
+                }, 250);
 
         // Save bill
         try {
@@ -458,7 +488,7 @@ export default function BillingPage() {
                             <div className="bg-white rounded-2xl p-4 border border-gray-100">
                                 <h3 className="text-sm font-semibold text-gray-700 mb-3">Discount</h3>
                                 <div className="flex gap-2">
-                                    {[{ value: 0, label: "None" }, { value: 5, label: "5%" }, { value: 10, label: "10%" }].map((d) => (
+                                    {[{ value: 0, label: "None" }, { value: 5, label: "5%" }, { value: 10, label: "10%" }, { value: 25, label: "25%" }].map((d) => (
                                         <button
                                             key={d.value}
                                             onClick={() => setDiscount(d.value)}

@@ -19,6 +19,10 @@ export const addProduct = mutation({
     secondaryColor: v.optional(v.string()),
     availableSizes: v.array(v.string()),
     sizeStock: v.any(),
+    currentStock: v.optional(v.float64()),
+    totalAvailable: v.optional(v.float64()),
+    inStock: v.optional(v.boolean()),
+    createdAt: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const existing = await ctx.db.query("off_products")
@@ -42,10 +46,10 @@ export const addProduct = mutation({
       availableSizes: args.availableSizes,
       sizeStock: args.sizeStock,
       totalStock,
-      inStock: totalStock > 0,
+      inStock: args.inStock !== undefined ? args.inStock : (totalStock > 0),
       isHidden: false,
       isDeleted: false,
-      createdAt: nowIso(),
+      createdAt: args.createdAt || nowIso(),
       updatedAt: nowIso(),
     });
 

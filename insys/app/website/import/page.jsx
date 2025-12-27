@@ -117,8 +117,8 @@ function FileImportTab() {
   const downloadTemplate = (type) => {
     if (type === "json") {
       const template = [
-        { itemId: "WEB001", name: "Product 1", category: "Category", price: 999, totalStock: 10, availableSizes: ["S", "M", "L"], sizeStock: { S: 3, M: 4, L: 3 } },
-        { itemId: "WEB002", name: "Product 2", category: "Category", price: 1499, totalStock: 5, availableSizes: ["M", "L"], sizeStock: { M: 2, L: 3 } },
+        { itemId: "WEB001", name: "Product 1", category: "Category", price: 999, totalStock: 10, availableSizes: ["41","42","43","44","45","46"], sizeStock: { "41": 3, "42": 4, "43": 3, "44": 0, "45": 0, "46": 0 } },
+        { itemId: "WEB002", name: "Product 2", category: "Category", price: 1499, totalStock: 5, availableSizes: ["41","42","43","44","45","46"], sizeStock: { "41": 1, "42": 1, "43": 1, "44": 1, "45": 1, "46": 0 } },
       ];
       const blob = new Blob([JSON.stringify(template, null, 2)], { type: "application/json" });
       const url = URL.createObjectURL(blob);
@@ -127,7 +127,7 @@ function FileImportTab() {
       a.download = "website_import_template.json";
       a.click();
     } else {
-      const csv = "itemId,name,category,price,totalStock\nWEB001,Product 1,Category,999,10\nWEB002,Product 2,Category,1499,5";
+      const csv = "itemId,name,category,price,totalStock,availableSizes\nWEB001,Product 1,Category,999,10,41|42|43|44|45|46\nWEB002,Product 2,Category,1499,5,41|42|43|44|45|46";
       const blob = new Blob([csv], { type: "text/csv" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");

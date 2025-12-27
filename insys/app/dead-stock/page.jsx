@@ -8,7 +8,12 @@ import { Package, AlertTriangle, TrendingDown, Calendar, IndianRupee } from "luc
 
 export default function DeadStockPage() {
   const [daysFilter, setDaysFilter] = useState(30);
-  const deadStock = useQuery(api.inventory.getDeadStock, { daysOld: daysFilter }) || [];
+  const allProducts = useQuery(api.offStore.getAllProducts) || [];
+  const deadStock = allProducts.filter(p => {
+    if (!p.createdAt) return false;
+    const ageDays = (Date.now() - new Date(p.createdAt).getTime()) / (1000 * 60 * 60 * 24);
+    return ageDays >= daysFilter && (p.totalStock || p.currentStock || 0) > 0;
+  });
 
   const totalValue = deadStock.reduce((sum, p) => sum + (p.stockValue || 0), 0);
   const totalItems = deadStock.reduce((sum, p) => sum + (p.currentStock || 0), 0);

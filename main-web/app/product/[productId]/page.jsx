@@ -366,7 +366,7 @@ export default function ProductPage() {
                     <button onClick={() => setShowSizeGuide(true)} className="text-gray-500 text-sm hover:text-gray-900 transition-colors flex items-center gap-1"><Ruler className="w-4 h-4" />Size Guide</button>
                   </div>
                   <div className="flex gap-2 p-1 bg-gray-100 rounded-full w-fit">
-                    {["UK", "US", "EU"].map((sys) => (<button key={sys} onClick={() => setSizeSystem(sys)} className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all ${sizeSystem === sys ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-900"}`}>{sys}</button>))}
+                    {["UK"].map((sys) => (<button key={sys} onClick={() => setSizeSystem(sys)} className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all ${sizeSystem === sys ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-900"}`}>{sys}</button>))}
                   </div>
                   <div className="grid grid-cols-5 sm:grid-cols-6 gap-2">
                     {product.availableSizes.map((size) => {

@@ -11,8 +11,8 @@ export default function OfflineTrash() {
   const [viewing, setViewing] = useState(null);
   const [viewMode, setViewMode] = useState("normal"); // normal or raw
 
-  const trash = useQuery(api.inventory.getTrash);
-  const restoreProduct = useMutation(api.inventory.restoreFromTrash);
+  const trash = useQuery(api.offStore.getTrash);
+  const restoreProduct = useMutation(api.offStore.restoreProduct);
 
   const loading = trash === undefined;
 

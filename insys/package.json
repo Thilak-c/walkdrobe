@@ -16,6 +16,7 @@
     "react-dom": "^19.1.0",
     "react-hot-toast": "^2.6.0",
     "recharts": "^3.5.1"
+    ,"jsbarcode": "^3.11.5"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",

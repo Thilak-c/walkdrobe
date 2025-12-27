@@ -13,16 +13,10 @@ export default function ProductsPage() {
   const [category, setCategory] = useState("all");
   const [sortBy, setSortBy] = useState("name");
 
-  const products = useQuery(api.inventory.getAllInventory, {
-    searchQuery: search || undefined,
-    stockFilter,
-    category: category !== "all" ? category : undefined,
-    sortBy,
-    sortOrder: "asc",
-  });
+  const products = useQuery(api.offStore.getAllProducts) || [];
 
-  const stats = useQuery(api.inventory.getInventoryStats);
-  const categories = stats?.categoryBreakdown ? Object.keys(stats.categoryBreakdown) : [];
+  const stats = useQuery(api.offStore.getStats) || {};
+  const categories = stats?.categories ? Object.keys(stats.categories) : [];
 
   const exportCSV = () => {
     if (!products?.length) return;

@@ -8,7 +8,7 @@ import { Package, Plus, X, Upload, CheckCircle, Globe, ArrowLeft } from "lucide-
 import toast from "react-hot-toast";
 import Link from "next/link";
 
-const SIZES = ["5", "6", "7", "8", "9", "10", "11", "12", "13"];
+const SIZES = ["41", "42", "43", "44", "45", "46"];
 const COLORS = ["Black", "White", "Brown", "Navy", "Grey", "Red", "Blue", "Green", "Beige", "Tan", "Multi"];
 const CATEGORIES = ["Sneakers", "Boots", "Sandals", "Formal", "Sports", "Casual", "Loafers", "Slippers", "Heels"];
 

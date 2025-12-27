@@ -9,7 +9,7 @@ import Barcode from "@/components/Barcode";
 import toast from "react-hot-toast";
 import { useRouter } from "next/navigation";
 
-const SIZES = ["6", "7", "8", "9", "10", "11", "12"];
+const SIZES = ["41","42","43","44","45","46"];
 const COLORS = ["Black", "White", "Brown", "Navy", "Grey", "Red", "Blue", "Green", "Beige", "Tan"];
 const CATEGORIES = ["Sneakers", "Boots", "Sandals", "Formal", "Sports", "Casual", "Loafers", "Slippers"];
 
@@ -34,7 +34,7 @@ export default function AddProductPage() {
   });
   const [uploadingOther, setUploadingOther] = useState(false);
 
-  const insertProduct = useMutation(api.products.insert);
+  const insertProduct = useMutation(api.offStore.addProduct);
 
   const handleSizeToggle = (size) => {
     const newSizes = formData.sizes.includes(size)
@@ -80,7 +80,7 @@ export default function AddProductPage() {
     try {
       const totalStock = calculateTotalStock();
 
-      await insertProduct({
+      const payload = {
         itemId: formData.sku,
         name: formData.name,
         category: formData.category,
@@ -97,7 +97,8 @@ export default function AddProductPage() {
         color: formData.color,
         secondaryColor: formData.secondaryColor || undefined,
         createdAt: new Date().toISOString(),
-      });
+      };
+      await insertProduct(payload);
 
       setSuccess(true);
       toast.success("Product added successfully!");
@@ -485,6 +486,7 @@ export default function AddProductPage() {
                   <label className="block text-sm font-medium text-gray-700 mb-3">
                     Available Sizes <span className="text-red-500">*</span>
                   </label>
+                  <p className="text-xs text-gray-500 mb-2">Using UK sizes: 41, 42, 43, 44, 45, 46</p>
                   <div className="flex flex-wrap gap-2">
                     {SIZES.map(size => (
                       <button

@@ -50,6 +50,44 @@ export default function OfflineImportPage() {
   );
 }
 
+const UK_SIZES = ["41","42","43","44","45","46"];
+
+function normalizeProductSizes(prod) {
+  const p = { ...prod };
+
+  // Ensure availableSizes is an array of strings using UK sizes only
+  let sizes = p.availableSizes;
+  if (!sizes) {
+    // try common CSV field name
+    if (typeof p.availableSizes === 'undefined' && typeof p.availableSize === 'string') sizes = p.availableSize;
+  }
+
+  if (typeof sizes === 'string') {
+    // accept pipe or comma separated
+    sizes = sizes.split(/\||,/).map(s => String(s).trim()).filter(Boolean);
+  }
+
+  if (!Array.isArray(sizes)) sizes = [];
+
+  // Normalize to only UK_SIZES
+  sizes = sizes.map(s => String(s).trim()).filter(s => UK_SIZES.includes(s));
+
+  // If no sizes provided, default to full UK list
+  if (sizes.length === 0) sizes = [...UK_SIZES];
+
+  p.availableSizes = sizes;
+
+  // Ensure sizeStock object exists with all UK sizes
+  const sizeStock = p.sizeStock && typeof p.sizeStock === 'object' ? { ...p.sizeStock } : {};
+  UK_SIZES.forEach(sz => {
+    const val = sizeStock[sz];
+    sizeStock[sz] = Number(val) || 0;
+  });
+  p.sizeStock = sizeStock;
+
+  return p;
+}
+
 function FileImportTab() {
   const [file, setFile] = useState(null);
   const [preview, setPreview] = useState([]);
@@ -77,7 +115,9 @@ function FileImportTab() {
         return obj;
       });
     }
-    setPreview(data.slice(0, 5));
+    // Normalize preview products to UK sizes
+    const normalized = data.map(d => normalizeProductSizes(d));
+    setPreview(normalized.slice(0, 5));
   };
 
   const handleImport = async () => {
@@ -100,12 +140,15 @@ function FileImportTab() {
       });
     }
 
+    // Normalize products to UK sizes before importing
+    const normalizedProducts = data.map(d => normalizeProductSizes(d));
+
     // Import via API
     try {
       const res = await fetch("/api/import-products", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ products: data, store: "offline" }),
+        body: JSON.stringify({ products: normalizedProducts, store: "offline" }),
       });
       const result = await res.json();
       setResults(result);
@@ -118,8 +161,8 @@ function FileImportTab() {
   const downloadTemplate = (type) => {
     if (type === "json") {
       const template = [
-        { itemId: "SKU001", name: "Product 1", category: "Category", price: 999, currentStock: 10 },
-        { itemId: "SKU002", name: "Product 2", category: "Category", price: 1499, currentStock: 5 },
+        { itemId: "SKU001", name: "Product 1", category: "Category", price: 999, currentStock: 10, availableSizes: ["41","42","43","44","45","46"], sizeStock: { "41": 3, "42": 4, "43": 2, "44": 1, "45": 0, "46": 0 } },
+        { itemId: "SKU002", name: "Product 2", category: "Category", price: 1499, currentStock: 5, availableSizes: ["41","42","43","44","45","46"], sizeStock: { "41": 1, "42": 1, "43": 1, "44": 1, "45": 1, "46": 0 } },
       ];
       const blob = new Blob([JSON.stringify(template, null, 2)], { type: "application/json" });
       const url = URL.createObjectURL(blob);
@@ -128,7 +171,7 @@ function FileImportTab() {
       a.download = "offline_import_template.json";
       a.click();
     } else {
-      const csv = "itemId,name,category,price,currentStock\nSKU001,Product 1,Category,999,10\nSKU002,Product 2,Category,1499,5";
+      const csv = "itemId,name,category,price,currentStock,availableSizes\nSKU001,Product 1,Category,999,10,41|42|43|44|45|46\nSKU002,Product 2,Category,1499,5,41|42|43|44|45|46";
       const blob = new Blob([csv], { type: "text/csv" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -181,6 +224,7 @@ function FileImportTab() {
                   </tr>
                 ))}
               </tbody>
+                  <p className="text-sm text-gray-500 mt-2">Sizes expected in UK sizing (example): 41,42,43,44,45,46. For CSV use pipe-separated sizes in the <code>availableSizes</code> field (e.g. <code>41|42|43|44|45|46</code>).</p>
             </table>
           </div>
           <button
@@ -247,8 +291,11 @@ function WebsiteImportTab() {
         costPrice: p.costPrice,
         color: p.color,
         secondaryColor: p.secondaryColor,
-        availableSizes: p.availableSizes,
-        sizeStock: p.sizeStock,
+        // Normalize sizes to UK sizes and ensure sizeStock has entries for each UK size
+        ...(function(){
+          const np = normalizeProductSizes({ availableSizes: p.availableSizes, sizeStock: p.sizeStock });
+          return { availableSizes: np.availableSizes, sizeStock: np.sizeStock };
+        })(),
         currentStock: p.totalStock,
       }));
 

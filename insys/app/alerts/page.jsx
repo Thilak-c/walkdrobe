@@ -15,8 +15,8 @@ export default function AlertsPage() {
   const [editSizeStock, setEditSizeStock] = useState({});
   const [editSizes, setEditSizes] = useState([]);
 
-  const lowStock = useQuery(api.inventory.getLowStockAlerts, { threshold });
-  const updateSizeStock = useMutation(api.inventory.updateSizeStock);
+  const lowStock = useQuery(api.offStore.getLowStock, { threshold });
+  const updateSizeStock = useMutation(api.offStore.updateStock);
 
   const getTotalStock = (product) => {
     if (product.sizeStock) {
@@ -60,10 +60,9 @@ export default function AlertsPage() {
     if (!editingProduct) return;
     try {
       await updateSizeStock({
-        productId: editingProduct._id,
+        id: editingProduct._id,
         sizeStock: editSizeStock,
-        availableSizes: editSizes.sort((a, b) => parseInt(a) - parseInt(b)),
-        updatedBy: "admin",
+        reason: "Manual update",
       });
       toast.success("Stock updated!");
       closeModal();

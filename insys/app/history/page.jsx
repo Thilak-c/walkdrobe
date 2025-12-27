@@ -16,8 +16,8 @@ export default function HistoryPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const printRef = useRef(null);
   
-  const movements = useQuery(api.inventory.getInventoryMovements, { limit: 100 });
-  const bills = useQuery(api.inventory.getBillingHistory, { limit: 100 });
+  const movements = useQuery(api.offStore.getMovements, { limit: 100 });
+  const bills = useQuery(api.offStore.getBills, { limit: 100 });
   
   const isLoadingStock = movements === undefined;
   const isLoadingBills = bills === undefined;

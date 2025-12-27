@@ -12,7 +12,7 @@ import Link from "next/link";
 const SIZES = (SIZE_CHART_DATA && Array.isArray(SIZE_CHART_DATA)
   ? Array.from(new Set(SIZE_CHART_DATA.map(s => String(s.uk))))
       .sort((a, b) => parseFloat(a) - parseFloat(b))
-  : ["5", "6", "7", "8", "9", "10", "11", "12", "13"]
+  : ["41","42","43","44","45","46"]
 );
 const COLORS = ["Black", "White", "Brown", "Navy", "Grey", "Red", "Blue", "Green", "Beige", "Tan", "Multi"];
 const CATEGORIES = ["Sneakers", "Boots", "Sandals", "Formal", "Sports", "Casual", "Loafers", "Slippers", "Heels"];
