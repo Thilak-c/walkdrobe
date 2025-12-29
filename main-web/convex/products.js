@@ -276,11 +276,12 @@ export const toggleHidden = mutation(async ({ db }, { itemId, isHidden }) => {
   });
 });
 
-export const deleteProduct = mutation(async ({ db }, { productId }) => {
-  if (!productId) throw new Error("Missing productId");
+export const deleteProduct = mutation(async ({ db }, { _id }) => {
+  if (!_id) throw new Error("Missing _id");
 
-  await db.delete("products", productId); // pass the _id directly
+  await db.delete("products", _id);
 });
+
 
 // Test function to check if API generation works
 export const test = query(async ({ db }) => {

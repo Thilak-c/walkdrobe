@@ -8,6 +8,7 @@ import { Package, Search, Edit2, Trash2, Plus, X, Save, Globe, Upload } from "lu
 import { SIZE_CHART_DATA } from "../../../../main-web/components/SizeChart";
 import toast from "react-hot-toast";
 import Link from "next/link";
+import { PT_Mono } from "next/font/google";
 
 const SIZES = ["41","42","43","44","45","46"]
 
@@ -23,7 +24,7 @@ export default function WebsiteProducts() {
   const products = useQuery(api.products.getAllProducts);
   const updateProductFull = useMutation(api.products.updateProductFull);
   // Use the webStore mutation which moves website products into `web_trash`
-  const deleteProduct = useMutation(api.webStore.deleteProduct);
+  const deleteProduct = useMutation(api.products.deleteProduct);
 
   let filtered = products || [];
   if (search) {
@@ -35,6 +36,7 @@ export default function WebsiteProducts() {
   if (filter === "out") filtered = filtered.filter(p => (p.currentStock || p.totalAvailable || 0) === 0);
 
   const handleEdit = (p) => {
+   
     setEditing(p);
     setEditForm({
       name: p.name,
@@ -87,15 +89,19 @@ export default function WebsiteProducts() {
     }
   };
 
-  const handleDelete = async (p) => {
-    if (!confirm(`Delete ${p.name}?`)) return;
-    try {
-      await deleteProduct({ id: p._id });
-      toast.success("Deleted!");
-    } catch (err) {
-      toast.error(err.message || "Failed");
-    }
-  };
+const handleDelete = async (p) => {
+  console.log("Deleting product:", p);
+
+  if (!confirm(`Delete ${p.name}?`)) return;
+
+  try {
+    await deleteProduct({ _id: p._id }); // MATCHES PARAM NAME
+    toast.success("Deleted!");
+  } catch (err) {
+    toast.error(err.message || "Failed");
+  }
+};
+
 
   const uploadImage = async (file, isMain = true) => {
     const fd = new FormData();

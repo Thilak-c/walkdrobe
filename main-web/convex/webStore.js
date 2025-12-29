@@ -22,14 +22,14 @@ export const addProduct = mutation({
   },
   handler: async (ctx, args) => {
     // Check duplicate
-    const existing = await ctx.db.query("web_products")
+    const existing = await ctx.db.query("products")
       .withIndex("by_itemId", q => q.eq("itemId", args.itemId))
       .first();
     if (existing) throw new Error("Product with this SKU already exists");
 
     const totalStock = Object.values(args.sizeStock).reduce((sum, qty) => sum + (qty || 0), 0);
 
-    const id = await ctx.db.insert("web_products", {
+    const id = await ctx.db.insert("products", {
       itemId: args.itemId,
       name: args.name,
       category: args.category || "",
@@ -70,7 +70,7 @@ export const addProduct = mutation({
 
 export const updateProduct = mutation({
   args: {
-    id: v.id("web_products"),
+    id: v.id("products"),
     name: v.optional(v.string()),
     category: v.optional(v.string()),
     description: v.optional(v.string()),
@@ -91,7 +91,7 @@ export const updateProduct = mutation({
 
 export const updateStock = mutation({
   args: {
-    id: v.id("web_products"),
+    id: v.id("products"),
     sizeStock: v.any(),
     availableSizes: v.optional(v.array(v.string())),
     reason: v.optional(v.string()),
@@ -132,7 +132,7 @@ export const updateStock = mutation({
 // Full product update (all fields)
 export const updateProductFull = mutation({
   args: {
-    id: v.id("web_products"),
+    id: v.id("products"),
     name: v.string(),
     category: v.optional(v.string()),
     description: v.optional(v.string()),
@@ -191,7 +191,7 @@ export const updateProductFull = mutation({
 
 // Move product to trash (not permanent delete)
 export const deleteProduct = mutation({
-  args: { id: v.id("web_products") },
+  args: { id: v.id("products") },
   handler: async (ctx, { id }) => {
     const product = await ctx.db.get(id);
     if (!product) throw new Error("Product not found");
@@ -221,14 +221,14 @@ export const restoreProduct = mutation({
     if (!trashItem) throw new Error("Trash item not found");
 
     // Check if itemId already exists
-    const existing = await ctx.db.query("web_products")
+    const existing = await ctx.db.query("products")
       .withIndex("by_itemId", q => q.eq("itemId", trashItem.itemId))
       .first();
     if (existing) throw new Error("Product with this SKU already exists");
 
     // Restore product
     const { _id, _creationTime, isDeleted, ...productData } = trashItem.productData;
-    await ctx.db.insert("web_products", {
+    await ctx.db.insert("products", {
       ...productData,
       isDeleted: false,
       updatedAt: nowIso(),
@@ -254,7 +254,7 @@ export const getTrash = query({
 export const getAllProducts = query({
   args: {},
   handler: async (ctx) => {
-    return await ctx.db.query("web_products")
+    return await ctx.db.query("products")
       .filter(q => q.neq(q.field("isDeleted"), true))
       .order("desc")
       .collect();
@@ -262,7 +262,7 @@ export const getAllProducts = query({
 });
 
 export const getProduct = query({
-  args: { id: v.id("web_products") },
+  args: { id: v.id("products") },
   handler: async (ctx, { id }) => {
     return await ctx.db.get(id);
   },
@@ -271,7 +271,7 @@ export const getProduct = query({
 export const getProductByItemId = query({
   args: { itemId: v.string() },
   handler: async (ctx, { itemId }) => {
-    return await ctx.db.query("web_products")
+    return await ctx.db.query("products")
       .withIndex("by_itemId", q => q.eq("itemId", itemId))
       .first();
   },
@@ -280,7 +280,7 @@ export const getProductByItemId = query({
 export const getStats = query({
   args: {},
   handler: async (ctx) => {
-    const products = await ctx.db.query("web_products")
+    const products = await ctx.db.query("products")
       .filter(q => q.neq(q.field("isDeleted"), true))
       .collect();
 
@@ -318,7 +318,7 @@ export const getStats = query({
 export const getLowStock = query({
   args: { threshold: v.optional(v.number()) },
   handler: async (ctx, { threshold = 10 }) => {
-    const products = await ctx.db.query("web_products")
+    const products = await ctx.db.query("products")
       .filter(q => q.neq(q.field("isDeleted"), true))
       .collect();
     return products.filter(p => p.totalStock <= threshold).sort((a, b) => a.totalStock - b.totalStock);
@@ -335,7 +335,7 @@ export const getMovements = query({
 export const searchProducts = query({
   args: { query: v.string() },
   handler: async (ctx, { query }) => {
-    const products = await ctx.db.query("web_products")
+    const products = await ctx.db.query("products")
       .filter(q => q.neq(q.field("isDeleted"), true))
       .collect();
     const s = query.toLowerCase();
@@ -353,14 +353,14 @@ export const getDeadStock = query({
     daysOld: v.optional(v.number()),
   },
   handler: async (ctx, { daysOld = 30 }) => {
-    const products = await ctx.db.query("web_products")
+    const products = await ctx.db.query("products")
       .filter(q => q.neq(q.field("isDeleted"), true))
       .collect();
 
     const cutoffDate = new Date();
     cutoffDate.setDate(cutoffDate.getDate() - daysOld);
 
-    // For web_products, we don't have buys field, so we check based on age and stock
+    // For products, we don't have buys field, so we check based on age and stock
     // Products that haven't moved (still have original stock) are considered dead
     return products
       .filter(p => {
@@ -392,7 +392,7 @@ export const getDeadStock = query({
 export const getProductsByCategory = query({
   args: { category: v.string() },
   handler: async (ctx, { category }) => {
-    const products = await ctx.db.query("web_products")
+    const products = await ctx.db.query("products")
       .filter(q => q.and(
         q.neq(q.field("isDeleted"), true),
         q.neq(q.field("isHidden"), true)
@@ -412,7 +412,7 @@ export const getProductById = query({
   args: { productId: v.string() },
   handler: async (ctx, { productId }) => {
     // Try to find by itemId first
-    const product = await ctx.db.query("web_products")
+    const product = await ctx.db.query("products")
       .withIndex("by_itemId", q => q.eq("itemId", productId))
       .first();
     
@@ -427,7 +427,7 @@ export const getProductById = query({
 export const getFeaturedProducts = query({
   args: { limit: v.optional(v.number()) },
   handler: async (ctx, { limit = 8 }) => {
-    const products = await ctx.db.query("web_products")
+    const products = await ctx.db.query("products")
       .filter(q => q.and(
         q.neq(q.field("isDeleted"), true),
         q.neq(q.field("isHidden"), true),
@@ -439,11 +439,11 @@ export const getFeaturedProducts = query({
   },
 });
 
-// Get top picks from web_products (sorted by stock/newest)
+// Get top picks from products (sorted by stock/newest)
 export const getTopPicks = query({
   args: { limit: v.optional(v.number()) },
   handler: async (ctx, { limit = 10 }) => {
-    const products = await ctx.db.query("web_products")
+    const products = await ctx.db.query("products")
       .filter(q => q.and(
         q.neq(q.field("isDeleted"), true),
         q.neq(q.field("isHidden"), true),
