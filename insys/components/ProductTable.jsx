@@ -15,8 +15,8 @@ export default function ProductTable({ products }) {
   const [editSizes, setEditSizes] = useState([]);
   const [showBarcodeId, setShowBarcodeId] = useState(null);
 
-  const updateSizeStock = useMutation(api.inventory.updateSizeStock);
-  const moveToTrash = useMutation(api.inventory.moveToTrash);
+  const updateSizeStock = useMutation(api.offStore.updateStock);
+  const moveToTrash = useMutation(api.offStore.moveToTrash);
 
   const getTotalStock = (product) => {
     if (product.sizeStock) {
@@ -29,10 +29,9 @@ export default function ProductTable({ products }) {
     if (!editingProduct) return;
     try {
       await updateSizeStock({
-        productId: editingProduct._id,
+        id: editingProduct._id,
         sizeStock: editSizeStock,
-        availableSizes: editSizes.sort((a, b) => parseInt(a) - parseInt(b)),
-        updatedBy: "admin",
+        reason: "Updated via UI",
       });
       toast.success("Stock updated!");
       closeModal();
@@ -44,11 +43,72 @@ export default function ProductTable({ products }) {
   const handleDelete = async (product) => {
     if (!confirm(`Move "${product.name}" to trash?`)) return;
     try {
-      await moveToTrash({ productId: product._id });
+      await moveToTrash({ id: product._id });
       toast.success("Moved to trash!");
     } catch (error) {
       toast.error(error.message || "Failed to delete");
     }
+  };
+
+  const printLabel = (itemId) => {
+    if (!itemId) return;
+    // Prefer printing the inline SVG if it's rendered on the page
+    try {
+      const inline = document.querySelector(`svg[data-item="${itemId}"]`);
+      if (inline && inline.outerHTML) {
+        const html = `<!doctype html><html><head><meta charset="utf-8"/><title>Label</title><style>@page{size:50mm 25mm;margin:0}html,body{margin:0;padding:0}body{width:50mm;height:25mm;display:flex;align-items:center;justify-content:center}.label{width:40mm}</style></head><body><div class="label">${inline.outerHTML}</div><script>setTimeout(()=>{window.print();setTimeout(()=>window.close(),200)},200);</script></body></html>`;
+        const blob = new Blob([html], { type: 'text/html' });
+        const url = URL.createObjectURL(blob);
+        const w = window.open(url, '_blank');
+        if (!w) alert('Please allow popups to print barcode');
+        return;
+      }
+    } catch (e) {
+      // ignore and fallback to generating barcode in new window
+    }
+    const html = `<!doctype html>
+    <html>
+      <head>
+        <meta charset="utf-8" />
+        <title>Label</title>
+        <style>
+          /* Request zero page margins; printer may still enforce hardware margins */
+          @page { size: 50mm 25mm; margin: 0; }
+          html,body { margin: 0; padding: 0; background: #fff; }
+          body { width: 50mm; height: 25mm; display: flex; align-items: center; justify-content: center; }
+          .label { width: 50mm; height: 25mm; display: flex; align-items: center; justify-content: center; box-sizing: border-box; }
+          .label svg { width: 100%; height: auto; display: block; }
+        </style>
+      </head>
+      <body>
+        <div class="label">
+          <svg id="barcode"></svg>
+        </div>
+        <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
+        <script>
+          try {
+            JsBarcode(document.getElementById('barcode'), ${JSON.stringify(itemId)}, {
+              format: 'CODE128',
+              displayValue: true,
+              font: 'monospace',
+              fontOptions: 'bold',
+              fontSize: 12,
+              textMargin: 4,
+              margin: 0,
+              lineColor: '#000000',
+              height: 60,
+              width: 1.8
+            });
+          } catch (e) { console.error(e); }
+          setTimeout(()=>{ window.print(); setTimeout(()=>window.close(),200); }, 300);
+        </script>
+      </body>
+    </html>`;
+
+    const blob = new Blob([html], { type: 'text/html' });
+    const url = URL.createObjectURL(blob);
+    const w = window.open(url, '_blank');
+    if (!w) alert('Please allow popups to print barcode');
   };
 
   const startEditing = (product) => {
@@ -147,7 +207,7 @@ export default function ProductTable({ products }) {
                           </button>
                           {showBarcodeId === product._id && (
                             <div className="mt-2">
-                              <Barcode value={product.itemId} width={100} height={35} />
+                              <Barcode value={product.itemId} width={100} height={35} dataItem={product.itemId} />
                             </div>
                           )}
                         </div>
@@ -171,12 +231,19 @@ export default function ProductTable({ products }) {
                       <span className={`badge ${status.class}`}>{status.label}</span>
                     </td>
                     <td className="px-6 py-4">
-                      <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2">
                         <button
                           onClick={() => startEditing(product)}
                           className="flex items-center gap-1 px-3 py-2 bg-gray-900 text-white rounded-lg text-xs font-medium hover:bg-gray-800"
                         >
                           <Edit2 size={14} /> Edit
+                        </button>
+                        <button
+                          onClick={() => printLabel(product.itemId)}
+                          className="flex items-center gap-1 px-3 py-2 bg-blue-50 text-blue-600 rounded-lg text-xs font-medium hover:bg-blue-100"
+                          title="Print label"
+                        >
+                          Print
                         </button>
                         <button
                           onClick={() => handleDelete(product)}

@@ -6,6 +6,7 @@ import { api } from "../../../main-web/convex/_generated/api";
 import Sidebar from "@/components/Sidebar";
 import ProductTable from "@/components/ProductTable";
 import { Search, Download, Package, Filter } from "lucide-react";
+import Link from "next/link";
 
 export default function ProductsPage() {
   const [search, setSearch] = useState("");
@@ -55,14 +56,21 @@ export default function ProductsPage() {
               <h1 className="text-2xl lg:text-3xl font-bold text-gray-900 font-poppins">All Products</h1>
               <p className="text-gray-500 text-sm mt-1">{products?.length || 0} products in inventory</p>
             </div>
-            <button
-              onClick={exportCSV}
-              disabled={!products?.length}
-              className="flex items-center justify-center gap-2 px-5 py-2.5 bg-gray-900 text-white rounded-xl hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-medium text-sm"
-            >
-              <Download size={18} />
-              Export CSV
-            </button>
+            <div className="flex items-center gap-3">
+              <Link href="/barcode">
+                <p className="flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-500 transition-colors font-medium text-sm">
+                  Barcode
+                </p>
+              </Link>
+              <button
+                onClick={exportCSV}
+                disabled={!products?.length}
+                className="flex items-center justify-center gap-2 px-5 py-2.5 bg-gray-900 text-white rounded-xl hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-medium text-sm"
+              >
+                <Download size={18} />
+                Export CSV
+              </button>
+            </div>
           </div>
 
           {/* Filters */}

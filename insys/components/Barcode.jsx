@@ -4,7 +4,7 @@ import { useEffect, useRef } from "react";
 import JsBarcode from "jsbarcode";
 
 // Improved barcode renderer using JsBarcode (CODE128) and SVG for printing
-export default function Barcode({ value, printable = true, showText = true }) {
+export default function Barcode({ value, printable = true, showText = true, dataItem }) {
   const svgRef = useRef(null);
 
   useEffect(() => {
@@ -74,7 +74,7 @@ export default function Barcode({ value, printable = true, showText = true }) {
 
   return (
     <div className={printable ? "cursor-pointer" : ""} onClick={handlePrint} title={printable ? "Click to print label" : undefined}>
-      <svg ref={svgRef} />
+      <svg ref={svgRef} data-item={dataItem} />
     </div>
   );
 }

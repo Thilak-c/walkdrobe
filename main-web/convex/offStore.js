@@ -150,6 +150,33 @@ export const deleteProduct = mutation({
   },
 });
 
+// Move product to trash (soft-delete: mark as deleted and save snapshot)
+export const moveToTrash = mutation({
+  args: { id: v.id("off_products"), deletedBy: v.optional(v.string()) },
+  handler: async (ctx, { id, deletedBy }) => {
+    const product = await ctx.db.get(id);
+    if (!product) throw new Error("Product not found");
+
+    // Save to trash
+    await ctx.db.insert("off_trash", {
+      originalId: id,
+      itemId: product.itemId,
+      name: product.name,
+      productData: product,
+      deletedAt: nowIso(),
+      deletedBy: deletedBy || "admin",
+    });
+
+    // Soft-delete: mark product as deleted so it won't appear in lists
+    await ctx.db.patch(id, {
+      isDeleted: true,
+      updatedAt: nowIso(),
+    });
+
+    return { success: true };
+  },
+});
+
 // Restore product from trash
 export const restoreProduct = mutation({
   args: { trashId: v.id("off_trash") },
@@ -161,15 +188,48 @@ export const restoreProduct = mutation({
     const existing = await ctx.db.query("off_products")
       .withIndex("by_itemId", q => q.eq("itemId", trashItem.itemId))
       .first();
-    if (existing) throw new Error("Product with this SKU already exists");
 
-    // Restore product
-    const { _id, _creationTime, isDeleted, ...productData } = trashItem.productData;
-    await ctx.db.insert("off_products", {
-      ...productData,
-      isDeleted: false,
+    // Prepare sanitized product data (only fields allowed by schema)
+    const { _id, _creationTime, ...rawData } = trashItem.productData;
+    const productData = {
+      itemId: rawData.itemId,
+      name: rawData.name,
+      category: rawData.category,
+      description: rawData.description,
+      mainImage: rawData.mainImage,
+      otherImages: rawData.otherImages,
+      price: rawData.price,
+      costPrice: rawData.costPrice,
+      color: rawData.color,
+      secondaryColor: rawData.secondaryColor,
+      availableSizes: rawData.availableSizes,
+      sizeStock: rawData.sizeStock,
+      totalStock: rawData.totalStock,
+      inStock: rawData.inStock,
+      isHidden: rawData.isHidden,
+      createdAt: rawData.createdAt || nowIso(),
       updatedAt: nowIso(),
-    });
+    };
+
+    if (existing) {
+      // If an existing soft-deleted record exists, restore it by patching
+      if (existing.isDeleted) {
+        await ctx.db.patch(existing._id, {
+          ...productData,
+          isDeleted: false,
+          updatedAt: nowIso(),
+        });
+      } else {
+        // Active product exists with same SKU -> conflict
+        throw new Error("Product with this SKU already exists");
+      }
+    } else {
+      // Insert as a new product
+      await ctx.db.insert("off_products", {
+        ...productData,
+        isDeleted: false,
+      });
+    }
 
     // Remove from trash
     await ctx.db.delete(trashId);

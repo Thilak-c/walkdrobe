@@ -9,11 +9,8 @@ import { SIZE_CHART_DATA } from "../../../../main-web/components/SizeChart";
 import toast from "react-hot-toast";
 import Link from "next/link";
 
-const SIZES = (SIZE_CHART_DATA && Array.isArray(SIZE_CHART_DATA)
-  ? Array.from(new Set(SIZE_CHART_DATA.map(s => String(s.uk))))
-      .sort((a, b) => parseFloat(a) - parseFloat(b))
-  : ["41","42","43","44","45","46"]
-);
+const SIZES = ["41","42","43","44","45","46"]
+
 const COLORS = ["Black", "White", "Brown", "Navy", "Grey", "Red", "Blue", "Green", "Beige", "Tan", "Multi"];
 const CATEGORIES = ["Sneakers", "Boots", "Sandals", "Formal", "Sports", "Casual", "Loafers", "Slippers", "Heels"];
 
@@ -25,7 +22,8 @@ export default function WebsiteProducts() {
 
   const products = useQuery(api.products.getAllProducts);
   const updateProductFull = useMutation(api.products.updateProductFull);
-  const deleteProduct = useMutation(api.products.deleteProduct);
+  // Use the webStore mutation which moves website products into `web_trash`
+  const deleteProduct = useMutation(api.webStore.deleteProduct);
 
   let filtered = products || [];
   if (search) {
@@ -92,7 +90,7 @@ export default function WebsiteProducts() {
   const handleDelete = async (p) => {
     if (!confirm(`Delete ${p.name}?`)) return;
     try {
-      await deleteProduct({ productId: p._id });
+      await deleteProduct({ id: p._id });
       toast.success("Deleted!");
     } catch (err) {
       toast.error(err.message || "Failed");
