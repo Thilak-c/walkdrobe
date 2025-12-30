@@ -18,7 +18,7 @@ export default function Barcode({ value, printable = true, showText = true, data
         displayValue: showText,
         font: "monospace",
         fontOptions: "bold",
-        fontSize: 20,
+        fontSize: 40,
         textMargin: 4,
         margin: 8, // quiet zone in px (keeps left/right margins)
         lineColor: "#000000",
