@@ -18,12 +18,12 @@ export default function Barcode({ value, printable = true, showText = true, data
         displayValue: showText,
         font: "monospace",
         fontOptions: "bold",
-        fontSize: 12,
+        fontSize: 20,
         textMargin: 4,
         margin: 8, // quiet zone in px (keeps left/right margins)
         lineColor: "#000000",
         height: 80, // tall bars for better scanner reliability
-        width: 2 // bar narrow width; final physical size controlled by CSS mm width
+        width: 4 // bar narrow width; final physical size controlled by CSS mm width
       });
     } catch (e) {
       // fallback: render nothing
