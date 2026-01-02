@@ -272,6 +272,7 @@ export default defineSchema({
     customerPhone: v.optional(v.string()),
     subtotal: v.float64(),
     discount: v.optional(v.float64()),
+    discountAmount: v.optional(v.float64()),
     tax: v.float64(),
     total: v.float64(),
     paymentMethod: v.string(), // cash, card, upi

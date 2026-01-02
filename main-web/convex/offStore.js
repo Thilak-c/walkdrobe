@@ -348,6 +348,7 @@ export const searchProducts = query({
 
 export const createBill = mutation({
   args: {
+    billNumber: v.optional(v.string()),
     items: v.array(v.object({
       productId: v.string(),
       productName: v.string(),
@@ -361,6 +362,7 @@ export const createBill = mutation({
     customerPhone: v.optional(v.string()),
     subtotal: v.float64(),
     discount: v.optional(v.float64()),
+    discountAmount: v.optional(v.float64()),
     tax: v.float64(),
     total: v.float64(),
     paymentMethod: v.string(),
@@ -368,7 +370,8 @@ export const createBill = mutation({
   },
   handler: async (ctx, args) => {
     const date = new Date();
-    const billNumber = `OFF${date.getFullYear()}${String(date.getMonth() + 1).padStart(2, "0")}${String(date.getDate()).padStart(2, "0")}${String(date.getHours()).padStart(2, "0")}${String(date.getMinutes()).padStart(2, "0")}${String(date.getSeconds()).padStart(2, "0")}`;
+    const generatedBillNumber = `OFF${date.getFullYear()}${String(date.getMonth() + 1).padStart(2, "0")}${String(date.getDate()).padStart(2, "0")}${String(date.getHours()).padStart(2, "0")}${String(date.getMinutes()).padStart(2, "0")}${String(date.getSeconds()).padStart(2, "0")}`;
+    const billNumber = args.billNumber || generatedBillNumber;
 
     // Deduct stock for each item
     for (const item of args.items) {
@@ -411,6 +414,7 @@ export const createBill = mutation({
       customerPhone: args.customerPhone,
       subtotal: args.subtotal,
       discount: args.discount,
+      discountAmount: args.discountAmount || 0,
       tax: args.tax,
       total: args.total,
       paymentMethod: args.paymentMethod,

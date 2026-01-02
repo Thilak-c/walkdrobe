@@ -19,7 +19,7 @@ export default function BillingPage() {
     const [billNumber, setBillNumber] = useState("");
     const [logoBase64, setLogoBase64] = useState("");
     const [paymentMethod, setPaymentMethod] = useState("cash");
-    const [discount, setDiscount] = useState(0);
+    const [discount, setDiscount] = useState(10);
     const [selectedProduct, setSelectedProduct] = useState(null); // For size selection
     const printRef = useRef(null);
 
@@ -60,6 +60,85 @@ export default function BillingPage() {
     const getSizeStock = (product, size) => {
         if (!product?.sizeStock) return 0;
         return product.sizeStock[size] ?? 0;
+    };
+
+    // Load external script helper
+    const loadScript = (src) => new Promise((resolve, reject) => {
+        if (typeof window === 'undefined') return reject(new Error('window not available'));
+        if (document.querySelector(`script[src="${src}"]`)) return resolve();
+        const s = document.createElement('script');
+        s.src = src;
+        s.onload = () => resolve();
+        s.onerror = (e) => reject(e);
+        document.body.appendChild(s);
+    });
+
+    // Generate PDF from element, trigger download and upload to server
+    const generatePdfAndUpload = async (element, outBillNumber) => {
+        try {
+            // load html2canvas and jspdf from CDN
+            await loadScript('https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js');
+            await loadScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js');
+
+            // detect globals
+            const html2canvas = window.html2canvas || window.html2canvas?.default || window.html2canvas;
+            const jspdfGlobal = window.jspdf || window.jspdf?.default || window.jspdf;
+            const jsPDF = (jspdfGlobal && (jspdfGlobal.jsPDF || jspdfGlobal.default || jspdfGlobal)) || window.jsPDF || window.jsPDF?.default;
+
+            if (!html2canvas) throw new Error('html2canvas not available');
+            if (!jsPDF) throw new Error('jsPDF not available');
+
+            console.debug('Generating PDF for', outBillNumber);
+
+            // render element to canvas
+            const canvas = await html2canvas(element, { scale: 2 });
+            const imgData = canvas.toDataURL('image/png');
+
+            // create PDF and add image scaled to page
+            const pdf = new jsPDF({ unit: 'pt', format: [canvas.width, canvas.height] });
+            pdf.addImage(imgData, 'PNG', 0, 0, canvas.width, canvas.height);
+
+            const blob = pdf.output('blob');
+
+            // trigger download in browser (preferred)
+            try {
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `${outBillNumber}.pdf`;
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+                // small delay before revoking to allow download start
+                setTimeout(() => URL.revokeObjectURL(url), 1000);
+                toast.success('PDF download started');
+            } catch (e) {
+                console.warn('Download failed, opening in new tab', e);
+                const url = URL.createObjectURL(blob);
+                window.open(url, '_blank');
+            }
+
+            // upload to server as base64 for persistence
+            const reader = new FileReader();
+            const pdfBase64 = await new Promise((res, rej) => {
+                reader.onload = () => res(String(reader.result).split(',')[1]);
+                reader.onerror = rej;
+                reader.readAsDataURL(blob);
+            });
+
+            const saveRes = await fetch('/api/save-bill', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ billNumber: outBillNumber, pdfBase64 }),
+            });
+            if (!saveRes.ok) console.warn('Server save returned', await saveRes.text());
+
+            return true;
+        } catch (error) {
+            console.error('PDF generation/upload failed:', error);
+            toast.error('PDF generation failed: ' + (error?.message || error));
+            return false;
+        }
     };
 
     // Get total stock across all sizes
@@ -295,9 +374,9 @@ export default function BillingPage() {
                     printWindow.close();
                 }, 250);
 
-        // Save bill
+        // Save bill and rely on server-side logic to update stock atomically
         try {
-            await createBill({
+            const res = await createBill({
                 billNumber,
                 items: cart.map(item => ({
                     productId: item._id,
@@ -318,26 +397,20 @@ export default function BillingPage() {
                 paymentMethod,
                 createdBy: "billing",
             });
+
+            if (!res || !res.success) {
+                console.error("createBill unexpected response:", res);
+                toast.error("Failed to save bill. See console for details.");
+            } else {
+                // generate PDF, download and upload copy to server
+                const outNumber = res?.billNumber || billNumber;
+                generatePdfAndUpload(printContent, outNumber).catch(e => console.error(e));
+                toast.success("Bill printed & stock updated!");
+            }
         } catch (error) {
             console.error("Failed to save bill:", error);
+            toast.error("Failed to save bill: " + (error?.message || error));
         }
-
-        // Update stock for each item
-        for (const item of cart) {
-            try {
-                await removeSizeStock({
-                    productId: item._id,
-                    size: item.size,
-                    quantity: item.quantity,
-                    reason: `Sale - Bill #${billNumber}`,
-                    updatedBy: "billing",
-                });
-            } catch (error) {
-                console.error(`Failed to update stock for ${item.name}:`, error);
-            }
-        }
-
-        toast.success("Bill printed & stock updated!");
         
         // Reset
         setCart([]);
@@ -488,7 +561,7 @@ export default function BillingPage() {
                             <div className="bg-white rounded-2xl p-4 border border-gray-100">
                                 <h3 className="text-sm font-semibold text-gray-700 mb-3">Discount</h3>
                                 <div className="flex gap-2">
-                                    {[{ value: 0, label: "None" }, { value: 5, label: "5%" }, { value: 10, label: "10%" }, { value: 25, label: "25%" }].map((d) => (
+                                    {[{ value: 10, label: "10%" }].map((d) => (
                                         <button
                                             key={d.value}
                                             onClick={() => setDiscount(d.value)}
@@ -501,6 +574,27 @@ export default function BillingPage() {
                                             {d.label}
                                         </button>
                                     ))}
+
+                                    <button
+                                        key="custom"
+                                        onClick={() => {
+                                            const input = prompt("Enter discount percentage (0-100):", String(discount));
+                                            if (input === null) return;
+                                            const n = Number(input);
+                                            if (Number.isFinite(n) && n >= 0 && n <= 100) {
+                                                setDiscount(n);
+                                            } else {
+                                                toast.error("Invalid discount percentage");
+                                            }
+                                        }}
+                                        className={`w-24 py-2.5 rounded-xl text-sm font-medium transition-all ${
+                                            discount !== 10
+                                                ? "bg-emerald-600 text-white"
+                                                : "bg-gray-50 text-gray-600 hover:bg-gray-100"
+                                        }`}
+                                    >
+                                        Custom
+                                    </button>
                                 </div>
                             </div>
 
