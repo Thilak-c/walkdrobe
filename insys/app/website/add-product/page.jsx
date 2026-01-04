@@ -10,7 +10,7 @@ import Link from "next/link";
 
 const SIZES = ["41", "42", "43", "44", "45", "46"];
 const COLORS = ["Black", "White", "Brown", "Navy", "Grey", "Red", "Blue", "Green", "Beige", "Tan", "Multi"];
-const CATEGORIES = ["Sneakers", "Boots", "Sandals", "Formal", "Sports", "Casual", "Loafers", "Slippers", "Heels"];
+const CATEGORIES = ["All", "Sneakers", "Sports"];
 
 export default function WebsiteAddProduct() {
   const [loading, setLoading] = useState(false);

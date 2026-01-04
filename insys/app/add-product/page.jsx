@@ -11,7 +11,7 @@ import { useRouter } from "next/navigation";
 
 const SIZES = ["41","42","43","44","45","46"];
 const COLORS = ["Black", "White", "Brown", "Navy", "Grey", "Red", "Blue", "Green", "Beige", "Tan"];
-const CATEGORIES = ["Sneakers", "Boots", "Sandals", "Formal", "Sports", "Casual", "Loafers", "Slippers"];
+const CATEGORIES = ["All", "Sneakers", "Sports"];
 
 export default function AddProductPage() {
   const router = useRouter();

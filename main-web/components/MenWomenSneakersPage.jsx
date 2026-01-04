@@ -17,10 +17,9 @@ export default function MenWomenSneakersPage() {
   const [activeType, setActiveType] = useState("All");
 
   const categoryMap = {
+    all: "All",
     sneakers: "Sneakers",
-    boots: "Boots",
-    sandals: "Sandals",
-    formal: "Formal",
+    sports: "Sports",
   };
 
   const ctParam = searchParams.get("ct")?.toLowerCase() || "sneakers";
@@ -159,7 +158,7 @@ export default function MenWomenSneakersPage() {
       </section>
 
       {/* Filters */}
-      <div className="flex gap-3 my-3 max-w-7xl mx-auto">
+      {/* <div className="flex gap-3 my-3 max-w-7xl mx-auto">
         <CustomDropdown
           label="Subcategory"
           options={subcategories}
@@ -173,7 +172,7 @@ export default function MenWomenSneakersPage() {
           selected={activeType}
           onSelect={setActiveType}
         />
-      </div>
+      </div> */}
       <div className="w-full h-[1px] bg-black max-w-7xl flex justify-center self-center-safe mx-auto blur-[2px] mb-3"></div>
 
       {/* Products Grid */}

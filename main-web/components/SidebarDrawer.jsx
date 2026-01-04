@@ -23,29 +23,28 @@ export default function SidebarDrawer({ open, onClose, width = "w-4/5 max-w-sm" 
   // Fetch all products to extract categories and subcategories
   const products = useQuery(api.category.getAllProducts) ?? [];
 
-  // Fetch dynamic collections from database
-  const collections = useQuery(api.collections.getAllCollections) ?? [];
-
   // Handle logout
   const handleLogout = () => {
     document.cookie = "sessionToken=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
     window.location.href = "/";
   };
 
-  // Extract unique categories and their subcategories
+  // Extract unique categories and their subcategories - filtered to only Sneakers and Sports
   const categoriesData = useMemo(() => {
+    const allowedCategories = ["Sneakers", "Sports"];
     const categoryMap = {};
 
     products.forEach((product) => {
       const category = product.category;
       const subcategory = product.subcategories;
 
-      if (category) {
-        if (!categoryMap[category]) {
-          categoryMap[category] = new Set();
+      if (category && allowedCategories.some(c => c.toLowerCase() === category.toLowerCase())) {
+        const normalizedCategory = allowedCategories.find(c => c.toLowerCase() === category.toLowerCase()) || category;
+        if (!categoryMap[normalizedCategory]) {
+          categoryMap[normalizedCategory] = new Set();
         }
         if (subcategory) {
-          categoryMap[category].add(subcategory);
+          categoryMap[normalizedCategory].add(subcategory);
         }
       }
     });
@@ -57,15 +56,16 @@ export default function SidebarDrawer({ open, onClose, width = "w-4/5 max-w-sm" 
     }));
   }, [products]);
 
-  // Extract all unique subcategories across all categories
+  // Extract all unique subcategories across allowed categories only
   const allSubcategories = useMemo(() => {
+    const allowedCategories = ["sneakers", "sports"];
     const subcategoryMap = {};
 
     products.forEach((product) => {
       const category = product.category;
       const subcategory = product.subcategories;
 
-      if (subcategory && category) {
+      if (subcategory && category && allowedCategories.includes(category.toLowerCase())) {
         if (!subcategoryMap[subcategory]) {
           subcategoryMap[subcategory] = category;
         }
@@ -229,43 +229,6 @@ export default function SidebarDrawer({ open, onClose, width = "w-4/5 max-w-sm" 
                       >
                         <div className="px-8 py-2 hover:bg-gray-100 transition-colors cursor-pointer">
                           <span className="text-sm font-normal text-gray-600">{subcategory.name}</span>
-                        </div>
-                      </Link>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              {/* Divider */}
-              <div className="my-1 mx-4 border-t border-gray-200"></div>
-            </>
-          )}
-
-          {/* Collections Section - Dynamic from Database */}
-          {collections.length > 0 && (
-            <>
-              <div>
-                <button
-                  onClick={() => toggleSection('collections')}
-                  className="w-full px-4 py-2.5 flex items-center justify-between hover:bg-gray-50 transition-colors"
-                >
-                  <span className="text-sm font-normal text-gray-900">Collections</span>
-                  <ChevronRight
-                    size={16}
-                    className={`text-gray-500 transition-transform ${expandedSection === 'collections' ? 'rotate-90' : ''
-                      }`}
-                  />
-                </button>
-                {expandedSection === 'collections' && (
-                  <div className="bg-gray-50 py-1">
-                    {collections.map((collection) => (
-                      <Link
-                        key={collection.slug}
-                        href={`/collections/${collection.slug}`}
-                        onClick={onClose}
-                      >
-                        <div className="px-8 py-2 hover:bg-gray-100 transition-colors cursor-pointer">
-                          <span className="text-xs font-light text-gray-600">{collection.name}</span>
                         </div>
                       </Link>
                     ))}

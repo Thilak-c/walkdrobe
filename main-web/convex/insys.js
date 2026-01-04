@@ -56,9 +56,9 @@ export const createReturn = mutation({
       processedBy: args.createdBy,
     });
 
-    // Restore stock for returned items
+    // Restore stock for returned items (use off_products for offline store)
     for (const item of args.items) {
-      const product = await ctx.db.query("products").filter(q => q.eq(q.field("itemId"), item.itemId)).first();
+      const product = await ctx.db.query("off_products").filter(q => q.eq(q.field("itemId"), item.itemId)).first();
       if (product) {
         const sizeStock = product.sizeStock || {};
         if (item.size) {
@@ -67,13 +67,11 @@ export const createReturn = mutation({
         const newTotal = Object.values(sizeStock).reduce((sum, qty) => sum + (qty || 0), 0);
         await ctx.db.patch(product._id, {
           sizeStock,
-          currentStock: newTotal,
-          totalAvailable: newTotal,
-          inStock: newTotal > 0,
+          totalStock: newTotal,
           updatedAt: nowIso(),
         });
         
-        await ctx.db.insert("inventoryMovements", {
+        await ctx.db.insert("off_inventory_movements", {
           productId: item.itemId,
           productName: item.productName,
           productImage: item.productImage,
@@ -89,10 +87,10 @@ export const createReturn = mutation({
       }
     }
 
-    // Deduct stock for exchange items
+    // Deduct stock for exchange items (use off_products for offline store)
     if (args.exchangeItems) {
       for (const item of args.exchangeItems) {
-        const product = await ctx.db.query("products").filter(q => q.eq(q.field("itemId"), item.itemId)).first();
+        const product = await ctx.db.query("off_products").filter(q => q.eq(q.field("itemId"), item.itemId)).first();
         if (product) {
           const sizeStock = product.sizeStock || {};
           if (item.size) {
@@ -101,9 +99,7 @@ export const createReturn = mutation({
           const newTotal = Object.values(sizeStock).reduce((sum, qty) => sum + (qty || 0), 0);
           await ctx.db.patch(product._id, {
             sizeStock,
-            currentStock: newTotal,
-            totalAvailable: newTotal,
-            inStock: newTotal > 0,
+            totalStock: newTotal,
             updatedAt: nowIso(),
           });
         }
@@ -303,27 +299,25 @@ export const receivePurchaseOrder = mutation({
     const po = await ctx.db.get(poId);
     if (!po) throw new Error("PO not found");
     
-    // Add stock for each item
+    // Add stock for each item (use off_products for offline store)
     for (const item of po.items) {
       if (item.itemId) {
-        const product = await ctx.db.query("products").filter(q => q.eq(q.field("itemId"), item.itemId)).first();
+        const product = await ctx.db.query("off_products").filter(q => q.eq(q.field("itemId"), item.itemId)).first();
         if (product) {
           const sizeStock = product.sizeStock || {};
           if (item.size) {
             sizeStock[item.size] = (sizeStock[item.size] || 0) + item.quantity;
           }
           const newTotal = Object.values(sizeStock).reduce((sum, qty) => sum + (qty || 0), 0);
-          const oldTotal = product.currentStock || 0;
+          const oldTotal = product.totalStock || 0;
           
           await ctx.db.patch(product._id, {
             sizeStock,
-            currentStock: newTotal,
-            totalAvailable: newTotal,
-            inStock: newTotal > 0,
+            totalStock: newTotal,
             updatedAt: nowIso(),
           });
           
-          await ctx.db.insert("inventoryMovements", {
+          await ctx.db.insert("off_inventory_movements", {
             productId: item.itemId,
             productName: item.productName,
             type: "stock_in",
@@ -426,8 +420,8 @@ export const generateDailyReport = mutation({
     const startOfDay = `${date}T00:00:00`;
     const endOfDay = `${date}T23:59:59`;
     
-    // Get bills for the day
-    const bills = await ctx.db.query("bills").collect();
+    // Get bills for the day (use off_bills for offline store)
+    const bills = await ctx.db.query("off_bills").collect();
     const dayBills = bills.filter(b => b.createdAt >= startOfDay && b.createdAt <= endOfDay);
     
     let totalSales = 0, cashSales = 0, cardSales = 0, upiSales = 0;
@@ -517,8 +511,9 @@ export const getDailyReports = query({
 export const getProfitAnalytics = query({
   args: { startDate: v.optional(v.string()), endDate: v.optional(v.string()) },
   handler: async (ctx, { startDate, endDate }) => {
-    const bills = await ctx.db.query("bills").collect();
-    const products = await ctx.db.query("products").filter(q => q.neq(q.field("isDeleted"), true)).collect();
+    // Use off_bills and off_products for offline store
+    const bills = await ctx.db.query("off_bills").collect();
+    const products = await ctx.db.query("off_products").filter(q => q.neq(q.field("isDeleted"), true)).collect();
     const expenses = await ctx.db.query("expenses").collect();
     const returns = await ctx.db.query("returns").collect();
     
@@ -680,7 +675,8 @@ export const getTodaySales = query({
     const today = new Date().toISOString().split("T")[0];
     const startOfDay = `${today}T00:00:00`;
     
-    const bills = await ctx.db.query("bills").collect();
+    // Use off_bills for offline store
+    const bills = await ctx.db.query("off_bills").collect();
     const todayBills = bills.filter(b => b.createdAt >= startOfDay);
     
     let total = 0, cash = 0, card = 0, upi = 0;
@@ -700,7 +696,8 @@ export const getTodaySales = query({
 export const getCustomerPurchaseHistory = query({
   args: { phone: v.string() },
   handler: async (ctx, { phone }) => {
-    const bills = await ctx.db.query("bills").collect();
+    // Use off_bills for offline store
+    const bills = await ctx.db.query("off_bills").collect();
     return bills.filter(b => b.customerPhone === phone).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
   },
 });
@@ -710,14 +707,15 @@ export const getCustomerPurchaseHistory = query({
 export const getFullBackup = query({
   args: {},
   handler: async (ctx) => {
-    const products = await ctx.db.query("products").filter(q => q.neq(q.field("isDeleted"), true)).collect();
-    const bills = await ctx.db.query("bills").collect();
+    // Use off_products and off_bills for offline store
+    const products = await ctx.db.query("off_products").filter(q => q.neq(q.field("isDeleted"), true)).collect();
+    const bills = await ctx.db.query("off_bills").collect();
     const customers = await ctx.db.query("customers").collect();
     const suppliers = await ctx.db.query("suppliers").collect();
     const purchaseOrders = await ctx.db.query("purchaseOrders").collect();
     const expenses = await ctx.db.query("expenses").collect();
     const returns = await ctx.db.query("returns").collect();
-    const movements = await ctx.db.query("inventoryMovements").collect();
+    const movements = await ctx.db.query("off_inventory_movements").collect();
     
     return {
       exportedAt: nowIso(),

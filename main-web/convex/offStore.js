@@ -77,13 +77,29 @@ export const updateProduct = mutation({
     category: v.optional(v.string()),
     description: v.optional(v.string()),
     mainImage: v.optional(v.string()),
+    otherImages: v.optional(v.array(v.string())),
     price: v.optional(v.float64()),
     costPrice: v.optional(v.float64()),
     color: v.optional(v.string()),
+    secondaryColor: v.optional(v.string()),
+    availableSizes: v.optional(v.array(v.string())),
+    sizeStock: v.optional(v.any()),
     isHidden: v.optional(v.boolean()),
   },
-  handler: async (ctx, { id, ...updates }) => {
+  handler: async (ctx, { id, sizeStock, ...updates }) => {
+    const product = await ctx.db.get(id);
+    if (!product) throw new Error("Product not found");
+
     const filtered = Object.fromEntries(Object.entries(updates).filter(([_, v]) => v !== undefined));
+    
+    // If sizeStock is provided, recalculate totalStock
+    if (sizeStock !== undefined) {
+      const totalStock = Object.values(sizeStock).reduce((sum, qty) => sum + (qty || 0), 0);
+      filtered.sizeStock = sizeStock;
+      filtered.totalStock = totalStock;
+      filtered.inStock = totalStock > 0;
+    }
+
     await ctx.db.patch(id, { ...filtered, updatedAt: nowIso() });
     return { success: true };
   },
@@ -255,6 +271,94 @@ export const getAllProducts = query({
       .filter(q => q.neq(q.field("isDeleted"), true))
       .order("desc")
       .collect();
+  },
+});
+
+// Optimized query for product list - only essential fields for display
+export const getProductsForList = query({
+  args: {},
+  handler: async (ctx) => {
+    const products = await ctx.db.query("off_products")
+      .filter(q => q.neq(q.field("isDeleted"), true))
+      .order("desc")
+      .collect();
+    
+    // Return only fields needed for the product table
+    return products.map(p => ({
+      _id: p._id,
+      itemId: p.itemId,
+      name: p.name,
+      category: p.category,
+      mainImage: p.mainImage,
+      price: p.price,
+      totalStock: p.totalStock,
+      availableSizes: p.availableSizes,
+      sizeStock: p.sizeStock,
+    }));
+  },
+});
+
+// Optimized query for billing - only fields needed for POS
+export const getProductsForBilling = query({
+  args: {},
+  handler: async (ctx) => {
+    const products = await ctx.db.query("off_products")
+      .filter(q => q.neq(q.field("isDeleted"), true))
+      .order("desc")
+      .collect();
+    
+    return products.map(p => ({
+      _id: p._id,
+      itemId: p.itemId,
+      name: p.name,
+      mainImage: p.mainImage,
+      price: p.price,
+      availableSizes: p.availableSizes,
+      sizeStock: p.sizeStock,
+    }));
+  },
+});
+
+// Optimized query for barcode page - minimal fields
+export const getProductsForBarcode = query({
+  args: {},
+  handler: async (ctx) => {
+    const products = await ctx.db.query("off_products")
+      .filter(q => q.neq(q.field("isDeleted"), true))
+      .order("desc")
+      .collect();
+    
+    return products.map(p => ({
+      _id: p._id,
+      itemId: p.itemId,
+      name: p.name,
+      mainImage: p.mainImage,
+      price: p.price,
+    }));
+  },
+});
+
+// Optimized query for dead stock - only needed fields
+export const getProductsForDeadStock = query({
+  args: {},
+  handler: async (ctx) => {
+    const products = await ctx.db.query("off_products")
+      .filter(q => q.neq(q.field("isDeleted"), true))
+      .order("desc")
+      .collect();
+    
+    return products.map(p => ({
+      _id: p._id,
+      itemId: p.itemId,
+      name: p.name,
+      category: p.category,
+      mainImage: p.mainImage,
+      price: p.price,
+      totalStock: p.totalStock,
+      currentStock: p.totalStock,
+      stockValue: (p.totalStock || 0) * (p.price || 0),
+      createdAt: p.createdAt,
+    }));
   },
 });
 
@@ -430,6 +534,18 @@ export const getBills = query({
   args: { limit: v.optional(v.number()) },
   handler: async (ctx, { limit = 100 }) => {
     return await ctx.db.query("off_bills").order("desc").take(limit);
+  },
+});
+
+// Get bill by bill number for returns
+export const getBillByNumber = query({
+  args: { billNumber: v.string() },
+  handler: async (ctx, { billNumber }) => {
+    const bill = await ctx.db
+      .query("off_bills")
+      .filter(q => q.eq(q.field("billNumber"), billNumber))
+      .first();
+    return bill;
   },
 });
 

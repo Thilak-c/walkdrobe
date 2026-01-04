@@ -12,7 +12,8 @@ export default function WebsiteAlerts() {
   const [editStock, setEditStock] = useState({});
   const [search, setSearch] = useState("");
 
-  const lowStock = useQuery(api.products.getLowStockProducts, { threshold: 10 });
+  // OPTIMIZED: Only fetch fields needed for alerts display
+  const lowStock = useQuery(api.products.getLowStockProductsForAlerts, { threshold: 10 });
   const updateStock = useMutation(api.products.updateStockBySize);
 
   const loading = lowStock === undefined;

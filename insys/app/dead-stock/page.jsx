@@ -8,7 +8,7 @@ import { Package, AlertTriangle, TrendingDown, Calendar, IndianRupee } from "luc
 
 export default function DeadStockPage() {
   const [daysFilter, setDaysFilter] = useState(30);
-  const allProducts = useQuery(api.offStore.getAllProducts) || [];
+  const allProducts = useQuery(api.offStore.getProductsForDeadStock) || [];
   const deadStock = allProducts.filter(p => {
     if (!p.createdAt) return false;
     const ageDays = (Date.now() - new Date(p.createdAt).getTime()) / (1000 * 60 * 60 * 24);

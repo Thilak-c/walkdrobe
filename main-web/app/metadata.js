@@ -1,8 +1,8 @@
 // app/metadata.js - Shared metadata configuration
 export const homeMetadata = {
   title: "Home - Premium Footwear Store in Patna",
-  description: "Discover the latest footwear trends at Walkdrobe, Patna. Shop sneakers, boots, sandals, and more with fast shipping and easy returns.",
-  keywords: ["footwear store", "buy shoes online", "sneakers Patna", "boots", "sandals", "premium footwear", "online shopping India"],
+  description: "Discover the latest footwear trends at Walkdrobe, Patna. Shop sneakers, sports shoes, and more with fast shipping and easy returns.",
+  keywords: ["footwear store", "buy shoes online", "sneakers Patna", "sports shoes", "premium footwear", "online shopping India"],
   openGraph: {
     title: "Walkdrobe - Premium Footwear Store in Patna",
     description: "Discover the latest footwear trends at Walkdrobe. Shop premium shoes with fast shipping.",
@@ -17,7 +17,7 @@ export const homeMetadata = {
 };
 
 export const shopMetadata = {
-  title: "Shop All Footwear - Sneakers, Boots, Sandals & More",
+  title: "Shop All Footwear - Sneakers & Sports Shoes",
   description: "Browse our complete collection of premium footwear. Filter by category, size, and price to find your perfect pair.",
   openGraph: {
     title: "Shop All Footwear | Walkdrobe",

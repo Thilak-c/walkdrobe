@@ -15,8 +15,9 @@ export const getAllInventory = query({
     sortOrder: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    // Query off_products table for offline store
     let products = await ctx.db
-      .query("products")
+      .query("off_products")
       .filter((q) => q.neq(q.field("isDeleted"), true))
       .collect();
 
@@ -38,11 +39,11 @@ export const getAllInventory = query({
     // Apply stock filter
     if (args.stockFilter && args.stockFilter !== 'all') {
       products = products.filter(p => {
-        const stock = p.currentStock ?? p.totalAvailable ?? 0;
+        const stock = p.totalStock ?? p.currentStock ?? 0;
         switch (args.stockFilter) {
           case 'in_stock': return stock > 10;
           case 'low_stock': return stock > 0 && stock <= 10;
-          case 'out_of_stock': return stock === 0 || p.inStock === false;
+          case 'out_of_stock': return stock === 0;
           default: return true;
         }
       });
@@ -97,8 +98,9 @@ export const getAllInventory = query({
 export const getInventoryStats = query({
   args: {},
   handler: async (ctx) => {
+    // Query off_products table for offline store
     const products = await ctx.db
-      .query("products")
+      .query("off_products")
       .filter((q) => q.neq(q.field("isDeleted"), true))
       .collect();
 
@@ -113,11 +115,11 @@ export const getInventoryStats = query({
     };
 
     products.forEach(p => {
-      const stock = p.currentStock ?? p.totalAvailable ?? 0;
+      const stock = p.totalStock ?? p.currentStock ?? 0;
       stats.totalStock += stock;
       stats.totalValue += stock * (p.price || 0);
 
-      if (stock === 0 || p.inStock === false) {
+      if (stock === 0) {
         stats.outOfStock++;
       } else if (stock <= 10) {
         stats.lowStock++;
@@ -143,14 +145,15 @@ export const getInventoryStats = query({
 export const getLowStockAlerts = query({
   args: { threshold: v.optional(v.number()) },
   handler: async (ctx, { threshold = 10 }) => {
+    // Query off_products table for offline store
     const products = await ctx.db
-      .query("products")
+      .query("off_products")
       .filter((q) => q.neq(q.field("isDeleted"), true))
       .collect();
 
     return products
       .filter(p => {
-        const stock = p.currentStock ?? p.totalAvailable ?? 0;
+        const stock = p.totalStock ?? p.currentStock ?? 0;
         return stock <= threshold;
       })
       .map(p => ({
@@ -158,7 +161,7 @@ export const getLowStockAlerts = query({
         itemId: p.itemId,
         name: p.name,
         category: p.category,
-        currentStock: p.currentStock ?? p.totalAvailable ?? 0,
+        currentStock: p.totalStock ?? p.currentStock ?? 0,
         price: p.price,
         mainImage: p.mainImage,
       }))
@@ -598,14 +601,15 @@ export const getTrash = query({
   },
 });
 
-// Get dead stock (products with zero sales)
+// Get dead stock (products with zero sales) - for offline store
 export const getDeadStock = query({
   args: {
     daysOld: v.optional(v.number()), // Optional: filter by products older than X days
   },
   handler: async (ctx, { daysOld = 30 }) => {
+    // Query off_products table for offline store
     const products = await ctx.db
-      .query("products")
+      .query("off_products")
       .filter((q) => q.neq(q.field("isDeleted"), true))
       .collect();
 
@@ -632,11 +636,11 @@ export const getDeadStock = query({
         category: p.category,
         price: p.price,
         costPrice: p.costPrice || 0,
-        currentStock: p.currentStock || p.totalAvailable || 0,
+        totalStock: p.totalStock ?? p.currentStock ?? 0,
         mainImage: p.mainImage,
         createdAt: p.createdAt,
         buys: p.buys || 0,
-        stockValue: (p.costPrice || p.price || 0) * (p.currentStock || p.totalAvailable || 0),
+        stockValue: (p.costPrice || p.price || 0) * (p.totalStock ?? p.currentStock ?? 0),
       }))
       .sort((a, b) => b.stockValue - a.stockValue);
   },

@@ -14,7 +14,7 @@ import { ArrowLeftIcon, ShoppingBag, Heart, Search, Menu } from "lucide-react";
 import { useSearchParams, useRouter } from "next/navigation";
 // ---------- Desktop Navbar ----------
 export default function Navbar() {
-  const navLinks = ["SNEAKERS", "BOOTS", "SANDALS", "FORMAL"];
+  const navLinks = ["SNEAKERS", "SPORTS"];
   const [hovered, setHovered] = useState(null);
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -81,7 +81,7 @@ export default function Navbar() {
           </button>
 
           <div className="flex items-center gap-6 font-semibold">
-            {[{ lib: "Sneakers", link: "sneakers" }, { lib: "Boots", link: "boots" }, { lib: "Sandals", link: "sandals" }, { lib: "Formal", link: "formal" }].map((link) => (
+            {[{ lib: "Sneakers", link: "sneakers" }, { lib: "Sports", link: "sports" }].map((link) => (
               <div
                 key={link.lib}
                 className="flex flex-col p-3 font-bold items-center cursor-pointer group rounded-full w-[100px]  transition-all delay-200 hover:border-t-2 hover:border-r-2 border-black/5   hover:shadow-[10px_-10px_15px_rgba(0,0,0,0.15)] px-2"
@@ -174,8 +174,8 @@ export default function Navbar() {
 }
 
 export function NavbarMobile() {
-  const navLinks = ["SNEAKERS", "BOOTS", "SANDALS", "FORMAL"];
-  const navKeys = ["sneakers", "boots", "sandals", "formal"];
+  const navLinks = ["SNEAKERS", "SPORTS"];
+  const navKeys = ["sneakers", "sports"];
   const barRef = useRef(null);
   const [tabWidth, setTabWidth] = useState();
 
@@ -233,7 +233,7 @@ export function NavbarMobile() {
 
         {/* Center: Logo */}
         <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
-         <span className="font-bold text-lg tracking-wide">WALKDROBE</span>
+        <img src="/logo.png" className="w-[120px] h-10" alt="" />
         </div>
 
         {/* Right: Search + Cart */}

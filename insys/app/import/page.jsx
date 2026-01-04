@@ -257,7 +257,8 @@ function FileImportTab() {
 }
 
 function WebsiteImportTab() {
-  const websiteProducts = useQuery(api.products.getAllProducts) || [];
+  // OPTIMIZED: Only fetch fields needed for import selection
+  const websiteProducts = useQuery(api.products.getProductsForImport) || [];
   const [selected, setSelected] = useState([]);
   const [importing, setImporting] = useState(false);
   const [results, setResults] = useState(null);

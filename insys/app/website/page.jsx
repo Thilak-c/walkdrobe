@@ -7,8 +7,10 @@ import { Package, AlertTriangle, CheckCircle, XCircle, IndianRupee, TrendingUp, 
 import Link from "next/link";
 
 export default function WebsiteDashboard() {
+  // OPTIMIZED: getAdminStats already returns only stats, not full products
   const stats = useQuery(api.products.getAdminStats);
-  const lowStock = useQuery(api.products.getLowStockProducts, { threshold: 10 });
+  // OPTIMIZED: Use optimized query that returns only needed fields
+  const lowStock = useQuery(api.products.getLowStockProductsForAlerts, { threshold: 10 });
   const movements = useQuery(api.products.getInventoryMovements, { limit: 5 });
 
   const isLoading = stats === undefined;

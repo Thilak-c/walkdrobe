@@ -2143,6 +2143,94 @@ export const getAllProducts = query({
   },
 });
 
+// OPTIMIZED: Get products for website list (insys admin) - only fields needed for table display
+export const getProductsForWebsiteList = query({
+  args: {},
+  handler: async (ctx) => {
+    const products = await ctx.db
+      .query("products")
+      .filter(q => q.neq(q.field("isDeleted"), true))
+      .order("desc")
+      .collect();
+    
+    return products.map(p => ({
+      _id: p._id,
+      itemId: p.itemId,
+      name: p.name,
+      mainImage: p.mainImage,
+      category: p.category,
+      price: p.price,
+      currentStock: p.currentStock || p.totalAvailable || 0,
+      totalAvailable: p.totalAvailable || p.currentStock || 0,
+    }));
+  },
+});
+
+// OPTIMIZED: Get single product by ID for editing (full data)
+export const getProductForEdit = query({
+  args: { id: v.id("products") },
+  handler: async (ctx, { id }) => {
+    return await ctx.db.get(id);
+  },
+});
+
+// OPTIMIZED: Get low stock products for alerts page - only needed fields
+export const getLowStockProductsForAlerts = query({
+  args: { threshold: v.optional(v.number()) },
+  handler: async (ctx, { threshold = 10 }) => {
+    const products = await ctx.db
+      .query("products")
+      .filter(q => q.neq(q.field("isDeleted"), true))
+      .collect();
+
+    return products
+      .filter(p => {
+        const stock = p.currentStock || p.totalAvailable || 0;
+        return stock <= threshold;
+      })
+      .map(p => ({
+        _id: p._id,
+        itemId: p.itemId,
+        name: p.name,
+        mainImage: p.mainImage,
+        category: p.category,
+        currentStock: p.currentStock || p.totalAvailable || 0,
+        totalAvailable: p.totalAvailable || p.currentStock || 0,
+        sizeStock: p.sizeStock,
+        availableSizes: p.availableSizes,
+      }));
+  },
+});
+
+// OPTIMIZED: Get products for import page - minimal fields for selection
+export const getProductsForImport = query({
+  args: {},
+  handler: async (ctx) => {
+    const products = await ctx.db
+      .query("products")
+      .filter(q => q.neq(q.field("isDeleted"), true))
+      .order("desc")
+      .collect();
+    
+    return products.map(p => ({
+      _id: p._id,
+      itemId: p.itemId,
+      name: p.name,
+      mainImage: p.mainImage,
+      category: p.category,
+      description: p.description,
+      otherImages: p.otherImages,
+      price: p.price,
+      costPrice: p.costPrice,
+      color: p.color,
+      secondaryColor: p.secondaryColor,
+      availableSizes: p.availableSizes,
+      sizeStock: p.sizeStock,
+      totalStock: p.currentStock || p.totalAvailable || 0,
+    }));
+  },
+});
+
 // Get comprehensive analytics with proper return format
 export const getAdvancedAnalyticsFixed = query({
   args: {

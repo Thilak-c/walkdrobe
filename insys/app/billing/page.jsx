@@ -23,7 +23,7 @@ export default function BillingPage() {
     const [selectedProduct, setSelectedProduct] = useState(null); // For size selection
     const printRef = useRef(null);
 
-    const products = useQuery(api.offStore.getAllProducts, {});
+    const products = useQuery(api.offStore.getProductsForBilling, {});
     const removeSizeStock = useMutation(api.offStore.updateStock);
     const createBill = useMutation(api.offStore.createBill);
 

@@ -28,7 +28,7 @@ export default function FooterSimple() {
           <div>
             <h4 className="text-black font-semibold text-sm mb-3 tracking-wider">SHOP</h4>
             <ul className="space-y-2">
-              {["Sneakers", "Boots", "Sandals", "Formal"].map((item) => (
+              {["All", "Sneakers", "Sports"].map((item) => (
                 <li key={item}>
                   <Link href={`/shop?ct=${item.toLowerCase()}`} className="text-gray-500 hover:text-black transition-colors text-sm">
                     {item}

@@ -13,17 +13,18 @@ import { PT_Mono } from "next/font/google";
 const SIZES = ["41","42","43","44","45","46"]
 
 const COLORS = ["Black", "White", "Brown", "Navy", "Grey", "Red", "Blue", "Green", "Beige", "Tan", "Multi"];
-const CATEGORIES = ["Sneakers", "Boots", "Sandals", "Formal", "Sports", "Casual", "Loafers", "Slippers", "Heels"];
+const CATEGORIES = ["All", "Sneakers", "Sports"];
 
 export default function WebsiteProducts() {
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState("all");
   const [editing, setEditing] = useState(null);
   const [editForm, setEditForm] = useState({});
+  const [loadingProduct, setLoadingProduct] = useState(false);
 
-  const products = useQuery(api.products.getAllProducts);
+  // OPTIMIZED: Only fetch fields needed for table display
+  const products = useQuery(api.products.getProductsForWebsiteList);
   const updateProductFull = useMutation(api.products.updateProductFull);
-  // Use the webStore mutation which moves website products into `web_trash`
   const deleteProduct = useMutation(api.products.deleteProduct);
 
   let filtered = products || [];
@@ -35,22 +36,35 @@ export default function WebsiteProducts() {
   if (filter === "low") filtered = filtered.filter(p => (p.currentStock || p.totalAvailable || 0) > 0 && (p.currentStock || p.totalAvailable || 0) <= 10);
   if (filter === "out") filtered = filtered.filter(p => (p.currentStock || p.totalAvailable || 0) === 0);
 
-  const handleEdit = (p) => {
-   
-    setEditing(p);
-    setEditForm({
-      name: p.name,
-      category: p.category || "",
-      description: p.description || "",
-      mainImage: p.mainImage || "",
-      otherImages: p.otherImages || [],
-      price: p.price,
-      costPrice: p.costPrice || 0,
-      color: p.color || "",
-      secondaryColor: p.secondaryColor || "",
-      sizes: p.availableSizes || [],
-      sizeStock: p.sizeStock || {},
-    });
+  // OPTIMIZED: Fetch full product data only when editing
+  const handleEdit = async (p) => {
+    setLoadingProduct(true);
+    try {
+      const res = await fetch(`/api/get-product?id=${p._id}`);
+      const fullProduct = await res.json();
+      if (fullProduct.error) {
+        toast.error("Failed to load product");
+        return;
+      }
+      setEditing(fullProduct);
+      setEditForm({
+        name: fullProduct.name,
+        category: fullProduct.category || "",
+        description: fullProduct.description || "",
+        mainImage: fullProduct.mainImage || "",
+        otherImages: fullProduct.otherImages || [],
+        price: fullProduct.price,
+        costPrice: fullProduct.costPrice || 0,
+        color: fullProduct.color || "",
+        secondaryColor: fullProduct.secondaryColor || "",
+        sizes: fullProduct.availableSizes || [],
+        sizeStock: fullProduct.sizeStock || {},
+      });
+    } catch (err) {
+      toast.error("Failed to load product");
+    } finally {
+      setLoadingProduct(false);
+    }
   };
 
   const toggleSize = (size) => {
@@ -95,7 +109,7 @@ const handleDelete = async (p) => {
   if (!confirm(`Delete ${p.name}?`)) return;
 
   try {
-    await deleteProduct({ _id: p._id }); // MATCHES PARAM NAME
+    await deleteProduct({ _id: p._id });
     toast.success("Deleted!");
   } catch (err) {
     toast.error(err.message || "Failed");

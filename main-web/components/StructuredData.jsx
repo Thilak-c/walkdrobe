@@ -155,7 +155,7 @@ export function OrganizationStructuredData() {
     name: "Walkdrobe",
     url: "https://walkdrobe.in",
     logo: "https://walkdrobe.in/logo.png",
-    description: "Premium footwear store in Patna offering sneakers, boots, sandals, and more. Visit our store or shop online!",
+    description: "Premium footwear store in Patna offering sneakers, sports shoes, and more. Visit our store or shop online!",
     telephone: "+91-9122583392",
     address: {
       "@type": "PostalAddress",

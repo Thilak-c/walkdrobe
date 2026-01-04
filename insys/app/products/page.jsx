@@ -1,35 +1,76 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery } from "convex/react";
 import { api } from "../../../main-web/convex/_generated/api";
 import Sidebar from "@/components/Sidebar";
 import ProductTable from "@/components/ProductTable";
 import { Search, Download, Package, Filter } from "lucide-react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 
 export default function ProductsPage() {
+  const searchParams = useSearchParams();
+  const urlCategory = searchParams.get("category");
+  
   const [search, setSearch] = useState("");
   const [stockFilter, setStockFilter] = useState("all");
   const [category, setCategory] = useState("all");
   const [sortBy, setSortBy] = useState("name");
 
-  const products = useQuery(api.offStore.getAllProducts) || [];
+  // Set category from URL on mount and when URL changes
+  useEffect(() => {
+    if (urlCategory) {
+      setCategory(urlCategory);
+    } else {
+      setCategory("all");
+    }
+  }, [urlCategory]);
+
+  const products = useQuery(api.offStore.getProductsForList) || [];
 
   const stats = useQuery(api.offStore.getStats) || {};
   const categories = stats?.categories ? Object.keys(stats.categories) : [];
 
+  // Filter and sort products
+  const filteredProducts = products
+    .filter(p => {
+      // Search filter
+      if (search) {
+        const s = search.toLowerCase();
+        if (!p.name?.toLowerCase().includes(s) && !p.itemId?.toLowerCase().includes(s)) {
+          return false;
+        }
+      }
+      // Category filter
+      if (category !== "all" && p.category !== category) {
+        return false;
+      }
+      // Stock filter
+      const stock = p.totalStock ?? 0;
+      if (stockFilter === "in_stock" && stock <= 10) return false;
+      if (stockFilter === "low_stock" && (stock === 0 || stock > 10)) return false;
+      if (stockFilter === "out_of_stock" && stock !== 0) return false;
+      return true;
+    })
+    .sort((a, b) => {
+      if (sortBy === "name") return (a.name || "").localeCompare(b.name || "");
+      if (sortBy === "stock") return (b.totalStock ?? 0) - (a.totalStock ?? 0);
+      if (sortBy === "price") return (b.price ?? 0) - (a.price ?? 0);
+      return 0;
+    });
+
   const exportCSV = () => {
-    if (!products?.length) return;
+    if (!filteredProducts?.length) return;
     
     const headers = ["Item ID", "Name", "Category", "Price", "Stock", "Status"];
-    const rows = products.map(p => [
+    const rows = filteredProducts.map(p => [
       p.itemId,
       `"${p.name}"`,
       p.category || "",
       p.price,
-      p.currentStock,
-      p.currentStock === 0 ? "Out of Stock" : p.currentStock <= 10 ? "Low Stock" : "In Stock"
+      p.totalStock ?? 0,
+      (p.totalStock ?? 0) === 0 ? "Out of Stock" : (p.totalStock ?? 0) <= 10 ? "Low Stock" : "In Stock"
     ]);
     
     const csv = [headers, ...rows].map(row => row.join(",")).join("\n");
@@ -43,6 +84,9 @@ export default function ProductsPage() {
 
   const isLoading = products === undefined;
 
+  // Page title based on category
+  const pageTitle = category !== "all" ? category : "All Products";
+
   return (
     <div className="flex min-h-screen bg-gray-50">
       <Sidebar />
@@ -53,8 +97,8 @@ export default function ProductsPage() {
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6 pt-12 lg:pt-0">
             <div>
               <p className="text-gray-400 tracking-widest text-xs font-medium mb-2">INVENTORY</p>
-              <h1 className="text-2xl lg:text-3xl font-bold text-gray-900 font-poppins">All Products</h1>
-              <p className="text-gray-500 text-sm mt-1">{products?.length || 0} products in inventory</p>
+              <h1 className="text-2xl lg:text-3xl font-bold text-gray-900 font-poppins">{pageTitle}</h1>
+              <p className="text-gray-500 text-sm mt-1">{filteredProducts?.length || 0} products {category !== "all" ? `in ${category}` : "in inventory"}</p>
             </div>
             <div className="flex items-center gap-3">
               <Link href="/barcode">
@@ -134,7 +178,7 @@ export default function ProductsPage() {
               <p className="text-gray-500">Loading products...</p>
             </div>
           ) : (
-            <ProductTable products={products} />
+            <ProductTable products={filteredProducts} />
           )}
         </div>
       </main>

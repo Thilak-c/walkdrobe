@@ -19,7 +19,8 @@ export default function PurchaseOrdersPage() {
 
   const purchaseOrders = useQuery(api.insys.getPurchaseOrders, { limit: 100 });
   const suppliers = useQuery(api.insys.getSuppliers, { activeOnly: true });
-  const products = useQuery(api.inventory.getAllInventory, {});
+  // Use offStore for offline products
+  const products = useQuery(api.offStore.getProductsForList) || [];
   const createPO = useMutation(api.insys.createPurchaseOrder);
   const updatePOStatus = useMutation(api.insys.updatePurchaseOrderStatus);
   const receivePO = useMutation(api.insys.receivePurchaseOrder);

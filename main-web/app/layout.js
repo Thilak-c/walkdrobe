@@ -41,8 +41,8 @@ export const metadata = {
     template: "%s | Walkdrobe"
   },
 
-  description: "Discover premium footwear at Walkdrobe, Patna's favorite shoe store. Shop sneakers, boots, sandals, and more. Visit us or shop online!",
-  keywords: ["footwear", "shoes", "sneakers", "boots", "sandals", "Patna", "shoe store", "premium footwear", "walkdrobe"],
+  description: "Discover premium footwear at Walkdrobe, Patna's favorite shoe store. Shop sneakers, sports shoes, and more. Visit us or shop online!",
+  keywords: ["footwear", "shoes", "sneakers", "sports shoes", "Patna", "shoe store", "premium footwear", "walkdrobe"],
   authors: [{ name: "Walkdrobe" }],
   creator: "Walkdrobe",
   publisher: "Walkdrobe",
@@ -56,7 +56,7 @@ export const metadata = {
     locale: "en_IN",
     url: "https://walkdrobe.in",
     title: "Walkdrobe - Premium Footwear Store in Patna",
-    description: "Discover premium footwear at Walkdrobe. Shop sneakers, boots, sandals, and more with fast shipping.",
+    description: "Discover premium footwear at Walkdrobe. Shop sneakers, sports shoes, and more with fast shipping.",
     siteName: "Walkdrobe",
     images: [
       {

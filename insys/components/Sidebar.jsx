@@ -26,6 +26,13 @@ import {
 import toast from "react-hot-toast";
 
 
+// Footwear Categories
+const footwearCategories = [
+  { href: "/products?category=Sneakers", label: "Sneakers", icon: Package, description: "Casual sneakers" },
+  { href: "/products?category=Sports", label: "Sports", icon: Package, description: "Sports footwear" },
+  { href: "/products", label: "All Footwear", icon: Package, description: "View all products" },
+];
+
 // Offline Shop Navigation
 const offlineNavItems = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard, description: "Overview & stats" },
@@ -203,7 +210,42 @@ export default function Sidebar() {
 
         {/* Navigation */}
         <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
+          {/* Footwear Categories Section */}
           <p className="text-[10px] font-semibold text-gray-400 tracking-widest uppercase px-3 mb-3">
+            Footwear
+          </p>
+          {footwearCategories.map((item, idx) => {
+            const isActive = pathname + (typeof window !== 'undefined' ? window.location.search : '') === item.href || 
+                            (item.href === "/products" && pathname === "/products" && !window?.location?.search);
+            const Icon = item.icon;
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                onClick={() => setMobileOpen(false)}
+                className={`
+                  group flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200
+                  ${isActive
+                    ? "bg-gray-900 text-white shadow-lg shadow-gray-900/20"
+                    : "text-gray-600 hover:bg-gray-50"
+                  }
+                `}
+              >
+                <div className={`
+                  p-1.5 rounded-lg transition-colors
+                  ${isActive ? "bg-white/20" : "bg-gray-100 group-hover:bg-gray-200"}
+                `}>
+                  <Icon size={16} className={isActive ? "text-white" : "text-gray-500"} />
+                </div>
+                <p className={`text-sm font-medium ${isActive ? "text-white" : "text-gray-700"}`}>
+                  {item.label}
+                </p>
+              </Link>
+            );
+          })}
+
+          {/* Main Navigation */}
+          <p className="text-[10px] font-semibold text-gray-400 tracking-widest uppercase px-3 mb-3 mt-6">
             {storeType === "website" ? "Website Store" : "Offline Shop"}
           </p>
           {(storeType === "website" ? websiteNavItems : offlineNavItems).map((item, idx) => {

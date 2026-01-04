@@ -23,8 +23,9 @@ export default function ReturnsPage() {
   const [logoBase64, setLogoBase64] = useState("");
   const printRef = useRef(null);
 
-  const getBill = useQuery(api.inventory.getBillByNumber, billNumber ? { billNumber } : "skip");
-  const products = useQuery(api.inventory.getAllInventory, {});
+  // Use offStore for offline products
+  const getBill = useQuery(api.offStore.getBillByNumber, billNumber ? { billNumber } : "skip");
+  const products = useQuery(api.offStore.getProductsForList) || [];
   const returns = useQuery(api.insys.getReturns, { limit: 50 });
   const createReturn = useMutation(api.insys.createReturn);
 

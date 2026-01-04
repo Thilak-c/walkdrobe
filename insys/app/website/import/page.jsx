@@ -213,7 +213,8 @@ function FileImportTab() {
 
 
 function OfflineImportTab() {
-  const offlineProducts = useQuery(api.inventory.getAllInventory, {}) || [];
+  // Use offStore for offline products (importing FROM offline TO website)
+  const offlineProducts = useQuery(api.offStore.getProductsForList) || [];
   const [selected, setSelected] = useState([]);
   const [importing, setImporting] = useState(false);
   const [results, setResults] = useState(null);
