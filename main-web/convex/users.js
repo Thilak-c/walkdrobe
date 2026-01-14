@@ -15,6 +15,28 @@ function addDays(date, days) {
 // INTERNAL HELPER FUNCTIONS
 // =======================
 
+// OPTIMIZED: Session cleanup cron job handler
+export const cleanupExpiredSessions = internalMutation({
+	args: {},
+	handler: async (ctx) => {
+		const now = nowIso();
+		
+		// Get expired sessions (limit to 100 per run for performance)
+		const expiredSessions = await ctx.db
+			.query("sessions")
+			.filter((q) => q.lt(q.field("expiresAt"), now))
+			.take(100);
+		
+		let deletedCount = 0;
+		for (const session of expiredSessions) {
+			await ctx.db.delete(session._id);
+			deletedCount++;
+		}
+		
+		return { deletedCount, timestamp: now };
+	},
+});
+
 // Helper query for getting user by ID (internal use)
 export const getUserById = internalQuery({
 	args: { userId: v.id("users") },

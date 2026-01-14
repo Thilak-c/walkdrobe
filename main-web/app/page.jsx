@@ -2,7 +2,6 @@
 import { useState, useEffect, useRef } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import dynamic from "next/dynamic";
 import { motion, AnimatePresence } from "framer-motion";
 import { useRouter } from "next/navigation";
 import { api } from "@/convex/_generated/api";
@@ -15,9 +14,6 @@ import {
   Clock,
   Instagram,
   Sparkles,
-  Briefcase,
-  Zap,
-  Star,
   Ruler,
   X,
   Shirt,
@@ -26,148 +22,175 @@ import {
   TrendingUp,
 } from "lucide-react";
 
-// Dynamic import for 3D viewer (no SSR)
-const ShoeViewer3D = dynamic(() => import("@/components/ShoeViewer3D"), {
-  ssr: false,
-  loading: () => (
-    <div className="w-full h-full bg-gray-50 rounded-2xl flex items-center justify-center">
-      <div className="w-8 h-8 border-2 border-gray-200 border-t-gray-400 rounded-full animate-spin" />
-    </div>
-  ),
-});
+// Hero images - mobile and desktop versions
+const heroImages = [
+  { mobile: "/hero-images/TAS_4282.jpg", desktop: "/hero-images/TAS_4282landscape.jpg" },
+  { mobile: "/hero-images/TAS_4296.jpg", desktop: "/hero-images/TAS_4296landscape.jpg" },
+  { mobile: "/hero-images/TAS_4315.jpg", desktop: "/hero-images/TAS_4315landscape.jpg" },
+  { mobile: "/hero-images/TAS_4324.jpg", desktop: "/hero-images/TAS_4324landscape.jpg" },
+  { mobile: "/hero-images/TAS_4337.jpg", desktop: "/hero-images/TAS_4337landscape.jpg" },
+];
 
-// Hero Section - Clean White (Mobile Optimized)
+// Hero Section - Image Slider (Mobile Optimized)
 function HeroSection() {
   const [currentSlide, setCurrentSlide] = useState(0);
-  const [currentModel, setCurrentModel] = useState(0);
+  const [imagesLoaded, setImagesLoaded] = useState(false);
   
   const slides = [
     { title: "STEP INTO", highlight: "STYLE", subtitle: "Premium footwear for the modern soul", cta: "Shop Now", link: "/shop" },
     { title: "NEW", highlight: "ARRIVALS", subtitle: "Discover the latest trends", cta: "Explore", link: "/shop?sort=newest" },
     { title: "EXCLUSIVE", highlight: "SNEAKERS", subtitle: "Limited edition drops", cta: "View", link: "/shop?ct=sneakers" },
+    { title: "PREMIUM", highlight: "SPORTS", subtitle: "Performance meets style", cta: "Shop", link: "/shop?ct=sports" },
+    { title: "WALK IN", highlight: "COMFORT", subtitle: "Quality you can feel", cta: "Discover", link: "/shop" },
   ];
 
-  const shoeModels = [
-    "/3d/shoe.glb",
-    "/3d/a_white_salomon_trail_running_shoe_salomon.glb",
-  ];
+  // Preload all images on mount
+  useEffect(() => {
+    const preloadImages = async () => {
+      const isMobile = window.innerWidth < 768;
+      const imagePromises = heroImages.map((img) => {
+        return new Promise((resolve) => {
+          const image = new window.Image();
+          image.src = isMobile ? img.mobile : img.desktop;
+          image.onload = resolve;
+          image.onerror = resolve;
+        });
+      });
+      await Promise.all(imagePromises);
+      setImagesLoaded(true);
+    };
+    preloadImages();
+  }, []);
 
-  const nextModel = () => setCurrentModel((prev) => (prev + 1) % shoeModels.length);
-  const prevModel = () => setCurrentModel((prev) => (prev - 1 + shoeModels.length) % shoeModels.length);
-
+  // Auto-advance slides
   useEffect(() => {
     const timer = setInterval(() => {
-      setCurrentSlide((prev) => (prev + 1) % slides.length);
+      setCurrentSlide((prev) => (prev + 1) % heroImages.length);
     }, 5000);
     return () => clearInterval(timer);
   }, []);
 
+  const nextSlide = () => setCurrentSlide((prev) => (prev + 1) % heroImages.length);
+  const prevSlide = () => setCurrentSlide((prev) => (prev - 1 + heroImages.length) % heroImages.length);
+
   return (
-    <section className="relative bg-gray-50 overflow-hidden pt-16 md:pt-20 h-[80vh]">
-      {/* Subtle pattern */}
-      <div className="absolute inset-0 opacity-20">
-        <div className="absolute inset-0" style={{
-          backgroundImage: `radial-gradient(circle at 1px 1px, #d1d5db 1px, transparent 0)`,
-          backgroundSize: '24px 24px'
-        }} />
+    <section className="relative bg-gray-50 overflow-hidden h-screen">
+      {/* Preload all images (hidden) */}
+      <div className="hidden">
+        {heroImages.map((img, idx) => (
+          <div key={idx}>
+            <Image src={img.mobile} alt="" width={1} height={1} priority />
+            <Image src={img.desktop} alt="" width={1} height={1} priority />
+          </div>
+        ))}
+      </div>
+
+      {/* Background Image Slider */}
+      <div className="absolute inset-0">
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={currentSlide}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.7 }}
+            className="absolute inset-0"
+          >
+            {/* Mobile Image */}
+            <Image
+              src={heroImages[currentSlide].mobile}
+              alt="Hero"
+              fill
+              priority
+              className="object-cover object-center md:hidden"
+              sizes="100vw"
+            />
+            {/* Desktop Image */}
+            <Image
+              src={heroImages[currentSlide].desktop}
+              alt="Hero"
+              fill
+              priority
+              className="object-cover object-center hidden md:block"
+              sizes="100vw"
+            />
+          </motion.div>
+        </AnimatePresence>
+        
+        {/* Overlay for text readability */}
+        <div className="absolute inset-0 bg-gradient-to-r from-black/60 via-black/30 to-transparent" />
       </div>
 
       {/* Content */}
-      <div className="relative z-10">
-        <div className="max-w-7xl mx-auto px-4 md:px-6 w-full py-8 md:py-16">
-          {/* Mobile: Stack vertically, Desktop: Side by side */}
-          <div className="flex flex-col md:grid md:grid-cols-2 gap-6 md:gap-12 items-center h-full">
-
-            {/* 3D Shoe Viewer */}
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 0.6 }}
-              className="relative w-full aspect-square bg-gradient-to-br from-gray-50 to-gray-100 rounded-2xl md:rounded-3xl  overflow-hidden order-1 md:order-2 max-w-[280px] md:max-w-none mx-auto"
-            >
-              <ShoeViewer3D modelPath={shoeModels[currentModel]} />
-              
-              {/* Navigation Arrows */}
-              <button
-                onClick={prevModel}
-                className="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 bg-white/80 hover:bg-white rounded-full shadow-md flex items-center justify-center transition-all hover:scale-110"
+      <div className="relative z-10 h-full">
+        <div className="max-w-7xl mx-auto px-4 md:px-6 w-full h-full flex items-center">
+          {/* Text Content */}
+          <div className="text-left max-w-xl">
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={currentSlide}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                transition={{ duration: 0.5 }}
               >
-                <ArrowRight className="w-4 h-4 rotate-180 text-gray-700" />
-              </button>
-              <button
-                onClick={nextModel}
-                className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 bg-white/80 hover:bg-white rounded-full shadow-md flex items-center justify-center transition-all hover:scale-110"
-              >
-                <ArrowRight className="w-4 h-4 text-gray-700" />
-              </button>
-
-              {/* Model indicator dots */}
-              <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5">
-                {shoeModels.map((_, idx) => (
-                  <button
-                    key={idx}
-                    onClick={() => setCurrentModel(idx)}
-                    className={`w-2 h-2 rounded-full transition-all ${
-                      idx === currentModel ? "bg-black w-4" : "bg-black/30"
-                    }`}
-                  />
-                ))}
-              </div>
-            </motion.div>
-
-            {/* Text Content */}
-            <div className="order-2 md:order-1 text-center md:text-left">
-              <AnimatePresence mode="wait">
-                <motion.div
-                  key={currentSlide}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -20 }}
-                  transition={{ duration: 0.5 }}
+                <motion.p
+                  className="text-white/70 tracking-[0.2em] md:tracking-[0.3em] text-xs md:text-sm mb-2 md:mb-4 font-medium"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: 0.1 }}
                 >
-                  <motion.p
-                    className="text-gray-400 tracking-[0.2em] md:tracking-[0.3em] text-xs md:text-sm mb-2 md:mb-4 font-medium"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ delay: 0.1 }}
+                  WALKDROBE
+                </motion.p>
+                <h1 className="text-4xl md:text-5xl lg:text-7xl font-bold text-white leading-none mb-1">
+                  {slides[currentSlide].title}
+                </h1>
+                <h1 className="text-4xl md:text-5xl lg:text-7xl font-bold text-white leading-none mb-4 md:mb-6">
+                  {slides[currentSlide].highlight}
+                </h1>
+                <p className="text-white/80 text-sm md:text-lg mb-6 md:mb-8 max-w-md">
+                  {slides[currentSlide].subtitle}
+                </p>
+                <Link href={slides[currentSlide].link}>
+                  <motion.button
+                    whileTap={{ scale: 0.98 }}
+                    className="group inline-flex items-center gap-2 bg-white text-black px-6 md:px-8 py-3 md:py-4 text-sm md:text-base font-semibold tracking-wider hover:bg-gray-100 transition-all"
                   >
-                    WALKDROBE
-                  </motion.p>
-                  <h1 className="text-3xl md:text-5xl lg:text-6xl font-bold text-gray-900 leading-none mb-1">
-                    {slides[currentSlide].title}
-                  </h1>
-                  <h1 className="text-3xl md:text-5xl lg:text-6xl font-bold text-black leading-none mb-3 md:mb-6">
-                    {slides[currentSlide].highlight}
-                  </h1>
-                  <p className="text-gray-500 text-sm md:text-lg mb-5 md:mb-8 max-w-md mx-auto md:mx-0">
-                    {slides[currentSlide].subtitle}
-                  </p>
-                  <Link href={slides[currentSlide].link}>
-                    <motion.button
-                      whileTap={{ scale: 0.98 }}
-                      className="group inline-flex items-center gap-2 bg-black text-white px-6 md:px-8 py-3 md:py-4 text-sm md:text-base font-semibold tracking-wider hover:bg-gray-900 transition-all rounded-full md:rounded-none"
-                    >
-                      {slides[currentSlide].cta}
-                      <ArrowRight className="w-4 h-4 md:w-5 md:h-5 group-hover:translate-x-1 transition-transform" />
-                    </motion.button>
-                  </Link>
-                </motion.div>
-              </AnimatePresence>
+                    {slides[currentSlide].cta}
+                    <ArrowRight className="w-4 h-4 md:w-5 md:h-5 group-hover:translate-x-1 transition-transform" />
+                  </motion.button>
+                </Link>
+              </motion.div>
+            </AnimatePresence>
 
-              {/* Slide indicators */}
-              <div className="flex gap-2 mt-6 md:mt-12 justify-center md:justify-start">
-                {slides.map((_, idx) => (
-                  <button
-                    key={idx}
-                    onClick={() => setCurrentSlide(idx)}
-                    className={`h-1 rounded-full transition-all duration-300 ${idx === currentSlide ? "w-8 md:w-12 bg-black" : "w-4 md:w-6 bg-gray-300"
-                      }`}
-                  />
-                ))}
-              </div>
+            {/* Slide indicators */}
+            <div className="flex gap-2 mt-8 md:mt-12">
+              {heroImages.map((_, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => setCurrentSlide(idx)}
+                  className={`h-1 rounded-full transition-all duration-300 ${
+                    idx === currentSlide ? "w-8 md:w-12 bg-white" : "w-4 md:w-6 bg-white/40"
+                  }`}
+                />
+              ))}
             </div>
           </div>
         </div>
+
+        {/* Navigation Arrows - Desktop only */}
+        <button
+          onClick={prevSlide}
+          className="hidden md:flex absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 bg-white/20 hover:bg-white/40 backdrop-blur-sm rounded-full items-center justify-center transition-all"
+        >
+          <ArrowRight className="w-5 h-5 rotate-180 text-white" />
+        </button>
+        <button
+          onClick={nextSlide}
+          className="hidden md:flex absolute right-4 top-1/2 -translate-y-1/2 w-10 h-10 bg-white/20 hover:bg-white/40 backdrop-blur-sm rounded-full items-center justify-center transition-all"
+        >
+          <ArrowRight className="w-5 h-5 text-white" />
+        </button>
       </div>
     </section>
   );
@@ -176,7 +199,8 @@ function HeroSection() {
 
 // Categories Section - White Theme (Mobile Optimized)
 function CategoriesSection() {
-  const products = useQuery(api.products.getAllProducts) || [];
+  // OPTIMIZED: Use card-only query - returns only: _id, itemId, name, price, mainImage, category
+  const products = useQuery(api.products.getProductsForCards, { limit: 100 }) || [];
   
   // Build categories from actual products
   const categoryNames = ["All", "Sneakers", "Sports"];
@@ -222,13 +246,15 @@ function CategoriesSection() {
             >
               <Link href={`/shop?ct=${cat.name.toLowerCase()}`}>
                 <div className="group relative aspect-[4/5] md:aspect-[3/4] bg-gray-100 rounded-xl md:rounded-2xl overflow-hidden cursor-pointer hover:shadow-xl transition-shadow duration-500">
-                  {/* Category Image from Database */}
+                  {/* Category Image from Database - OPTIMIZED */}
                   {cat.image ? (
-                    <img
+                    <Image
                       src={cat.image}
                       alt={cat.name}
                       fill
+                      sizes="(max-width: 768px) 50vw, 25vw"
                       className="object-cover group-hover:scale-105 transition-transform duration-700"
+                      loading="lazy"
                     />
                   ) : (
                     <div className="absolute inset-0 bg-gradient-to-br from-gray-100 to-gray-200 group-hover:scale-105 transition-transform duration-700" />
@@ -313,7 +339,8 @@ function VideoIntro({ videoSrc = "/asscet/intro-v1.mp4", onClose }) {
 // Featured Products Section - White Theme (Mobile Optimized)
 function FeaturedProducts() {
   const router = useRouter();
-  const products = useQuery(api.products.getAllProducts);
+  // OPTIMIZED: Use card-only query - returns only: _id, itemId, name, price, mainImage, category
+  const products = useQuery(api.products.getProductsForCards, { limit: 8 });
 
   const handleProductClick = (productId) => {
     router.push(`/product/${productId}`);
@@ -343,7 +370,7 @@ function FeaturedProducts() {
               <div key={idx} className="aspect-[3/4] bg-gray-200 rounded-lg md:rounded-xl animate-pulse" />
             ))
           ) : (
-            products.slice(0, 8).map((product, idx) => (
+            products.map((product, idx) => (
               <motion.div
                 key={product._id}
                 initial={{ opacity: 0, y: 20 }}
@@ -355,11 +382,13 @@ function FeaturedProducts() {
               >
                 <div className="relative aspect-[3/4] bg-gray-100 rounded-lg md:rounded-xl overflow-hidden mb-2 md:mb-4">
                   {product.mainImage ? (
-                    <img
+                    <Image
                       src={product.mainImage}
                       alt={product.name}
                       fill
+                      sizes="(max-width: 640px) 50vw, (max-width: 768px) 33vw, 25vw"
                       className="object-cover group-hover:scale-105 transition-transform duration-500"
+                      loading="lazy"
                     />
                   ) : (
                     <div className="w-full h-full bg-gradient-to-br from-gray-100 to-gray-200" />
@@ -486,11 +515,13 @@ function TrendingSection() {
               >
                 <div className="relative aspect-square bg-gray-100 rounded-xl overflow-hidden hover:shadow-xl transition-shadow">
                   {product.mainImage ? (
-                    <img
+                    <Image
                       src={product.mainImage}
                       alt={product.name}
                       fill
+                      sizes="(max-width: 768px) 50vw, 33vw"
                       className="object-cover group-hover:scale-105 transition-transform duration-700"
+                      loading="lazy"
                     />
                   ) : (
                     <div className="w-full h-full bg-gradient-to-br from-gray-100 to-gray-200" />
@@ -818,6 +849,16 @@ export default function Home() {
   const [showStylePopup, setShowStylePopup] = useState(false);
   const [showIntro, setShowIntro] = useState(false);
   const [contentReady, setContentReady] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
+
+  // Track scroll for navbar visibility
+  useEffect(() => {
+    const handleScroll = () => {
+      setScrolled(window.scrollY > 100);
+    };
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
 
   // Check if intro was already shown - only play once
   useEffect(() => {
@@ -857,14 +898,54 @@ export default function Home() {
         animate={contentReady ? { opacity: 1, y: 0 } : { opacity: 0, y: 20 }}
         transition={{ duration: 0.6, ease: [0.2, 0.8, 0.2, 1] }}
       >
-        {/* Navbar */}
-        <div className="xl:block hidden h-[80px] xl:h-[100px]"></div>
-        <div className="xl:hidden mb-14">
+        {/* Mobile Navbar - always visible */}
+        <div className="xl:hidden">
           <NavbarMobile />
         </div>
-        <div className="hidden xl:block">
-          <Navbar />
+
+        {/* Desktop: Minimal hero nav (Sneakers | Sports only) - hidden on scroll */}
+        <div className={`hidden xl:block fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${scrolled ? 'opacity-0 pointer-events-none -translate-y-full' : 'opacity-100'}`}>
+          <div className="flex items-center justify-between px-8 py-4">
+            {/* Logo */}
+            <Link href="/">
+              <img src="/logo.png" alt="Walkdrobe" className="h-8 opacity-90" />
+            </Link>
+            
+            {/* Center: All | Sneakers | Sports */}
+            <div className="flex items-center gap-8">
+              <Link href="/shop" className="text-white font-semibold tracking-wider hover:opacity-80 transition-opacity text-sm">
+                ALL
+              </Link>
+              <span className="text-white/40">|</span>
+              <Link href="/shop?ct=sneakers" className="text-white font-semibold tracking-wider hover:opacity-80 transition-opacity text-sm">
+                SNEAKERS
+              </Link>
+              <span className="text-white/40">|</span>
+              <Link href="/shop?ct=sports" className="text-white font-semibold tracking-wider hover:opacity-80 transition-opacity text-sm">
+                SPORTS
+              </Link>
+            </div>
+
+            {/* Right spacer */}
+            <div className="w-24"></div>
+          </div>
         </div>
+
+        {/* Desktop: Full navbar - visible on scroll with animation */}
+        <AnimatePresence>
+          {scrolled && (
+            <motion.div
+              initial={{ y: -100, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: -100, opacity: 0 }}
+              transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+              className="hidden xl:block"
+            >
+              <Navbar />
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         <HeroSection />
         <CategoriesSection />
         <FeaturedProducts />

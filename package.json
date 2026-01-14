@@ -1,4 +1,7 @@
 {
+  "scripts": {
+    "deploy": "bash deploy.sh"
+  },
   "devDependencies": {
     "convex-test": "^0.0.41",
     "vitest": "^4.0.15"

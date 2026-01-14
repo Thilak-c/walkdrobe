@@ -118,6 +118,7 @@ export default defineSchema({
 
 
   // Existing products table (for main website - customer facing)
+  // OPTIMIZED: Added indexes for category, itemId, inStock for faster queries
   products: defineTable({
     buys: v.optional(v.float64()),
     inCart: v.optional(v.float64()),
@@ -148,7 +149,13 @@ export default defineSchema({
     deletedBy: v.optional(v.id("users")),
     updatedAt: v.optional(v.string()),
     updatedBy: v.optional(v.string()),
-  }).index("by_deleted", ["isDeleted"]),
+  })
+    .index("by_deleted", ["isDeleted"])
+    .index("by_itemId", ["itemId"])
+    .index("by_category", ["category"])
+    .index("by_inStock", ["inStock"])
+    .index("by_category_inStock", ["category", "inStock"])
+    .index("by_createdAt", ["createdAt"]),
 
   // ============ WEBSITE TRASH (web_trash) ============
   web_trash: defineTable({
@@ -376,6 +383,7 @@ export default defineSchema({
     .index("by_product", ["productId"])
     .index("by_user_product", ["userId", "productId"])
     .index("by_active", ["isActive"]),
+  // OPTIMIZED: Added createdAt index for time-based queries
   orders: defineTable({
     userId: v.any(),
     orderNumber: v.string(),
@@ -433,7 +441,9 @@ export default defineSchema({
     .index("by_user", ["userId"])
     .index("by_order_number", ["orderNumber"])
     .index("by_status", ["status"])
-    .index("by_estimated_delivery", ["estimatedDeliveryDate"]),
+    .index("by_estimated_delivery", ["estimatedDeliveryDate"])
+    .index("by_createdAt", ["createdAt"])
+    .index("by_status_createdAt", ["status", "createdAt"]),
 
   // Add this table definition to your schema
   recentlyViewed: defineTable({

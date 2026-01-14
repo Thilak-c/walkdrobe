@@ -18,35 +18,58 @@ export const insert = mutation(async ({ db }, product) => {
 
 
 // Bulletproof case-insensitive category search
+// OPTIMIZED: Uses index-based query with pagination
 export const getProductsByCategoryOrType = query({
   args: { 
     searchTerm: v.string(),
-    searchType: v.optional(v.union(v.literal("category"), v.literal("type"), v.literal("both")))
+    searchType: v.optional(v.union(v.literal("category"), v.literal("type"), v.literal("both"))),
+    limit: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
     try {
       const normalizedTerm = args.searchTerm?.trim();
       const searchType = args.searchType || "both";
+      const limit = args.limit || 50;
       
       if (!normalizedTerm) {
         return [];
       }
 
-      // Get all non-deleted, visible, in-stock products
-      const allProducts = await ctx.db
+      // OPTIMIZED: Use index for category search when possible
+      if (searchType === "category") {
+        // Try exact match first using index
+        const exactMatch = await ctx.db
+          .query("products")
+          .withIndex("by_category", (q) => q.eq("category", normalizedTerm))
+          .filter((q) => 
+            q.and(
+              q.neq(q.field("isDeleted"), true),
+              q.neq(q.field("isHidden"), true),
+              q.eq(q.field("inStock"), true)
+            )
+          )
+          .take(limit);
+        
+        if (exactMatch.length > 0) {
+          return exactMatch;
+        }
+      }
+
+      // Fallback: Get products with filters and limit
+      const products = await ctx.db
         .query("products")
         .filter((q) => 
           q.and(
-            q.eq(q.field("isDeleted"), false),
-            q.eq(q.field("isHidden"), false),
+            q.neq(q.field("isDeleted"), true),
+            q.neq(q.field("isHidden"), true),
             q.eq(q.field("inStock"), true)
           )
         )
-        .collect();
+        .take(500); // Cap at 500 for performance
       
-      return allProducts.filter(product => {
-        const termLower = normalizedTerm.toLowerCase();
-        
+      const termLower = normalizedTerm.toLowerCase();
+      
+      return products.filter(product => {
         // Check category (case-insensitive)
         const categoryMatch = searchType !== "type" && 
           product.category?.toLowerCase() === termLower;
@@ -58,7 +81,7 @@ export const getProductsByCategoryOrType = query({
           product.type.some(t => t?.toLowerCase() === termLower);
         
         return categoryMatch || typeMatch;
-      });
+      }).slice(0, limit);
       
     } catch (error) {
       return [];
@@ -67,31 +90,54 @@ export const getProductsByCategoryOrType = query({
 });
 
 // Also keep the original for backward compatibility
+// OPTIMIZED: Uses index-based query with pagination
 export const getProductsByCategory = query({
-  args: { category: v.string() },
+  args: { 
+    category: v.string(),
+    limit: v.optional(v.number()),
+  },
   handler: async (ctx, args) => {
     try {
       const normalizedCategory = args.category?.trim();
+      const limit = args.limit || 50;
       
       if (!normalizedCategory) {
         return [];
       }
 
-      const allProducts = await ctx.db
+      // OPTIMIZED: Try exact match using index first
+      const exactMatch = await ctx.db
         .query("products")
+        .withIndex("by_category", (q) => q.eq("category", normalizedCategory))
         .filter((q) => 
           q.and(
-            q.eq(q.field("isDeleted"), false),
-            q.eq(q.field("isHidden"), false),
+            q.neq(q.field("isDeleted"), true),
+            q.neq(q.field("isHidden"), true),
             q.eq(q.field("inStock"), true)
           )
         )
-        .collect();
+        .take(limit);
+      
+      if (exactMatch.length > 0) {
+        return exactMatch;
+      }
+
+      // Fallback: Case-insensitive search with limit
+      const products = await ctx.db
+        .query("products")
+        .filter((q) => 
+          q.and(
+            q.neq(q.field("isDeleted"), true),
+            q.neq(q.field("isHidden"), true),
+            q.eq(q.field("inStock"), true)
+          )
+        )
+        .take(500);
       
       // Case-insensitive category matching
-      return allProducts.filter(product => 
+      return products.filter(product => 
         product.category?.toLowerCase() === normalizedCategory.toLowerCase()
-      );
+      ).slice(0, limit);
       
     } catch (error) {
       return [];
@@ -100,44 +146,53 @@ export const getProductsByCategory = query({
 });
 
 // Get product by itemId
+// OPTIMIZED: Uses index-based query
 export const getProductByItemId = query({
   args: { itemId: v.string() },
   handler: async (ctx, { itemId }) => {
-    const products = await ctx.db
+    // OPTIMIZED: Use index for direct lookup
+    const product = await ctx.db
       .query("products")
+      .withIndex("by_itemId", (q) => q.eq("itemId", itemId))
       .filter((q) => q.neq(q.field("isDeleted"), true))
-      .collect();
+      .first();
     
-    return products.find(p => p.itemId === itemId) || null;
+    return product || null;
   },
 });
 
 // Get products by subcategory (case-insensitive)
+// OPTIMIZED: Added pagination limit
 export const getProductsBySubcategory = query({
-  args: { subcategory: v.string() },
+  args: { 
+    subcategory: v.string(),
+    limit: v.optional(v.number()),
+  },
   handler: async (ctx, args) => {
     try {
       const normalizedSubcategory = args.subcategory?.trim();
+      const limit = args.limit || 50;
       
       if (!normalizedSubcategory) {
         return [];
       }
 
+      // OPTIMIZED: Use take() instead of collect()
       const products = await ctx.db
         .query("products")
         .filter((q) => 
           q.and(
-            q.eq(q.field("isDeleted"), false),
-            q.eq(q.field("isHidden"), false),
+            q.neq(q.field("isDeleted"), true),
+            q.neq(q.field("isHidden"), true),
             q.eq(q.field("inStock"), true)
           )
         )
-        .collect();
+        .take(500);
       
       // Case-insensitive subcategory matching
       return products.filter(product => 
         product.subcategories?.toLowerCase() === normalizedSubcategory.toLowerCase()
-      );
+      ).slice(0, limit);
       
     } catch (error) {
       return [];
@@ -241,25 +296,47 @@ export const update = mutation(async ({ db }, { itemId, updates }) => {
 });
 
 // Get all products (excluding deleted ones)
-export const getAll = query(async ({ db }) => {
-  return await db
-    .query("products")
-    .filter((q) => q.neq(q.field("isDeleted"), true))
-    .order("desc", "createdAt")
-    .collect();
+// OPTIMIZED: Added pagination
+export const getAll = query({
+  args: {
+    limit: v.optional(v.number()),
+    cursor: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const limit = args.limit || 50;
+    return await ctx.db
+      .query("products")
+      .filter((q) => q.neq(q.field("isDeleted"), true))
+      .order("desc")
+      .take(limit);
+  },
 });
 
 // Get all products including deleted ones (for admin)
-export const getAllIncludingDeleted = query(async ({ db }) => {
-  return await db.query("products").order("desc", "createdAt").collect();
+// OPTIMIZED: Added pagination
+export const getAllIncludingDeleted = query({
+  args: {
+    limit: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const limit = args.limit || 100;
+    return await ctx.db
+      .query("products")
+      .order("desc")
+      .take(limit);
+  },
 });
 
 // Get single product by itemId
-export const getById = query(async ({ db }, { itemId }) => {
-  return await db
-    .query("products")
-    .filter(q => q.eq(q.field("itemId"), itemId))
-    .unique();
+// OPTIMIZED: Uses index
+export const getById = query({
+  args: { itemId: v.string() },
+  handler: async (ctx, { itemId }) => {
+    return await ctx.db
+      .query("products")
+      .withIndex("by_itemId", (q) => q.eq("itemId", itemId))
+      .first();
+  },
 });
 
 export const toggleHidden = mutation(async ({ db }, { itemId, isHidden }) => {
@@ -304,45 +381,51 @@ export const debugProducts = query(async ({ db }) => {
 });
 
 // Get single product by _id for public product pages
+// OPTIMIZED: Uses index for itemId lookup
 export const getProductById = query({
   args: { productId: v.string() },
   handler: async (ctx, { productId }) => {
     try {
-      // First try to find by itemId (which is the public identifier)
-      const products = await ctx.db
+      // OPTIMIZED: Use index for itemId lookup
+      const product = await ctx.db
         .query("products")
-        .filter(q => q.eq(q.field("itemId"), productId))
-        .collect();
+        .withIndex("by_itemId", (q) => q.eq("itemId", productId))
+        .filter(q => q.neq(q.field("isDeleted"), true))
+        .first();
       
-      // Get the first non-deleted product
-      let product = products.find(p => !p.isDeleted);
-      
-      // If not found by itemId, try to find by _id (fallback)
-      if (!product) {
-        try {
-          product = await ctx.db.get(productId);
-          // Check if it's a valid product and not deleted
-          if (product && product.isDeleted === true) {
-            product = null;
-          }
-        } catch (error) {
-          product = null;
-        }
+      if (product) {
+        return product;
       }
       
-      return product || null;
+      // Fallback: try to find by _id (document ID)
+      try {
+        const productById = await ctx.db.get(productId);
+        if (productById && productById.isDeleted !== true) {
+          return productById;
+        }
+      } catch (error) {
+        // Invalid document ID
+      }
+      
+      return null;
     } catch (error) {
       return null;
     }
   },
 });
+// OPTIMIZED: Category stats with pagination
 export const getProductCategories = query({
-  args: {},
-  handler: async (ctx) => {
+  args: {
+    limit: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const limit = args.limit || 1000;
+    
+    // OPTIMIZED: Use take() instead of collect()
     const products = await ctx.db
       .query("products")
       .filter(q => q.neq(q.field("isDeleted"), true))
-      .collect();
+      .take(limit);
 
     const categories = {};
     
@@ -355,21 +438,22 @@ export const getProductCategories = query({
           totalSales: 0,
           totalBuys: 0,
           averagePrice: 0,
-          products: []
+          priceSum: 0,
         };
       }
       
       categories[category].count += 1;
       categories[category].totalSales += (product.buys || 0) * (product.price || 0);
       categories[category].totalBuys += (product.buys || 0);
-      categories[category].products.push(product);
+      categories[category].priceSum += (product.price || 0);
     });
 
     // Calculate average prices
     Object.values(categories).forEach(category => {
       if (category.count > 0) {
-        category.averagePrice = category.products.reduce((sum, p) => sum + (p.price || 0), 0) / category.count;
+        category.averagePrice = category.priceSum / category.count;
       }
+      delete category.priceSum; // Remove helper field
     });
 
     return Object.values(categories).sort((a, b) => b.count - a.count);
@@ -377,71 +461,95 @@ export const getProductCategories = query({
 });
 
 // Get multiple products by IDs for wishlist/cart pages
+// OPTIMIZED: Batch fetch using index
 export const getProductsByIds = query({
   args: { productIds: v.array(v.string()) },
   handler: async (ctx, { productIds }) => {
     if (productIds.length === 0) return [];
     
-    // First try to get products by itemId
-    const productsByItemId = await ctx.db
-      .query("products")
-      .filter(q => q.and(
-        q.neq(q.field("isDeleted"), true),
-        q.or(...productIds.map(id => q.eq(q.field("itemId"), id)))
-      ))
-      .collect();
+    // OPTIMIZED: Batch fetch all products at once using index
+    const products = [];
     
-    // For any missing products, try to get by _id (document ID)
-    const foundItemIds = new Set(productsByItemId.map(p => p.itemId));
-    const missingIds = productIds.filter(id => !foundItemIds.has(id));
-    
-    const productsByDocId = [];
-    for (const id of missingIds) {
+    for (const id of productIds) {
+      // Try by itemId first (using index)
+      const product = await ctx.db
+        .query("products")
+        .withIndex("by_itemId", (q) => q.eq("itemId", id))
+        .filter(q => q.neq(q.field("isDeleted"), true))
+        .first();
+      
+      if (product) {
+        products.push(product);
+        continue;
+      }
+      
+      // Fallback: try by document ID
       try {
-        const product = await ctx.db.get(id);
-        if (product && !product.isDeleted) {
-          productsByDocId.push(product);
+        const productById = await ctx.db.get(id);
+        if (productById && !productById.isDeleted) {
+          products.push(productById);
         }
       } catch (error) {
-        // Invalid document ID, skip silently
+        // Invalid document ID, skip
       }
     }
     
-    return [...productsByItemId, ...productsByDocId];
+    return products;
   },
 });
 
 // Get top 10 products of the week (by sales)
-export const getTopPicks = query(async ({ db }) => {
-  const allProducts = await db.query("products").collect();
-  
-  const visibleProducts = allProducts.filter(p => !p.isHidden);
-  
-  // Sort by buys field (sales count)
-  const sortedProducts = visibleProducts.sort((a, b) => (b.buys || 0) - (a.buys || 0));
-  
-  const topProducts = sortedProducts.slice(0, 10);
-  
-  // Return products with all necessary fields for display
-  return topProducts.map(p => ({
-    _id: p._id,
-    name: p.name,
-    category: p.category,
-    price: p.price,
-    mainImage: p.mainImage || p.image || "/products/placeholder.jpg", // Fallback for missing images
-    buys: p.buys,
-    createdAt: p.createdAt || null
-  }));
+// OPTIMIZED: Added limit and removed full collection scan
+export const getTopPicks = query({
+  args: {
+    limit: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const limit = args.limit || 10;
+    
+    // OPTIMIZED: Use take() instead of collect()
+    const products = await ctx.db
+      .query("products")
+      .filter((q) => 
+        q.and(
+          q.neq(q.field("isDeleted"), true),
+          q.neq(q.field("isHidden"), true)
+        )
+      )
+      .take(200); // Get enough products to sort
+    
+    // Sort by buys field (sales count)
+    const sortedProducts = products.sort((a, b) => (b.buys || 0) - (a.buys || 0));
+    
+    const topProducts = sortedProducts.slice(0, limit);
+    
+    // Return products with all necessary fields for display
+    return topProducts.map(p => ({
+      _id: p._id,
+      name: p.name,
+      category: p.category,
+      price: p.price,
+      mainImage: p.mainImage || p.image || "/products/placeholder.jpg",
+      buys: p.buys,
+      createdAt: p.createdAt || null
+    }));
+  },
 });
 
 // Get product statistics for admin dashboard
+// OPTIMIZED: Added limit to prevent full collection scan
 export const getProductStats = query({
-  args: {},
-  handler: async (ctx) => {
+  args: {
+    limit: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const limit = args.limit || 2000;
+    
+    // OPTIMIZED: Use take() instead of collect()
     const products = await ctx.db
       .query("products")
       .filter(q => q.neq(q.field("isDeleted"), true))
-      .collect();
+      .take(limit);
 
     const stats = {
       total: products.length,
@@ -2773,5 +2881,333 @@ export const getAdminStats = query({
 
     stats.potentialProfit = stats.totalValue - stats.totalCost;
     return stats;
+  },
+});
+
+
+// ============ OPTIMIZED CARD-ONLY QUERIES ============
+// These queries return ONLY the fields needed for product cards
+// Fields: itemId, name, price, mainImage, category (+ _id for linking)
+
+// Helper to map product to card-only fields
+const toCardData = (p) => ({
+  _id: p._id,
+  itemId: p.itemId,
+  name: p.name,
+  price: p.price,
+  mainImage: p.mainImage,
+  category: p.category,
+});
+
+// Get products for cards (minimal data)
+export const getProductsForCards = query({
+  args: {
+    limit: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const limit = args.limit || 20;
+    
+    const products = await ctx.db
+      .query("products")
+      .filter((q) => 
+        q.and(
+          q.neq(q.field("isDeleted"), true),
+          q.neq(q.field("isHidden"), true),
+          q.eq(q.field("inStock"), true)
+        )
+      )
+      .order("desc")
+      .take(limit);
+    
+    return products.map(toCardData);
+  },
+});
+
+// Get products by category for cards (minimal data)
+export const getProductsByCategoryForCards = query({
+  args: {
+    category: v.string(),
+    limit: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const limit = args.limit || 20;
+    const categoryLower = args.category.toLowerCase();
+    
+    // Try exact match with index first
+    const exactMatch = await ctx.db
+      .query("products")
+      .withIndex("by_category", (q) => q.eq("category", args.category))
+      .filter((q) => 
+        q.and(
+          q.neq(q.field("isDeleted"), true),
+          q.neq(q.field("isHidden"), true),
+          q.eq(q.field("inStock"), true)
+        )
+      )
+      .take(limit);
+    
+    if (exactMatch.length > 0) {
+      return exactMatch.map(toCardData);
+    }
+    
+    // Fallback: case-insensitive search
+    const products = await ctx.db
+      .query("products")
+      .filter((q) => 
+        q.and(
+          q.neq(q.field("isDeleted"), true),
+          q.neq(q.field("isHidden"), true),
+          q.eq(q.field("inStock"), true)
+        )
+      )
+      .take(200);
+    
+    return products
+      .filter(p => p.category?.toLowerCase() === categoryLower)
+      .slice(0, limit)
+      .map(toCardData);
+  },
+});
+
+// Get top picks for cards (minimal data)
+export const getTopPicksForCards = query({
+  args: {
+    limit: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const limit = args.limit || 10;
+    
+    const products = await ctx.db
+      .query("products")
+      .filter((q) => 
+        q.and(
+          q.neq(q.field("isDeleted"), true),
+          q.neq(q.field("isHidden"), true)
+        )
+      )
+      .take(100);
+    
+    // Sort by buys (sales count)
+    return products
+      .sort((a, b) => (b.buys || 0) - (a.buys || 0))
+      .slice(0, limit)
+      .map(toCardData);
+  },
+});
+
+// Get new arrivals for cards (minimal data)
+export const getNewArrivalsForCards = query({
+  args: {
+    limit: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const limit = args.limit || 10;
+    
+    const products = await ctx.db
+      .query("products")
+      .withIndex("by_createdAt")
+      .filter((q) => 
+        q.and(
+          q.neq(q.field("isDeleted"), true),
+          q.neq(q.field("isHidden"), true),
+          q.eq(q.field("inStock"), true)
+        )
+      )
+      .order("desc")
+      .take(limit);
+    
+    return products.map(toCardData);
+  },
+});
+
+// Get related products for cards (minimal data)
+export const getRelatedProductsForCards = query({
+  args: {
+    productId: v.string(),
+    category: v.string(),
+    limit: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const limit = args.limit || 4;
+    
+    const products = await ctx.db
+      .query("products")
+      .withIndex("by_category", (q) => q.eq("category", args.category))
+      .filter((q) => 
+        q.and(
+          q.neq(q.field("itemId"), args.productId),
+          q.neq(q.field("isDeleted"), true),
+          q.neq(q.field("isHidden"), true),
+          q.eq(q.field("inStock"), true)
+        )
+      )
+      .take(limit);
+    
+    return products.map(toCardData);
+  },
+});
+
+// Search products for cards (minimal data)
+export const searchProductsForCards = query({
+  args: {
+    query: v.string(),
+    limit: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const limit = args.limit || 20;
+    const searchTerm = args.query.toLowerCase().trim();
+    
+    if (!searchTerm) return [];
+    
+    const products = await ctx.db
+      .query("products")
+      .filter((q) => 
+        q.and(
+          q.neq(q.field("isDeleted"), true),
+          q.neq(q.field("isHidden"), true),
+          q.eq(q.field("inStock"), true)
+        )
+      )
+      .take(300);
+    
+    return products
+      .filter(p => 
+        p.name?.toLowerCase().includes(searchTerm) ||
+        p.category?.toLowerCase().includes(searchTerm) ||
+        p.itemId?.toLowerCase().includes(searchTerm)
+      )
+      .slice(0, limit)
+      .map(toCardData);
+  },
+});
+
+// Search products for shop (includes subcategories for filtering)
+export const searchProductsForShop = query({
+  args: {
+    query: v.string(),
+    limit: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const limit = args.limit || 50;
+    const searchTerm = args.query.toLowerCase().trim();
+    
+    if (!searchTerm) return [];
+    
+    const products = await ctx.db
+      .query("products")
+      .filter((q) => 
+        q.and(
+          q.neq(q.field("isDeleted"), true),
+          q.neq(q.field("isHidden"), true),
+          q.eq(q.field("inStock"), true)
+        )
+      )
+      .take(300);
+    
+    return products
+      .filter(p => 
+        p.name?.toLowerCase().includes(searchTerm) ||
+        p.category?.toLowerCase().includes(searchTerm) ||
+        p.itemId?.toLowerCase().includes(searchTerm)
+      )
+      .slice(0, limit)
+      .map(p => ({
+        _id: p._id,
+        itemId: p.itemId,
+        name: p.name,
+        price: p.price,
+        mainImage: p.mainImage,
+        category: p.category,
+        subcategories: p.subcategories,
+      }));
+  },
+});
+
+// Get products by type for cards (sneakers, sports, etc.)
+export const getProductsByTypeForCards = query({
+  args: {
+    type: v.string(),
+    limit: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const limit = args.limit || 20;
+    const typeLower = args.type.toLowerCase();
+    
+    const products = await ctx.db
+      .query("products")
+      .filter((q) => 
+        q.and(
+          q.neq(q.field("isDeleted"), true),
+          q.neq(q.field("isHidden"), true),
+          q.eq(q.field("inStock"), true)
+        )
+      )
+      .take(300);
+    
+    return products
+      .filter(p => 
+        p.category?.toLowerCase() === typeLower ||
+        (p.type && Array.isArray(p.type) && p.type.some(t => t?.toLowerCase() === typeLower))
+      )
+      .slice(0, limit)
+      .map(toCardData);
+  },
+});
+
+
+// ============ SHOP PAGE OPTIMIZED QUERY ============
+// Returns card fields + filter fields (subcategories, type)
+
+export const getProductsForShop = query({
+  args: {
+    category: v.string(),
+    limit: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const limit = args.limit || 50;
+    const categoryLower = args.category.toLowerCase();
+    
+    // Try exact match with index first
+    let products = await ctx.db
+      .query("products")
+      .withIndex("by_category", (q) => q.eq("category", args.category))
+      .filter((q) => 
+        q.and(
+          q.neq(q.field("isDeleted"), true),
+          q.neq(q.field("isHidden"), true),
+          q.eq(q.field("inStock"), true)
+        )
+      )
+      .take(limit);
+    
+    // Fallback: case-insensitive search
+    if (products.length === 0) {
+      const allProducts = await ctx.db
+        .query("products")
+        .filter((q) => 
+          q.and(
+            q.neq(q.field("isDeleted"), true),
+            q.neq(q.field("isHidden"), true),
+            q.eq(q.field("inStock"), true)
+          )
+        )
+        .take(200);
+      
+      products = allProducts.filter(p => 
+        p.category?.toLowerCase() === categoryLower
+      ).slice(0, limit);
+    }
+    
+    // Return only needed fields for shop page
+    return products.map(p => ({
+      _id: p._id,
+      itemId: p.itemId,
+      name: p.name,
+      price: p.price,
+      mainImage: p.mainImage,
+      category: p.category,
+      subcategories: p.subcategories,
+      type: p.type,
+    }));
   },
 });

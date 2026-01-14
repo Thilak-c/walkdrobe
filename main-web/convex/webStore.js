@@ -242,22 +242,28 @@ export const restoreProduct = mutation({
 });
 
 // Get all trash items
+// OPTIMIZED: Added limit
 export const getTrash = query({
-  args: {},
-  handler: async (ctx) => {
-    return await ctx.db.query("web_trash").order("desc").collect();
+  args: {
+    limit: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    return await ctx.db.query("web_trash").order("desc").take(args.limit || 100);
   },
 });
 
 // ============ QUERIES ============
 
+// OPTIMIZED: Added pagination
 export const getAllProducts = query({
-  args: {},
-  handler: async (ctx) => {
+  args: {
+    limit: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
     return await ctx.db.query("products")
       .filter(q => q.neq(q.field("isDeleted"), true))
       .order("desc")
-      .collect();
+      .take(args.limit || 100);
   },
 });
 
@@ -277,12 +283,15 @@ export const getProductByItemId = query({
   },
 });
 
+// OPTIMIZED: Added limit
 export const getStats = query({
-  args: {},
-  handler: async (ctx) => {
+  args: {
+    limit: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
     const products = await ctx.db.query("products")
       .filter(q => q.neq(q.field("isDeleted"), true))
-      .collect();
+      .take(args.limit || 1000);
 
     const stats = {
       totalProducts: products.length,
@@ -315,13 +324,24 @@ export const getStats = query({
   },
 });
 
+// OPTIMIZED: Added limit
 export const getLowStock = query({
-  args: { threshold: v.optional(v.number()) },
-  handler: async (ctx, { threshold = 10 }) => {
+  args: { 
+    threshold: v.optional(v.number()),
+    limit: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const threshold = args.threshold || 10;
+    const limit = args.limit || 50;
+    
     const products = await ctx.db.query("products")
       .filter(q => q.neq(q.field("isDeleted"), true))
-      .collect();
-    return products.filter(p => p.totalStock <= threshold).sort((a, b) => a.totalStock - b.totalStock);
+      .take(500);
+    
+    return products
+      .filter(p => p.totalStock <= threshold)
+      .sort((a, b) => a.totalStock - b.totalStock)
+      .slice(0, limit);
   },
 });
 
@@ -332,39 +352,48 @@ export const getMovements = query({
   },
 });
 
+// OPTIMIZED: Added limit
 export const searchProducts = query({
-  args: { query: v.string() },
-  handler: async (ctx, { query }) => {
+  args: { 
+    query: v.string(),
+    limit: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const limit = args.limit || 50;
+    
     const products = await ctx.db.query("products")
       .filter(q => q.neq(q.field("isDeleted"), true))
-      .collect();
-    const s = query.toLowerCase();
+      .take(500);
+    
+    const s = args.query.toLowerCase();
     return products.filter(p => 
       p.name.toLowerCase().includes(s) || 
       p.itemId.toLowerCase().includes(s) ||
       (p.category || "").toLowerCase().includes(s)
-    );
+    ).slice(0, limit);
   },
 });
 
 // Get dead stock (products with no sales, older than X days)
+// OPTIMIZED: Added limit
 export const getDeadStock = query({
   args: {
     daysOld: v.optional(v.number()),
+    limit: v.optional(v.number()),
   },
-  handler: async (ctx, { daysOld = 30 }) => {
+  handler: async (ctx, args) => {
+    const daysOld = args.daysOld || 30;
+    const limit = args.limit || 50;
+    
     const products = await ctx.db.query("products")
       .filter(q => q.neq(q.field("isDeleted"), true))
-      .collect();
+      .take(500);
 
     const cutoffDate = new Date();
     cutoffDate.setDate(cutoffDate.getDate() - daysOld);
 
-    // For products, we don't have buys field, so we check based on age and stock
-    // Products that haven't moved (still have original stock) are considered dead
     return products
       .filter(p => {
-        // Check if product is old enough
         if (p.createdAt) {
           const createdDate = new Date(p.createdAt);
           return createdDate < cutoffDate;
@@ -383,27 +412,47 @@ export const getDeadStock = query({
         createdAt: p.createdAt,
         stockValue: (p.costPrice || p.price || 0) * (p.totalStock || 0),
       }))
-      .sort((a, b) => b.stockValue - a.stockValue);
+      .sort((a, b) => b.stockValue - a.stockValue)
+      .slice(0, limit);
   },
 });
 
 
 // Get products by category (for shop page)
+// OPTIMIZED: Use index + limit
 export const getProductsByCategory = query({
-  args: { category: v.string() },
-  handler: async (ctx, { category }) => {
+  args: { 
+    category: v.string(),
+    limit: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const limit = args.limit || 50;
+    
+    // Try exact match with index first
+    const exactMatch = await ctx.db.query("products")
+      .withIndex("by_category", q => q.eq("category", args.category))
+      .filter(q => q.and(
+        q.neq(q.field("isDeleted"), true),
+        q.neq(q.field("isHidden"), true)
+      ))
+      .take(limit);
+    
+    if (exactMatch.length > 0) {
+      return exactMatch;
+    }
+    
+    // Fallback: case-insensitive search with limit
     const products = await ctx.db.query("products")
       .filter(q => q.and(
         q.neq(q.field("isDeleted"), true),
         q.neq(q.field("isHidden"), true)
       ))
-      .collect();
+      .take(500);
     
-    // Filter by category (case-insensitive)
-    const categoryLower = category.toLowerCase();
+    const categoryLower = args.category.toLowerCase();
     return products.filter(p => 
       (p.category || "").toLowerCase() === categoryLower
-    );
+    ).slice(0, limit);
   },
 });
 
@@ -440,6 +489,7 @@ export const getFeaturedProducts = query({
 });
 
 // Get top picks from products (sorted by stock/newest)
+// OPTIMIZED: Use take() instead of collect()
 export const getTopPicks = query({
   args: { limit: v.optional(v.number()) },
   handler: async (ctx, { limit = 10 }) => {
@@ -450,10 +500,9 @@ export const getTopPicks = query({
         q.eq(q.field("inStock"), true)
       ))
       .order("desc")
-      .collect();
+      .take(limit);
 
-    // Return top products with necessary fields
-    return products.slice(0, limit).map(p => ({
+    return products.map(p => ({
       _id: p._id,
       itemId: p.itemId,
       name: p.name,
@@ -463,5 +512,90 @@ export const getTopPicks = query({
       createdAt: p.createdAt || null,
       totalStock: p.totalStock,
     }));
+  },
+});
+
+
+// ============ OPTIMIZED CARD-ONLY QUERIES ============
+// Returns ONLY: _id, itemId, name, price, mainImage, category
+
+const toCardData = (p) => ({
+  _id: p._id,
+  itemId: p.itemId,
+  name: p.name,
+  price: p.price,
+  mainImage: p.mainImage,
+  category: p.category,
+});
+
+// Get all products for cards (minimal data)
+export const getProductsForCards = query({
+  args: {
+    limit: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const limit = args.limit || 20;
+    
+    const products = await ctx.db
+      .query("products")
+      .filter((q) => 
+        q.and(
+          q.neq(q.field("isDeleted"), true),
+          q.neq(q.field("isHidden"), true),
+          q.eq(q.field("inStock"), true)
+        )
+      )
+      .order("desc")
+      .take(limit);
+    
+    return products.map(toCardData);
+  },
+});
+
+// Get featured products for cards
+export const getFeaturedForCards = query({
+  args: {
+    limit: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const limit = args.limit || 8;
+    
+    const products = await ctx.db
+      .query("products")
+      .filter((q) => 
+        q.and(
+          q.neq(q.field("isDeleted"), true),
+          q.neq(q.field("isHidden"), true),
+          q.eq(q.field("inStock"), true)
+        )
+      )
+      .order("desc")
+      .take(limit);
+    
+    return products.map(toCardData);
+  },
+});
+
+// Get products by category for cards
+export const getByCategoryForCards = query({
+  args: {
+    category: v.string(),
+    limit: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const limit = args.limit || 20;
+    
+    const products = await ctx.db
+      .query("products")
+      .withIndex("by_category", (q) => q.eq("category", args.category))
+      .filter((q) => 
+        q.and(
+          q.neq(q.field("isDeleted"), true),
+          q.neq(q.field("isHidden"), true)
+        )
+      )
+      .take(limit);
+    
+    return products.map(toCardData);
   },
 });

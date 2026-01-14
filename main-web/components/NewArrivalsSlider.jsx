@@ -12,8 +12,8 @@ export default function NewArrivalsSlider() {
   const [currentPage, setCurrentPage] = useState(0);
   const scrollRef = useRef(null);
   const router = useRouter();
-  // Fetch products from Convex - get all products ordered by creation date (newest first)
-  const products = useQuery(api.products.getAll);
+  // OPTIMIZED: Use card-only query - returns only: _id, itemId, name, price, mainImage, category
+  const products = useQuery(api.products.getNewArrivalsForCards, { limit: 12 });
 
   useEffect(() => {
     const handleResize = () => {

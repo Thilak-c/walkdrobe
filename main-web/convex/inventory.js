@@ -6,6 +6,7 @@ const nowIso = () => new Date().toISOString();
 // ============ INVENTORY QUERIES ============
 
 // Get all inventory with product details
+// OPTIMIZED: Added pagination and limit
 export const getAllInventory = query({
   args: {
     searchQuery: v.optional(v.string()),
@@ -13,13 +14,16 @@ export const getAllInventory = query({
     category: v.optional(v.string()),
     sortBy: v.optional(v.string()),
     sortOrder: v.optional(v.string()),
+    limit: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
-    // Query off_products table for offline store
+    const limit = args.limit || 100;
+    
+    // OPTIMIZED: Use take() instead of collect()
     let products = await ctx.db
       .query("off_products")
-      .filter((q) => q.neq(q.field("isDeleted"), true))
-      .collect();
+      .withIndex("by_deleted", (q) => q.eq("isDeleted", false))
+      .take(limit * 2); // Get extra for filtering
 
     // Apply search filter
     if (args.searchQuery) {
@@ -72,7 +76,7 @@ export const getAllInventory = query({
       return aVal > bVal ? 1 : -1;
     });
 
-    return products.map(p => ({
+    return products.slice(0, limit).map(p => ({
       _id: p._id,
       itemId: p.itemId,
       name: p.name,
@@ -95,14 +99,19 @@ export const getAllInventory = query({
 });
 
 // Get inventory summary stats
+// OPTIMIZED: Added limit to prevent full collection scan
 export const getInventoryStats = query({
-  args: {},
-  handler: async (ctx) => {
-    // Query off_products table for offline store
+  args: {
+    limit: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const limit = args.limit || 2000;
+    
+    // OPTIMIZED: Use take() instead of collect()
     const products = await ctx.db
       .query("off_products")
       .filter((q) => q.neq(q.field("isDeleted"), true))
-      .collect();
+      .take(limit);
 
     const stats = {
       totalProducts: products.length,
@@ -142,14 +151,21 @@ export const getInventoryStats = query({
 });
 
 // Get low stock alerts
+// OPTIMIZED: Added limit
 export const getLowStockAlerts = query({
-  args: { threshold: v.optional(v.number()) },
-  handler: async (ctx, { threshold = 10 }) => {
-    // Query off_products table for offline store
+  args: { 
+    threshold: v.optional(v.number()),
+    limit: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const threshold = args.threshold || 10;
+    const limit = args.limit || 50;
+    
+    // OPTIMIZED: Use take() instead of collect()
     const products = await ctx.db
       .query("off_products")
       .filter((q) => q.neq(q.field("isDeleted"), true))
-      .collect();
+      .take(500);
 
     return products
       .filter(p => {
@@ -165,7 +181,8 @@ export const getLowStockAlerts = query({
         price: p.price,
         mainImage: p.mainImage,
       }))
-      .sort((a, b) => a.currentStock - b.currentStock);
+      .sort((a, b) => a.currentStock - b.currentStock)
+      .slice(0, limit);
   },
 });
 
@@ -594,24 +611,32 @@ export const restoreFromTrash = mutation({
 });
 
 // Get all trash items (for offline store)
+// OPTIMIZED: Added limit
 export const getTrash = query({
-  args: {},
-  handler: async (ctx) => {
-    return await ctx.db.query("off_trash").order("desc").collect();
+  args: {
+    limit: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    return await ctx.db.query("off_trash").order("desc").take(args.limit || 100);
   },
 });
 
 // Get dead stock (products with zero sales) - for offline store
+// OPTIMIZED: Added limit
 export const getDeadStock = query({
   args: {
-    daysOld: v.optional(v.number()), // Optional: filter by products older than X days
+    daysOld: v.optional(v.number()),
+    limit: v.optional(v.number()),
   },
-  handler: async (ctx, { daysOld = 30 }) => {
-    // Query off_products table for offline store
+  handler: async (ctx, args) => {
+    const daysOld = args.daysOld || 30;
+    const limit = args.limit || 50;
+    
+    // OPTIMIZED: Use take() instead of collect()
     const products = await ctx.db
       .query("off_products")
       .filter((q) => q.neq(q.field("isDeleted"), true))
-      .collect();
+      .take(500);
 
     const cutoffDate = new Date();
     cutoffDate.setDate(cutoffDate.getDate() - daysOld);
@@ -642,6 +667,7 @@ export const getDeadStock = query({
         buys: p.buys || 0,
         stockValue: (p.costPrice || p.price || 0) * (p.totalStock ?? p.currentStock ?? 0),
       }))
-      .sort((a, b) => b.stockValue - a.stockValue);
+      .sort((a, b) => b.stockValue - a.stockValue)
+      .slice(0, limit);
   },
 });

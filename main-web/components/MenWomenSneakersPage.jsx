@@ -1,13 +1,16 @@
 "use client";
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import { api } from "@/convex/_generated/api";
 import { useQuery } from "convex/react";
 import { motion } from "framer-motion";
 import ProductCard from "./ProductCard";
 import Header from "@/components/Header";
 import FooterSimple from "@/components/FooterSimple";
-import CustomDropdown from "./CustomDropdown";
 import { useSearchParams, useRouter } from "next/navigation";
+import { Loader2 } from "lucide-react";
+
+// How many products to load per batch
+const PRODUCTS_PER_PAGE = 6;
 
 export default function MenWomenSneakersPage() {
   const searchParams = useSearchParams();
@@ -15,6 +18,8 @@ export default function MenWomenSneakersPage() {
 
   const [activeSubcategory, setActiveSubcategory] = useState("All");
   const [activeType, setActiveType] = useState("All");
+  const [visibleCount, setVisibleCount] = useState(PRODUCTS_PER_PAGE);
+  const loadMoreRef = useRef(null);
 
   const categoryMap = {
     all: "All",
@@ -22,14 +27,25 @@ export default function MenWomenSneakersPage() {
     sports: "Sports",
   };
 
-  const ctParam = searchParams.get("ct")?.toLowerCase() || "sneakers";
-  const activeCategory = categoryMap[ctParam] || "Sneakers";
+  const ctParam = searchParams.get("ct")?.toLowerCase() || "all";
+  const activeCategory = categoryMap[ctParam] || "All";
+  const isAllCategory = activeCategory === "All";
 
-  const products = useQuery(api.products.getProductsByCategory, {
-    category: activeCategory,
-  }) ?? [];
+  // OPTIMIZED: Use shop query - returns card fields + filter fields (subcategories, type)
+  // For "All" category, fetch all products; otherwise filter by category
+  const products = useQuery(
+    isAllCategory ? api.products.getProductsForCards : api.products.getProductsForShop,
+    isAllCategory 
+      ? { limit: 100 }
+      : { category: activeCategory, limit: 100 }
+  ) ?? [];
 
-  const { subcategories, subcategoryCards, types } = useMemo(() => {
+  // Reset visible count when category/filters change
+  useEffect(() => {
+    setVisibleCount(PRODUCTS_PER_PAGE);
+  }, [activeCategory, activeSubcategory, activeType]);
+
+  const { subcategoryCards } = useMemo(() => {
     const subs = new Set(products.map((p) => p.subcategories).filter(Boolean));
     const subcats = ["All", ...Array.from(subs)];
     
@@ -45,14 +61,7 @@ export default function MenWomenSneakersPage() {
       };
     }).filter(card => card.count > 0);
 
-    const allTypes = products.flatMap((p) => p.type ?? []);
-    const uniqueTypes = ["All", ...Array.from(new Set(allTypes))];
-
-    return { 
-      subcategories: subcats, 
-      subcategoryCards: cards, 
-      types: uniqueTypes 
-    };
+    return { subcategoryCards: cards };
   }, [products]);
 
   const handleClickProduct = (productId) => {
@@ -60,6 +69,7 @@ export default function MenWomenSneakersPage() {
     router.push(`/product/${productId}`);
   };
 
+  // Filter products
   const filteredProducts = useMemo(() => {
     return products.filter((p) => {
       const matchSub =
@@ -69,6 +79,37 @@ export default function MenWomenSneakersPage() {
       return matchSub && matchType;
     });
   }, [products, activeSubcategory, activeType]);
+
+  // Only show visible products (lazy loading)
+  const visibleProducts = useMemo(() => {
+    return filteredProducts.slice(0, visibleCount);
+  }, [filteredProducts, visibleCount]);
+
+  const hasMore = visibleCount < filteredProducts.length;
+
+  // Intersection Observer for infinite scroll
+  const loadMore = useCallback(() => {
+    if (hasMore) {
+      setVisibleCount(prev => prev + PRODUCTS_PER_PAGE);
+    }
+  }, [hasMore]);
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasMore) {
+          loadMore();
+        }
+      },
+      { threshold: 0.1, rootMargin: "100px" }
+    );
+
+    if (loadMoreRef.current) {
+      observer.observe(loadMoreRef.current);
+    }
+
+    return () => observer.disconnect();
+  }, [hasMore, loadMore]);
 
   const itemVariants = {
     hidden: { y: 30, opacity: 0 },
@@ -157,43 +198,33 @@ export default function MenWomenSneakersPage() {
         </div>
       </section>
 
-      {/* Filters */}
-      {/* <div className="flex gap-3 my-3 max-w-7xl mx-auto">
-        <CustomDropdown
-          label="Subcategory"
-          options={subcategories}
-          selected={activeSubcategory}
-          onSelect={setActiveSubcategory}
-        />
+      <div className="w-full h-px bg-black max-w-7xl flex justify-center mx-auto blur-[2px] mb-3"></div>
 
-        <CustomDropdown
-          label="Type"
-          options={types}
-          selected={activeType}
-          onSelect={setActiveType}
-        />
-      </div> */}
-      <div className="w-full h-[1px] bg-black max-w-7xl flex justify-center self-center-safe mx-auto blur-[2px] mb-3"></div>
+      {/* Products Count */}
+      <div className="max-w-7xl mx-auto mb-3 flex justify-between items-center">
+        <p className="text-sm text-gray-500">
+          Showing {visibleProducts.length} of {filteredProducts.length} products
+        </p>
+      </div>
 
       {/* Products Grid */}
       <section className="max-w-7xl mx-auto">
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-          {filteredProducts.length === 0
-            ? Array.from({ length: 8 }).map((_, idx) => (
+          {visibleProducts.length === 0 && products.length === 0
+            ? Array.from({ length: PRODUCTS_PER_PAGE }).map((_, idx) => (
                 <ProductCard key={`skeleton-${idx}`} loading />
               ))
-            : filteredProducts.map((product, idx) => (
+            : visibleProducts.map((product, idx) => (
                 <motion.div
                   key={product.itemId}
                   variants={itemVariants}
                   initial="hidden"
                   animate="visible"
-                  transition={{ delay: idx * 0.05, duration: 0.4 }}
+                  transition={{ delay: (idx % PRODUCTS_PER_PAGE) * 0.05, duration: 0.4 }}
                   onClick={() => handleClickProduct(product.itemId)}
                 >
                   <ProductCard
                     img={product.mainImage}
-                    hoverImg={product.otherImages?.[0]}
                     name={product.name}
                     category={product.category}
                     price={product.price}
@@ -202,6 +233,24 @@ export default function MenWomenSneakersPage() {
                 </motion.div>
               ))}
         </div>
+
+        {/* Load More Trigger */}
+        {hasMore && (
+          <div 
+            ref={loadMoreRef} 
+            className="flex justify-center items-center py-8"
+          >
+            <Loader2 className="w-6 h-6 animate-spin text-gray-400" />
+            <span className="ml-2 text-gray-500 text-sm">Loading more...</span>
+          </div>
+        )}
+
+        {/* End of products */}
+        {!hasMore && filteredProducts.length > 0 && (
+          <p className="text-center text-gray-400 text-sm py-8">
+            You've seen all {filteredProducts.length} products
+          </p>
+        )}
       </section>
       </div>
       <FooterSimple />

@@ -56,12 +56,17 @@ export default function ProductCard({
 
   return (
     <div className={`block w-full cursor-pointer group ${className}`}>
-      {/* Product Image */}
+      {/* Product Image - OPTIMIZED */}
       <div className="relative w-full aspect-[4/5] bg-gray-100 overflow-hidden mb-1">
-        <img
-          src={img}
-          alt={name}
-          className="w-full h-full object-cover object-top transition-transform duration-500 ease-out group-hover:scale-105"
+        <Image
+          src={img || "/products/placeholder.jpg"}
+          alt={name || "Product"}
+          fill
+          sizes="(max-width: 640px) 50vw, (max-width: 768px) 33vw, 25vw"
+          className="object-cover object-top transition-transform duration-500 ease-out group-hover:scale-105"
+          loading="lazy"
+          placeholder="blur"
+          blurDataURL="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAYEBQYFBAYGBQYHBwYIChAKCgkJChQODwwQFxQYGBcUFhYaHSUfGhsjHBYWICwgIyYnKSopGR8tMC0oMCUoKSj/2wBDAQcHBwoIChMKChMoGhYaKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCj/wAARCAABAAEDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAv/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8QAFQEBAQAAAAAAAAAAAAAAAAAAAAX/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBEQCEAwEPwAB//9k="
         />
       </div>
       
@@ -74,7 +79,7 @@ export default function ProductCard({
         <h4 className={`${poppins.className} text-[9px] sm:text-[10px] font-extralight text-gray-600 line-clamp-2 leading-tight`}>
           {category}
         </h4>
-        <div className="h-[1px] bg-black/20 w-full">
+        <div className="h-px bg-black/20 w-full">
 
         </div>
         {/* Product Price */}

@@ -226,10 +226,16 @@ export const updateSupplier = mutation({
 });
 
 export const getSuppliers = query({
-  args: { activeOnly: v.optional(v.boolean()) },
-  handler: async (ctx, { activeOnly = false }) => {
-    let suppliers = await ctx.db.query("suppliers").order("desc").collect();
-    if (activeOnly) suppliers = suppliers.filter(s => s.isActive);
+  args: { 
+    activeOnly: v.optional(v.boolean()),
+    limit: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const limit = args.limit || 100;
+    
+    // OPTIMIZED: Use take() instead of collect()
+    let suppliers = await ctx.db.query("suppliers").order("desc").take(limit);
+    if (args.activeOnly) suppliers = suppliers.filter(s => s.isActive);
     return suppliers;
   },
 });
@@ -394,11 +400,19 @@ export const deleteExpense = mutation({
 });
 
 export const getExpenseStats = query({
-  args: { startDate: v.optional(v.string()), endDate: v.optional(v.string()) },
-  handler: async (ctx, { startDate, endDate }) => {
-    let expenses = await ctx.db.query("expenses").collect();
-    if (startDate) expenses = expenses.filter(e => e.date >= startDate);
-    if (endDate) expenses = expenses.filter(e => e.date <= endDate);
+  args: { 
+    startDate: v.optional(v.string()), 
+    endDate: v.optional(v.string()),
+    limit: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const limit = args.limit || 500;
+    
+    // OPTIMIZED: Use take() instead of collect()
+    let expenses = await ctx.db.query("expenses").take(limit);
+    
+    if (args.startDate) expenses = expenses.filter(e => e.date >= args.startDate);
+    if (args.endDate) expenses = expenses.filter(e => e.date <= args.endDate);
     
     const byCategory = {};
     let total = 0;
@@ -414,14 +428,15 @@ export const getExpenseStats = query({
 
 // ============ DAILY REPORTS ============
 
+// OPTIMIZED: Use take() with limits for all queries
 export const generateDailyReport = mutation({
   args: { date: v.string(), openingCash: v.optional(v.float64()), closingCash: v.optional(v.float64()), notes: v.optional(v.string()), closedBy: v.string() },
   handler: async (ctx, { date, openingCash, closingCash, notes, closedBy }) => {
     const startOfDay = `${date}T00:00:00`;
     const endOfDay = `${date}T23:59:59`;
     
-    // Get bills for the day (use off_bills for offline store)
-    const bills = await ctx.db.query("off_bills").collect();
+    // OPTIMIZED: Use take() with reasonable limit
+    const bills = await ctx.db.query("off_bills").order("desc").take(1000);
     const dayBills = bills.filter(b => b.createdAt >= startOfDay && b.createdAt <= endOfDay);
     
     let totalSales = 0, cashSales = 0, cardSales = 0, upiSales = 0;
@@ -443,13 +458,13 @@ export const generateDailyReport = mutation({
       });
     });
     
-    // Get returns for the day
-    const returns = await ctx.db.query("returns").collect();
+    // OPTIMIZED: Use take() with limit
+    const returns = await ctx.db.query("returns").order("desc").take(500);
     const dayReturns = returns.filter(r => r.createdAt >= startOfDay && r.createdAt <= endOfDay);
     const totalReturns = dayReturns.reduce((sum, r) => sum + r.refundAmount, 0);
     
-    // Get expenses for the day
-    const expenses = await ctx.db.query("expenses").collect();
+    // OPTIMIZED: Use take() with limit
+    const expenses = await ctx.db.query("expenses").order("desc").take(500);
     const dayExpenses = expenses.filter(e => e.date === date);
     const totalExpenses = dayExpenses.reduce((sum, e) => sum + e.amount, 0);
     
@@ -508,14 +523,21 @@ export const getDailyReports = query({
 
 // ============ PROFIT/LOSS ANALYTICS ============
 
+// OPTIMIZED: Use take() with limits for all queries
 export const getProfitAnalytics = query({
-  args: { startDate: v.optional(v.string()), endDate: v.optional(v.string()) },
-  handler: async (ctx, { startDate, endDate }) => {
-    // Use off_bills and off_products for offline store
-    const bills = await ctx.db.query("off_bills").collect();
-    const products = await ctx.db.query("off_products").filter(q => q.neq(q.field("isDeleted"), true)).collect();
-    const expenses = await ctx.db.query("expenses").collect();
-    const returns = await ctx.db.query("returns").collect();
+  args: { 
+    startDate: v.optional(v.string()), 
+    endDate: v.optional(v.string()),
+    limit: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const limit = args.limit || 1000;
+    
+    // OPTIMIZED: Use take() instead of collect()
+    const bills = await ctx.db.query("off_bills").order("desc").take(limit);
+    const products = await ctx.db.query("off_products").filter(q => q.neq(q.field("isDeleted"), true)).take(500);
+    const expenses = await ctx.db.query("expenses").order("desc").take(500);
+    const returns = await ctx.db.query("returns").order("desc").take(500);
     
     // Create product cost map
     const productCostMap = {};
@@ -526,15 +548,15 @@ export const getProfitAnalytics = query({
     let filteredExpenses = expenses;
     let filteredReturns = returns;
     
-    if (startDate) {
-      filteredBills = filteredBills.filter(b => b.createdAt >= startDate);
-      filteredExpenses = filteredExpenses.filter(e => e.date >= startDate);
-      filteredReturns = filteredReturns.filter(r => r.createdAt >= startDate);
+    if (args.startDate) {
+      filteredBills = filteredBills.filter(b => b.createdAt >= args.startDate);
+      filteredExpenses = filteredExpenses.filter(e => e.date >= args.startDate);
+      filteredReturns = filteredReturns.filter(r => r.createdAt >= args.startDate);
     }
-    if (endDate) {
-      filteredBills = filteredBills.filter(b => b.createdAt <= endDate);
-      filteredExpenses = filteredExpenses.filter(e => e.date <= endDate);
-      filteredReturns = filteredReturns.filter(r => r.createdAt <= endDate);
+    if (args.endDate) {
+      filteredBills = filteredBills.filter(b => b.createdAt <= args.endDate);
+      filteredExpenses = filteredExpenses.filter(e => e.date <= args.endDate);
+      filteredReturns = filteredReturns.filter(r => r.createdAt <= args.endDate);
     }
     
     let totalRevenue = 0, totalCost = 0, totalExpenses = 0, totalRefunds = 0;
@@ -669,14 +691,18 @@ export const bulkAddStock = mutation({
 
 // ============ LIVE SALES DATA ============
 
+// OPTIMIZED: Use take() with limit
 export const getTodaySales = query({
-  args: {},
-  handler: async (ctx) => {
+  args: {
+    limit: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const limit = args.limit || 500;
     const today = new Date().toISOString().split("T")[0];
     const startOfDay = `${today}T00:00:00`;
     
-    // Use off_bills for offline store
-    const bills = await ctx.db.query("off_bills").collect();
+    // OPTIMIZED: Use take() instead of collect()
+    const bills = await ctx.db.query("off_bills").order("desc").take(limit);
     const todayBills = bills.filter(b => b.createdAt >= startOfDay);
     
     let total = 0, cash = 0, card = 0, upi = 0;
@@ -693,29 +719,42 @@ export const getTodaySales = query({
 
 // ============ CUSTOMER PURCHASE HISTORY ============
 
+// OPTIMIZED: Use take() with limit
 export const getCustomerPurchaseHistory = query({
-  args: { phone: v.string() },
-  handler: async (ctx, { phone }) => {
-    // Use off_bills for offline store
-    const bills = await ctx.db.query("off_bills").collect();
-    return bills.filter(b => b.customerPhone === phone).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+  args: { 
+    phone: v.string(),
+    limit: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const limit = args.limit || 100;
+    
+    // OPTIMIZED: Use take() instead of collect()
+    const bills = await ctx.db.query("off_bills").order("desc").take(500);
+    return bills
+      .filter(b => b.customerPhone === args.phone)
+      .slice(0, limit);
   },
 });
 
 // ============ BACKUP/EXPORT ============
 
+// OPTIMIZED: Added limits to all queries
 export const getFullBackup = query({
-  args: {},
-  handler: async (ctx) => {
-    // Use off_products and off_bills for offline store
-    const products = await ctx.db.query("off_products").filter(q => q.neq(q.field("isDeleted"), true)).collect();
-    const bills = await ctx.db.query("off_bills").collect();
-    const customers = await ctx.db.query("customers").collect();
-    const suppliers = await ctx.db.query("suppliers").collect();
-    const purchaseOrders = await ctx.db.query("purchaseOrders").collect();
-    const expenses = await ctx.db.query("expenses").collect();
-    const returns = await ctx.db.query("returns").collect();
-    const movements = await ctx.db.query("off_inventory_movements").collect();
+  args: {
+    limit: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const limit = args.limit || 1000;
+    
+    // OPTIMIZED: Use take() instead of collect()
+    const products = await ctx.db.query("off_products").filter(q => q.neq(q.field("isDeleted"), true)).take(limit);
+    const bills = await ctx.db.query("off_bills").order("desc").take(limit);
+    const customers = await ctx.db.query("customers").take(limit);
+    const suppliers = await ctx.db.query("suppliers").take(limit);
+    const purchaseOrders = await ctx.db.query("purchaseOrders").order("desc").take(limit);
+    const expenses = await ctx.db.query("expenses").order("desc").take(limit);
+    const returns = await ctx.db.query("returns").order("desc").take(limit);
+    const movements = await ctx.db.query("off_movements").order("desc").take(limit);
     
     return {
       exportedAt: nowIso(),
@@ -775,12 +814,17 @@ export const updateWebsiteStock = mutation({
 });
 
 export const getWebsiteInventory = query({
-  args: {},
-  handler: async (ctx) => {
+  args: {
+    limit: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const limit = args.limit || 200;
+    
+    // OPTIMIZED: Use take() instead of collect()
     const products = await ctx.db
       .query("products")
       .filter((q) => q.neq(q.field("isDeleted"), true))
-      .collect();
+      .take(limit);
 
     // Filter for products with website stock
     return products
@@ -803,12 +847,17 @@ export const getWebsiteInventory = query({
 });
 
 export const getWebsiteStats = query({
-  args: {},
-  handler: async (ctx) => {
+  args: {
+    limit: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const limit = args.limit || 500;
+    
+    // OPTIMIZED: Use take() instead of collect()
     const products = await ctx.db
       .query("products")
       .filter((q) => q.neq(q.field("isDeleted"), true))
-      .collect();
+      .take(limit);
 
     const websiteProducts = products.filter(p => 
       p.websiteStock > 0 || p.websiteInStock || Object.keys(p.websiteSizeStock || {}).length > 0
@@ -851,12 +900,19 @@ export const getWebsiteStats = query({
 });
 
 export const getWebsiteLowStock = query({
-  args: { threshold: v.optional(v.number()) },
-  handler: async (ctx, { threshold = 10 }) => {
+  args: { 
+    threshold: v.optional(v.number()),
+    limit: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const threshold = args.threshold || 10;
+    const limit = args.limit || 50;
+    
+    // OPTIMIZED: Use take() instead of collect()
     const products = await ctx.db
       .query("products")
       .filter((q) => q.neq(q.field("isDeleted"), true))
-      .collect();
+      .take(500);
 
     return products
       .filter(p => {
@@ -873,7 +929,8 @@ export const getWebsiteLowStock = query({
         price: p.price,
         mainImage: p.mainImage,
       }))
-      .sort((a, b) => a.websiteStock - b.websiteStock);
+      .sort((a, b) => a.websiteStock - b.websiteStock)
+      .slice(0, limit);
   },
 });
 

@@ -1,0 +1,74 @@
+🚀 Testing Shiprocket API
+Email: team@walkdrobe.in
+
+1️⃣ Authenticating...
+Auth Status: 200
+✅ Token: eyJhbGciOiJIUzI1NiIsInR5cCI6Ik...
+
+2️⃣ Fetching Pickup Locations...
+Pickup Status: 200
+Response: {
+  "data": {
+    "shipping_address": null,
+    "allow_more": "true",
+    "is_blackbox_seller": false,
+    "company_name": "walkdrobe",
+    "recent_addresses": []
+  }
+}
+
+3️⃣ Checking Serviceability (400001 → 110001)...
+Serviceability Status: 200
+✅ Available Couriers: 6
+   1. Delhivery Surface - ₹66 (Jan 19, 2026)
+   2. Xpressbees Air - ₹74 (Jan 18, 2026)
+   3. Delhivery Air - ₹83 (Jan 18, 2026)
+   4. India Post-Speed Post Air Prepaid - ₹94.4 (Jan 20, 2026)
+   5. DTDC Air 500gm - ₹97.1 (Jan 17, 2026)
+
+4️⃣ Checking Pincode Availability (110001)...
+Pincode Status: 200
+Response: {
+  "success": true,
+  "postcode_details": {
+    "postcode": "110001",
+    "city": "Central Delhi",
+    "locality": [
+      "Connaught Place",
+      "Sansad Marg",
+      "New Delhi G.P.O.",
+      "Parliament House",
+      "Janpath",
+      "North Avenue",
+      "Patiala House",
+      "Krishi Bhawan",
+      "Lady Harding Medical College",
+      "Rail Bhawan",
+      "Constitution House",
+      "Pragati Maidan",
+      "Election Commission",
+      "Sansadiya Soudh",
+      "Supreme Court",
+      "Bengali Market",
+      "Shastri Bhawan",
+      "Secretariat North",
+      "Bhagat Singh Market",
+      "Pragati Maidan Camp",
+      "Baroda House"
+    ],
+    "state": "Delhi",
+    "state_code": "DL",
+    "longitude": "77.2195969",
+    "latitude": "28.6327426",
+    "country": "India"
+  }
+}
+
+5️⃣ Testing Multiple Pincodes...
+   ✅ 110001 - Central Delhi, Delhi
+   ✅ 400001 - Mumbai, Maharashtra
+   ✅ 560001 - Bangalore, Karnataka
+   ✅ 700001 - Kolkata, West Bengal
+   ❌ 999999 - Not serviceable or invalid
+
+✅ All tests completed!

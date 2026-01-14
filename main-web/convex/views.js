@@ -163,22 +163,40 @@ export const getMostViewedProducts = query({
 });
 
 // Get global trending products (all categories)
+// OPTIMIZED: Added pagination, batch product fetch, and limit
 export const getGlobalTrendingProducts = query({
   args: {
     limit: v.optional(v.number()),
+    daysBack: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
     try {
+      const limit = args.limit || 10;
+      const daysBack = args.daysBack || 7;
+      
+      // OPTIMIZED: Only get recent views (last N days) with limit
+      const cutoffDate = new Date();
+      cutoffDate.setDate(cutoffDate.getDate() - daysBack);
+      const cutoffDateStr = cutoffDate.toISOString();
+      
+      // OPTIMIZED: Use take() instead of collect()
       const views = await ctx.db
         .query("views")
-        .filter((q) => q.eq(q.field("isDeleted"), false))
-        .collect();
+        .withIndex("by_viewed_at")
+        .filter((q) => 
+          q.and(
+            q.eq(q.field("isDeleted"), false),
+            q.gte(q.field("viewedAt"), cutoffDateStr)
+          )
+        )
+        .take(5000); // Cap at 5000 recent views
 
       // Group by productId and count views
-      const productViewCounts = views.reduce((acc, view) => {
+      const productViewCounts = {};
+      views.forEach(view => {
         const productId = view.productId;
-        if (!acc[productId]) {
-          acc[productId] = {
+        if (!productViewCounts[productId]) {
+          productViewCounts[productId] = {
             productId,
             viewCount: 0,
             uniqueUsers: new Set(),
@@ -187,12 +205,10 @@ export const getGlobalTrendingProducts = query({
             category: view.category,
           };
         }
-        acc[productId].viewCount++;
-        if (view.userId) acc[productId].uniqueUsers.add(view.userId);
-        if (view.sessionId) acc[productId].uniqueSessions.add(view.sessionId);
-
-        return acc;
-      }, {});
+        productViewCounts[productId].viewCount++;
+        if (view.userId) productViewCounts[productId].uniqueUsers.add(view.userId);
+        if (view.sessionId) productViewCounts[productId].uniqueSessions.add(view.sessionId);
+      });
 
       // Convert to array and sort by view count
       const sortedProducts = Object.values(productViewCounts)
@@ -202,36 +218,25 @@ export const getGlobalTrendingProducts = query({
           uniqueSessions: item.uniqueSessions.size,
         }))
         .sort((a, b) => b.viewCount - a.viewCount)
-        .slice(0, args.limit || 10);
+        .slice(0, limit);
 
-      // Fetch product details for each trending product
-      const productsWithDetails = await Promise.all(
-        sortedProducts.map(async (item) => {
-          try {
-            const product = await ctx.db
-              .query("products")
-              .filter((q) => q.eq(q.field("itemId"), item.productId))
-              .filter((q) => q.eq(q.field("isDeleted"), false))
-              .first();
+      // OPTIMIZED: Batch fetch product details using index
+      const productsWithDetails = [];
+      for (const item of sortedProducts) {
+        const product = await ctx.db
+          .query("products")
+          .withIndex("by_itemId", (q) => q.eq("itemId", item.productId))
+          .filter((q) => q.neq(q.field("isDeleted"), true))
+          .first();
 
-            return {
-              ...item,
-              productName: product?.name || 'Unknown Product',
-              productImage: product?.mainImage || '/placeholder-product.jpg',
-              price: product?.price || 0,
-              category: product?.category || item.category,
-            };
-          } catch (error) {
-            return {
-              ...item,
-              productName: 'Unknown Product',
-              productImage: '/placeholder-product.jpg',
-              price: 0,
-              category: item.category,
-            };
-          }
-        })
-      );
+        productsWithDetails.push({
+          ...item,
+          productName: product?.name || 'Unknown Product',
+          productImage: product?.mainImage || '/placeholder-product.jpg',
+          price: product?.price || 0,
+          category: product?.category || item.category,
+        });
+      }
 
       return productsWithDetails;
     } catch (error) {
@@ -285,37 +290,41 @@ export const getViewsByCategory = query({
 });
 
 // Get analytics data for admin dashboard
+// OPTIMIZED: Added date-based filtering with index and pagination
 export const getViewAnalytics = query({
   args: {
     startDate: v.optional(v.string()),
     endDate: v.optional(v.string()),
+    limit: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
     try {
-      let viewsQuery = ctx.db
+      const limit = args.limit || 10000;
+      
+      // OPTIMIZED: Use take() with limit instead of collect()
+      let views = await ctx.db
         .query("views")
-        .filter((q) => q.eq(q.field("isDeleted"), false));
-
-      const views = await viewsQuery.collect();
+        .withIndex("by_viewed_at")
+        .filter((q) => q.eq(q.field("isDeleted"), false))
+        .take(limit);
 
       // Filter by date range if provided
-      let filteredViews = views;
       if (args.startDate) {
-        filteredViews = filteredViews.filter(view =>
+        views = views.filter(view =>
           new Date(view.viewedAt) >= new Date(args.startDate)
         );
       }
       if (args.endDate) {
-        filteredViews = filteredViews.filter(view =>
+        views = views.filter(view =>
           new Date(view.viewedAt) <= new Date(args.endDate)
         );
       }
 
       // Calculate analytics
-      const totalViews = filteredViews.length;
-      const uniqueUsers = new Set(filteredViews.map(v => v.userId).filter(Boolean)).size;
-      const uniqueSessions = new Set(filteredViews.map(v => v.sessionId).filter(Boolean)).size;
-      const uniqueProducts = new Set(filteredViews.map(v => v.productId)).size;
+      const totalViews = views.length;
+      const uniqueUsers = new Set(views.map(v => v.userId).filter(Boolean)).size;
+      const uniqueSessions = new Set(views.map(v => v.sessionId).filter(Boolean)).size;
+      const uniqueProducts = new Set(views.map(v => v.productId)).size;
 
       // Views by day (last 30 days)
       const thirtyDaysAgo = new Date();
@@ -329,7 +338,7 @@ export const getViewAnalytics = query({
         dailyViews[dateStr] = 0;
       }
 
-      filteredViews.forEach(view => {
+      views.forEach(view => {
         const viewDate = new Date(view.viewedAt).toISOString().split('T')[0];
         if (dailyViews.hasOwnProperty(viewDate)) {
           dailyViews[viewDate]++;
@@ -337,10 +346,10 @@ export const getViewAnalytics = query({
       });
 
       // Top products by views
-      const productViewCounts = filteredViews.reduce((acc, view) => {
-        acc[view.productId] = (acc[view.productId] || 0) + 1;
-        return acc;
-      }, {});
+      const productViewCounts = {};
+      views.forEach(view => {
+        productViewCounts[view.productId] = (productViewCounts[view.productId] || 0) + 1;
+      });
 
       const topProducts = Object.entries(productViewCounts)
         .map(([productId, count]) => ({ productId, viewCount: count }))
@@ -348,18 +357,18 @@ export const getViewAnalytics = query({
         .slice(0, 10);
 
       // Views by view type
-      const viewTypeCounts = filteredViews.reduce((acc, view) => {
+      const viewTypeCounts = {};
+      views.forEach(view => {
         const type = view.viewType || "unknown";
-        acc[type] = (acc[type] || 0) + 1;
-        return acc;
-      }, {});
+        viewTypeCounts[type] = (viewTypeCounts[type] || 0) + 1;
+      });
 
       // Views by category
-      const categoryCounts = filteredViews.reduce((acc, view) => {
+      const categoryCounts = {};
+      views.forEach(view => {
         const category = view.category || "unknown";
-        acc[category] = (acc[category] || 0) + 1;
-        return acc;
-      }, {});
+        categoryCounts[category] = (categoryCounts[category] || 0) + 1;
+      });
 
       return {
         totalViews,

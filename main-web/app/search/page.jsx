@@ -22,10 +22,11 @@ export default function SearchPage() {
   });
 
   // Get search results from products table
+  // OPTIMIZED: Use searchProductsForShop - returns card fields + subcategories for filtering
   const searchResults = useQuery(
-    api.products.searchProducts,
+    api.products.searchProductsForShop,
     searchQuery.length >= 2
-      ? { query: searchQuery }
+      ? { query: searchQuery, limit: 50 }
       : "skip"
   );
 
@@ -34,9 +35,8 @@ export default function SearchPage() {
     !filters.subcategory || product.subcategories === filters.subcategory
   );
 
-  // Get all products for subcategory filter
-  const allProducts = useQuery(api.products.getAllProducts);
-  const subcategories = allProducts
+  // OPTIMIZED: Use searchProductsForShop results for subcategory filter (no extra query needed)
+  const subcategories = searchResults
     ?.map(p => p.subcategories)
     ?.filter(Boolean)
     ?.filter((v, i, a) => a.indexOf(v) === i) || [];

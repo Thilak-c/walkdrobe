@@ -255,35 +255,43 @@ export const restoreProduct = mutation({
 });
 
 // Get all trash items
+// OPTIMIZED: Added limit
 export const getTrash = query({
-  args: {},
-  handler: async (ctx) => {
-    return await ctx.db.query("off_trash").order("desc").collect();
+  args: {
+    limit: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    return await ctx.db.query("off_trash").order("desc").take(args.limit || 100);
   },
 });
 
 // ============ QUERIES ============
 
+// OPTIMIZED: Added pagination
 export const getAllProducts = query({
-  args: {},
-  handler: async (ctx) => {
+  args: {
+    limit: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
     return await ctx.db.query("off_products")
       .filter(q => q.neq(q.field("isDeleted"), true))
       .order("desc")
-      .collect();
+      .take(args.limit || 100);
   },
 });
 
 // Optimized query for product list - only essential fields for display
+// OPTIMIZED: Added pagination
 export const getProductsForList = query({
-  args: {},
-  handler: async (ctx) => {
+  args: {
+    limit: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
     const products = await ctx.db.query("off_products")
       .filter(q => q.neq(q.field("isDeleted"), true))
       .order("desc")
-      .collect();
+      .take(args.limit || 100);
     
-    // Return only fields needed for the product table
     return products.map(p => ({
       _id: p._id,
       itemId: p.itemId,
@@ -299,13 +307,16 @@ export const getProductsForList = query({
 });
 
 // Optimized query for billing - only fields needed for POS
+// OPTIMIZED: Added pagination
 export const getProductsForBilling = query({
-  args: {},
-  handler: async (ctx) => {
+  args: {
+    limit: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
     const products = await ctx.db.query("off_products")
       .filter(q => q.neq(q.field("isDeleted"), true))
       .order("desc")
-      .collect();
+      .take(args.limit || 200);
     
     return products.map(p => ({
       _id: p._id,
@@ -320,13 +331,16 @@ export const getProductsForBilling = query({
 });
 
 // Optimized query for barcode page - minimal fields
+// OPTIMIZED: Added pagination
 export const getProductsForBarcode = query({
-  args: {},
-  handler: async (ctx) => {
+  args: {
+    limit: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
     const products = await ctx.db.query("off_products")
       .filter(q => q.neq(q.field("isDeleted"), true))
       .order("desc")
-      .collect();
+      .take(args.limit || 100);
     
     return products.map(p => ({
       _id: p._id,
@@ -339,13 +353,16 @@ export const getProductsForBarcode = query({
 });
 
 // Optimized query for dead stock - only needed fields
+// OPTIMIZED: Added pagination
 export const getProductsForDeadStock = query({
-  args: {},
-  handler: async (ctx) => {
+  args: {
+    limit: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
     const products = await ctx.db.query("off_products")
       .filter(q => q.neq(q.field("isDeleted"), true))
       .order("desc")
-      .collect();
+      .take(args.limit || 100);
     
     return products.map(p => ({
       _id: p._id,
@@ -378,12 +395,15 @@ export const getProductByItemId = query({
   },
 });
 
+// OPTIMIZED: Added limit
 export const getStats = query({
-  args: {},
-  handler: async (ctx) => {
+  args: {
+    limit: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
     const products = await ctx.db.query("off_products")
       .filter(q => q.neq(q.field("isDeleted"), true))
-      .collect();
+      .take(args.limit || 1000);
 
     const stats = {
       totalProducts: products.length,
@@ -416,13 +436,24 @@ export const getStats = query({
   },
 });
 
+// OPTIMIZED: Added limit
 export const getLowStock = query({
-  args: { threshold: v.optional(v.number()) },
-  handler: async (ctx, { threshold = 10 }) => {
+  args: { 
+    threshold: v.optional(v.number()),
+    limit: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const threshold = args.threshold || 10;
+    const limit = args.limit || 50;
+    
     const products = await ctx.db.query("off_products")
       .filter(q => q.neq(q.field("isDeleted"), true))
-      .collect();
-    return products.filter(p => p.totalStock <= threshold).sort((a, b) => a.totalStock - b.totalStock);
+      .take(500);
+    
+    return products
+      .filter(p => p.totalStock <= threshold)
+      .sort((a, b) => a.totalStock - b.totalStock)
+      .slice(0, limit);
   },
 });
 
@@ -433,18 +464,25 @@ export const getMovements = query({
   },
 });
 
+// OPTIMIZED: Added limit
 export const searchProducts = query({
-  args: { query: v.string() },
-  handler: async (ctx, { query }) => {
+  args: { 
+    query: v.string(),
+    limit: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const limit = args.limit || 50;
+    
     const products = await ctx.db.query("off_products")
       .filter(q => q.neq(q.field("isDeleted"), true))
-      .collect();
-    const s = query.toLowerCase();
+      .take(500);
+    
+    const s = args.query.toLowerCase();
     return products.filter(p => 
       p.name.toLowerCase().includes(s) || 
       p.itemId.toLowerCase().includes(s) ||
       (p.category || "").toLowerCase().includes(s)
-    );
+    ).slice(0, limit);
   },
 });
 
@@ -550,10 +588,15 @@ export const getBillByNumber = query({
 });
 
 export const getTodaySales = query({
-  args: {},
-  handler: async (ctx) => {
+  args: {
+    limit: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const limit = args.limit || 500;
     const today = new Date().toISOString().split("T")[0];
-    const bills = await ctx.db.query("off_bills").order("desc").collect();
+    
+    // OPTIMIZED: Use take() instead of collect()
+    const bills = await ctx.db.query("off_bills").order("desc").take(limit);
     const todayBills = bills.filter(b => b.createdAt.startsWith(today));
 
     let total = 0, cash = 0, card = 0, upi = 0;

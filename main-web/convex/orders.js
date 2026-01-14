@@ -172,16 +172,20 @@ export const createOrder = mutation({
   },
 });
 // Get user's orders
+// OPTIMIZED: Added limit
 export const getUserOrders = query({
   args: {
     userId: v.id("users"),
+    limit: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
+    const limit = args.limit || 50;
+    
     const orders = await ctx.db
       .query("orders")
       .withIndex("by_user", (q) => q.eq("userId", args.userId))
       .order("desc")
-      .collect();
+      .take(limit);
 
     return orders;
   },
@@ -340,16 +344,20 @@ export const updateEstimatedDelivery = mutation({
 });
 
 // Get orders by status for admin
+// OPTIMIZED: Added limit
 export const getOrdersByStatus = query({
   args: {
     status: v.string(),
+    limit: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
+    const limit = args.limit || 100;
+    
     const orders = await ctx.db
       .query("orders")
       .withIndex("by_status", (q) => q.eq("status", args.status))
       .order("desc")
-      .collect();
+      .take(limit);
 
     return orders;
   },
@@ -429,27 +437,52 @@ export const getOrdersWithFilters = query({
 });
 
 // Get order statistics for admin dashboard
+// OPTIMIZED: Added limit to prevent full collection scan
 export const getOrderStats = query({
-  args: {},
-  handler: async (ctx) => {
-    const orders = await ctx.db.query("orders").collect();
+  args: {
+    limit: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const limit = args.limit || 1000;
+    
+    // OPTIMIZED: Use take() instead of collect()
+    const orders = await ctx.db
+      .query("orders")
+      .order("desc")
+      .take(limit);
+    
+    const today = new Date();
+    const todayStr = today.toDateString();
     
     const stats = {
       total: orders.length,
-      pending: orders.filter(o => o.status === "pending").length,
-      confirmed: orders.filter(o => o.status === "confirmed").length,
-      shipped: orders.filter(o => o.status === "shipped").length,
-      delivered: orders.filter(o => o.status === "delivered").length,
-      cancelled: orders.filter(o => o.status === "cancelled").length,
-      totalRevenue: orders
-        .filter(o => o.status !== "cancelled")
-        .reduce((sum, o) => sum + o.orderTotal, 0),
-      todayOrders: orders.filter(o => {
-        const today = new Date();
-        const orderDate = new Date(o.createdAt);
-        return orderDate.toDateString() === today.toDateString();
-      }).length,
+      pending: 0,
+      confirmed: 0,
+      shipped: 0,
+      delivered: 0,
+      cancelled: 0,
+      totalRevenue: 0,
+      todayOrders: 0,
     };
+    
+    // Single pass through orders for all stats
+    orders.forEach(o => {
+      switch (o.status) {
+        case "pending": stats.pending++; break;
+        case "confirmed": stats.confirmed++; break;
+        case "shipped": stats.shipped++; break;
+        case "delivered": stats.delivered++; break;
+        case "cancelled": stats.cancelled++; break;
+      }
+      
+      if (o.status !== "cancelled") {
+        stats.totalRevenue += o.orderTotal;
+      }
+      
+      if (new Date(o.createdAt).toDateString() === todayStr) {
+        stats.todayOrders++;
+      }
+    });
     
     return stats;
   },

@@ -1,58 +1,30 @@
 "use client";
-import Image from "next/image";
 import { useState, useRef, useEffect } from "react";
-import SidebarDrawer from "./SidebarDrawer";
-import UserNavigation from "@/components/UserNavigation";
-import SearchDropdown from "./SearchDropdown";
-import MobileSearchModal from "./MobileSearchModal";
-import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
-import { ArrowLeftIcon, ShoppingBag, Heart, Search, Menu } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { ShoppingBag, Heart, Search, Menu, X, User } from "lucide-react";
+import SidebarDrawer from "./SidebarDrawer";
+import SearchDropdown from "./SearchDropdown";
+import MobileSearchModal from "./MobileSearchModal";
 
-import { useSearchParams, useRouter } from "next/navigation";
 // ---------- Desktop Navbar ----------
 export default function Navbar() {
-  const navLinks = ["SNEAKERS", "SPORTS"];
-  const [hovered, setHovered] = useState(null);
-  const searchParams = useSearchParams();
-  const router = useRouter();
-  // const [active, setActive] = useState("MEN");
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [token, setToken] = useState(null);
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const param = searchParams.get("ct")?.toLowerCase();
-  const active = navLinks.indexOf(param) >= null ? navLinks.indexOf(param) : null;
-  // Search state (desktop)
   const [searchTerm, setSearchTerm] = useState("");
-  const [searchDropdownOpen, setSearchDropdownOpen] = useState(true);
+  const [searchOpen, setSearchOpen] = useState(false);
   const searchRef = useRef(null);
 
+  // Auth
+  const [token, setToken] = useState(null);
   useEffect(() => {
-    const match =
-      typeof document !== "undefined" &&
-      document.cookie.match(/(?:^|; )sessionToken=([^;]+)/);
+    const match = document.cookie.match(/(?:^|; )sessionToken=([^;]+)/);
     setToken(match ? decodeURIComponent(match[1]) : null);
   }, []);
 
   const me = useQuery(api.users.meByToken, token ? { token } : "skip");
-  useEffect(() => setIsLoggedIn(!!me), [me]);
-
-  const cartSummary = useQuery(
-    api.cart.getCartSummary,
-    me ? { userId: me._id } : "skip"
-  );
-  const wishlistSummary = useQuery(
-    api.wishlist.getWishlistSummary,
-    me ? { userId: me._id } : "skip"
-  );
-
-  const handleSearchChange = (e) => {
-    const value = e.target.value;
-    setSearchTerm(value);
-    setSearchDropdownOpen(value.trim().length >= 2);
-  };
+  const cartSummary = useQuery(api.cart.getCartSummary, me ? { userId: me._id } : "skip");
+  const wishlistSummary = useQuery(api.wishlist.getWishlistSummary, me ? { userId: me._id } : "skip");
 
   const handleSearchSubmit = (e) => {
     e.preventDefault();
@@ -62,250 +34,207 @@ export default function Navbar() {
   };
 
   return (
-    <>
-      <SidebarDrawer
-        open={sidebarOpen}
-        onClose={() => setSidebarOpen(false)}
-        width={"w-1/3"}
-      />
-
-      <nav className="z-50 fixed top-1 w-[99%] left-2 rounded-3xl items-center justify-between px-6 py-2 border border-white/20 bg-white/10 backdrop-blur-md shadow-lg hidden md:flex">
-        {/* Left */}
-        <div className="flex items-center gap-6">
-          <button
-
+    <nav className="z-50 fixed top-0 left-0 right-0 hidden md:block">
+      <div className="max-w-7xl mx-auto px- py-4">
+        <motion.div 
+          initial={{ scale: 0.95, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={{ duration: 0.3, delay: 0.1, ease: [0.22, 1, 0.36, 1] }}
+          className="flex items-center justify-between bg-white/80 backdrop-blur-md rounded-full px-6 py-3 shadow-lg border border-gray-100"
+        >
+          
+          {/* Left: Logo */}
+          <motion.div
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.4, delay: 0.2 }}
           >
-            <Link href={"/"}>
-              <img src="/favicon.ico" className="w-[35px]" alt="" />
+            <Link href="/" className="shrink-0">
+              <img src="/logo.png" alt="Walkdrobe" className="h-6" />
             </Link>
-          </button>
+          </motion.div>
 
-          <div className="flex items-center gap-6 font-semibold">
-            {[{ lib: "Sneakers", link: "sneakers" }, { lib: "Sports", link: "sports" }].map((link) => (
-              <div
-                key={link.lib}
-                className="flex flex-col p-3 font-bold items-center cursor-pointer group rounded-full w-[100px]  transition-all delay-200 hover:border-t-2 hover:border-r-2 border-black/5   hover:shadow-[10px_-10px_15px_rgba(0,0,0,0.15)] px-2"
-                onMouseEnter={() => setHovered(link)}
-                onMouseLeave={() => setHovered(null)}
-                onClick={() => {
-                  router.push(`/shop?ct=${link.link}`);
-                }}
+          {/* Center: Navigation */}
+          <div className="flex items-center gap-8">
+            {[
+              { label: "ALL", link: "all" },
+              { label: "SNEAKERS", link: "sneakers" },
+              { label: "SPORTS", link: "sports" }
+            ].map((item, idx) => (
+              <motion.div 
+                key={item.label} 
+                className="flex items-center gap-8"
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3, delay: 0.2 + idx * 0.1 }}
               >
-                <span className="tracking-wide text-black group-hover:text-black/70">
-                  {link.lib}
-                </span>
-
-              </div>
+                {idx > 0 && <span className="text-gray-300">|</span>}
+                <Link
+                  href={`/shop?ct=${item.link}`}
+                  className="text-gray-800 font-medium tracking-wide hover:text-black transition-colors text-sm"
+                >
+                  {item.label}
+                </Link>
+              </motion.div>
             ))}
           </div>
-        </div>
 
-        {/* Center logo */}
-        <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
-          <img
-            src="/logo.png"
-            alt="Walkdrobe"
-            width={200}
-            height={40}
-            className="object-contain"
-          />
-        </div>
+          {/* Right: Icons */}
+          <motion.div 
+            className="flex items-center gap-2"
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.4, delay: 0.3 }}
+          >
+            {/* Search */}
+            <div className="relative" ref={searchRef}>
+              <AnimatePresence mode="wait">
+                {searchOpen ? (
+                  <motion.form 
+                    key="search-form"
+                    initial={{ width: 0, opacity: 0 }}
+                    animate={{ width: "auto", opacity: 1 }}
+                    exit={{ width: 0, opacity: 0 }}
+                    transition={{ duration: 0.2 }}
+                    onSubmit={handleSearchSubmit} 
+                    className="flex items-center overflow-hidden"
+                  >
+                    <input
+                      type="text"
+                      placeholder="Search..."
+                      autoFocus
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="w-40 px-3 py-1.5 text-sm border border-gray-200 rounded-full outline-none focus:border-gray-400"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => { setSearchOpen(false); setSearchTerm(""); }}
+                      className="ml-2 p-1.5 hover:bg-gray-100 rounded-full"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </motion.form>
+                ) : (
+                  <motion.button
+                    key="search-btn"
+                    initial={{ scale: 0.8, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    exit={{ scale: 0.8, opacity: 0 }}
+                    onClick={() => setSearchOpen(true)}
+                    className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+                  >
+                    <Search className="w-5 h-5 text-gray-700" />
+                  </motion.button>
+                )}
+              </AnimatePresence>
+              {searchOpen && searchTerm.length >= 2 && (
+                <SearchDropdown
+                  searchTerm={searchTerm}
+                  isOpen={true}
+                  onClose={() => setSearchOpen(false)}
+                />
+              )}
+            </div>
 
-        {/* Right */}
-        <div className="flex items-center gap-4">
-          <div className="relative" ref={searchRef}>
-            <form
-              onSubmit={handleSearchSubmit}
-              className="relative flex items-center border border-white/20 rounded-full px-3 py-1 w-72 bg-white/10 backdrop-blur-sm"
-            >
-              <input
-                type="text"
-                placeholder="What are you looking for?"
-                className="outline-none flex-1 bg-transparent text-sm placeholder-black/60 text-black"
-                value={searchTerm}
-                onChange={handleSearchChange}
-              />
-              <button
-                type="submit"
-                className="absolute ml-2 right-2 opacity-80 hover:opacity-100 transition-opacity"
-              >
-                <Search strokeWidth={1.5} />
+            {/* User */}
+            <Link href={me ? "/account" : "/login"}>
+              <button className="p-2 hover:bg-gray-100 rounded-full transition-colors">
+                <User className="w-5 h-5 text-gray-700" />
               </button>
-            </form>
-            <SearchDropdown
-              searchTerm={searchTerm}
-              isOpen={searchDropdownOpen}
-              onClose={() => setSearchDropdownOpen(false)}
-            />
-          </div>
+            </Link>
 
-          <UserNavigation />
+            {/* Wishlist */}
+            <Link href="/wishlist">
+              <button className="relative p-2 hover:bg-gray-100 rounded-full transition-colors">
+                <Heart className="w-5 h-5 text-gray-700" />
+                {wishlistSummary?.itemCount > 0 && (
+                  <span className="absolute -top-1 -right-1 w-4 h-4 bg-black text-white text-[10px] rounded-full flex items-center justify-center font-bold">
+                    {wishlistSummary.itemCount > 9 ? "9+" : wishlistSummary.itemCount}
+                  </span>
+                )}
+              </button>
+            </Link>
 
-          <Link href="/wishlist">
-            <button className="relative hover:bg-white/10 rounded-full p-2 opacity-80 hover:opacity-100 transition-all">
-              <Heart strokeWidth={1.5} />
-              {wishlistSummary?.itemCount > 0 && (
-                <span className="absolute -top-1 -right-1 w-5 h-5 bg-black text-white text-xs rounded-full flex items-center justify-center font-bold">
-                  {wishlistSummary.itemCount > 99
-                    ? "99+"
-                    : wishlistSummary.itemCount}
-                </span>
-              )}
-            </button>
-          </Link>
-
-          <Link href="/cart">
-            <button className="relative hover:bg-white/10 rounded-full p-2 opacity-80 hover:opacity-100 transition-all">
-              <ShoppingBag strokeWidth={1.5} />
-              {me && cartSummary?.totalItems > 0 && (
-                <span className="absolute -top-1 -right-1 w-5 h-5 bg-black text-white text-xs rounded-full flex items-center justify-center font-bold">
-                  {cartSummary.totalItems > 99 ? "99+" : cartSummary.totalItems}
-                </span>
-              )}
-            </button>
-          </Link>
-        </div>
-      </nav>
-
-      {/* Mobile component included below */}
-      <NavbarMobile />
-    </>
+            {/* Cart */}
+            <Link href="/cart">
+              <button className="relative p-2 hover:bg-gray-100 rounded-full transition-colors">
+                <ShoppingBag className="w-5 h-5 text-gray-700" />
+                {me && cartSummary?.totalItems > 0 && (
+                  <span className="absolute -top-1 -right-1 w-4 h-4 bg-black text-white text-[10px] rounded-full flex items-center justify-center font-bold">
+                    {cartSummary.totalItems > 9 ? "9+" : cartSummary.totalItems}
+                  </span>
+                )}
+              </button>
+            </Link>
+          </motion.div>
+        </motion.div>
+      </div>
+    </nav>
   );
 }
 
+// ---------- Mobile Navbar ----------
 export function NavbarMobile() {
-  const navLinks = ["SNEAKERS", "SPORTS"];
-  const navKeys = ["sneakers", "sports"];
-  const barRef = useRef(null);
-  const [tabWidth, setTabWidth] = useState();
-
-  const searchParams = useSearchParams();
-  const router = useRouter();
-
-  const param = searchParams.get("ct")?.toLowerCase();
-  const activeIdx = navKeys.indexOf(param) >= null ? navKeys.indexOf(param) : null;
-
-  // Bottom tab sizing
-  useEffect(() => {
-    const calc = () => {
-      if (barRef.current)
-        setTabWidth(barRef.current.offsetWidth / navLinks.length);
-    };
-    calc();
-    window.addEventListener("resize", calc);
-    return () => window.removeEventListener("resize", calc);
-  }, [navLinks.length]);
-
-  // Your other states
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
 
-  // token & user
+  // Auth
   const [token, setToken] = useState(null);
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
   useEffect(() => {
-    const match =
-      typeof document !== "undefined" &&
-      document.cookie.match(/(?:^|; )sessionToken=([^;]+)/);
+    const match = document.cookie.match(/(?:^|; )sessionToken=([^;]+)/);
     setToken(match ? decodeURIComponent(match[1]) : null);
   }, []);
 
   const me = useQuery(api.users.meByToken, token ? { token } : "skip");
-  useEffect(() => setIsLoggedIn(!!me), [me]);
-
-  const cartSummary = useQuery(
-    api.cart.getCartSummary,
-    me ? { userId: me._id } : "skip"
-  );
+  const cartSummary = useQuery(api.cart.getCartSummary, me ? { userId: me._id } : "skip");
 
   return (
     <>
-      {/* top mobile navbar */}
-      <nav className="fixed top-0 left-0 z-[40] w-full flex items-center justify-between px-3 py-2 bg-white/100 backdrop-blur-md md:hidden">
-        {/* Left: Hamburger Menu */}
-        <button
-          onClick={() => setSidebarOpen(true)}
-          className="p-2 hover:bg-white/10 rounded-lg transition-colors opacity-80 hover:opacity-100"
-          aria-label="Open Menu"
-        >
-          <Menu size={24} strokeWidth={1.5} />
-        </button>
-
-        {/* Center: Logo */}
-        <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
-        <img src="/logo.png" className="w-[120px] h-10" alt="" />
-        </div>
-
-        {/* Right: Search + Cart */}
-        <div className="flex items-center gap-">
+      {/* Top Bar */}
+      <nav className="fixed top-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md md:hidden">
+        <div className="flex items-center justify-between px-4 py-3">
+          {/* Menu */}
           <button
-            onClick={() => setShowSearch(true)}
-            className="p-2 hover:bg-white/10 rounded-lg transition-colors opacity-80 hover:opacity-100"
-            aria-label="Open Search"
+            onClick={() => setSidebarOpen(true)}
+            className="p-2 hover:bg-gray-100 rounded-full"
           >
-            <Search size={24} strokeWidth={1.5} />
+            <Menu className="w-5 h-5" />
           </button>
 
-          <Link href="/cart">
-            <button
-              className="relative p-2 hover:bg-white/10 rounded-lg transition-colors opacity-80 hover:opacity-100"
-              aria-label="Cart"
-            >
-              <ShoppingBag size={22} strokeWidth={1.5} />
-              {me && cartSummary?.totalItems > 0 && (
-                <span className="absolute -top-1 -right-1 w-5 h-5 bg-black text-white text-xs rounded-full flex items-center justify-center font-bold">
-                  {cartSummary.totalItems > 99 ? "99+" : cartSummary.totalItems}
-                </span>
-              )}
-            </button>
+          {/* Logo */}
+          <Link href="/" className="absolute left-1/2 -translate-x-1/2">
+            <img src="/logo.png" alt="Walkdrobe" className="h-5" />
           </Link>
+
+          {/* Right Icons */}
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => setShowSearch(true)}
+              className="p-2 hover:bg-gray-100 rounded-full"
+            >
+              <Search className="w-5 h-5" />
+            </button>
+
+            <Link href="/cart">
+              <button className="relative p-2 hover:bg-gray-100 rounded-full">
+                <ShoppingBag className="w-5 h-5" />
+                {me && cartSummary?.totalItems > 0 && (
+                  <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-black text-white text-[10px] rounded-full flex items-center justify-center font-bold">
+                    {cartSummary.totalItems > 9 ? "9+" : cartSummary.totalItems}
+                  </span>
+                )}
+              </button>
+            </Link>
+          </div>
         </div>
       </nav>
 
-      {/* Mobile Search Modal */}
-      <MobileSearchModal 
-        isOpen={showSearch} 
-        onClose={() => setShowSearch(false)} 
-      />
+      {/* Search Modal */}
+      <MobileSearchModal isOpen={showSearch} onClose={() => setShowSearch(false)} />
 
-      <SidebarDrawer open={sidebarOpen} onClose={() => setSidebarOpen(false)} width={"w-[85%]"} />
-
-      {/* bottom tab bar */}
-      {/* <div
-        ref={barRef}
-        className="fixed bottom-3 left-1/2 z-50 -translate-x-1/2 w-[92%] flex md:hidden items-center justify-between border border-black/5 rounded-full bg-gradient-to-tr from-white/80 to-white/60 backdrop-blur-xl shadow-[0_8px_20px_rgba(0,0,0,0.15)] px-2"
-        style={{ height: 60 }}
-      >
-        {navLinks.map((link, idx) => (
-          <button
-            key={link}
-            className={`flex-1 py-2 text-sm relative rounded-full ${activeIdx === idx
-              ? "text-black font-bold bg-white shadow-md scale-105"
-              : "text-black/70 hover:bg-black/5 hover:scale-[1.02]"
-              }`}
-            onClick={() => {
-              const params = ("ct", navKeys[idx])
-              // params.set("ct", navKeys[idx]);
-              router.replace(
-                `/shop?ct=${params.toString()}`
-              );
-            }}
-          >
-            {link}
-          </button>
-        ))} */}
-
-        {/* {activeIdx !== null && (
-          <span
-            className="absolute bottom-1 rounded-full bg-black/30 transition-all duration-300"
-            style={{
-              width: `${tabWidth * 0.6}px`,
-              left: `${activeIdx * tabWidth + tabWidth * 0.2}px`,
-              height: "3px",
-            }}
-          />
-        )} */}
-      {/* </div> */}
+      {/* Sidebar */}
+      <SidebarDrawer open={sidebarOpen} onClose={() => setSidebarOpen(false)} width="w-[80%]" />
     </>
   );
 }
