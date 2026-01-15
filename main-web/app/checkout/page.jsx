@@ -37,6 +37,12 @@ export default function CheckoutPage() {
   const [showHybridConfirmation, setShowHybridConfirmation] = useState(false);
   const saveTimeoutRef = useRef(null);
   const formInitializedRef = useRef(false);
+  
+  // Pincode delivery check states
+  const [pincodeCheckStatus, setPincodeCheckStatus] = useState(null); // null, 'checking', 'available', 'unavailable'
+  const [deliveryInfo, setDeliveryInfo] = useState(null);
+  const [pincodeError, setPincodeError] = useState("");
+  
   // Only use custom address now
 
   const [shippingDetails, setShippingDetails] = useState({
@@ -63,6 +69,70 @@ export default function CheckoutPage() {
   const handlePaymentMethodChange = (method) => {
     setSelectedPaymentMethod(method);
   };
+
+  // Pincode delivery check function
+  const checkPincodeDelivery = async (pincode) => {
+    if (!pincode || pincode.length !== 6) {
+      setPincodeCheckStatus(null);
+      setDeliveryInfo(null);
+      setPincodeError("");
+      return;
+    }
+
+    setPincodeCheckStatus('checking');
+    setPincodeError("");
+    
+    try {
+      const response = await fetch(`/api/shiprocket/serviceability?pincode=${pincode}&pickup_pincode=400001&weight=0.5`);
+      const data = await response.json();
+      
+      if (response.ok) {
+        // Handle temporary errors (like rate limiting)
+        if (data.temporaryError) {
+          setPincodeCheckStatus('warning');
+          setDeliveryInfo({ temporaryError: true });
+          setPincodeError(data.message);
+          return;
+        }
+        
+        if (data.deliverable) {
+          setPincodeCheckStatus('available');
+          setDeliveryInfo({
+            estimatedDays: data.estimatedDays,
+            codAvailable: data.codAvailable,
+            courierPartners: data.courierPartners?.length || 0
+          });
+        } else {
+          setPincodeCheckStatus('unavailable');
+          setDeliveryInfo(null);
+          setPincodeError(data.message || "Delivery not available to this pincode");
+        }
+      } else {
+        setPincodeCheckStatus('unavailable');
+        setPincodeError(data.error || "Unable to check delivery availability");
+      }
+    } catch (error) {
+      setPincodeCheckStatus('warning');
+      setPincodeError("Network error. You can proceed with checkout.");
+      console.error('Pincode check error:', error);
+    }
+  };
+
+  // Watch pincode changes and trigger delivery check
+  const watchedPincode = watch('pincode');
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      if (watchedPincode && watchedPincode.length === 6) {
+        checkPincodeDelivery(watchedPincode);
+      } else {
+        setPincodeCheckStatus(null);
+        setDeliveryInfo(null);
+        setPincodeError("");
+      }
+    }, 500); // Debounce for 500ms
+
+    return () => clearTimeout(timeoutId);
+  }, [watchedPincode]);
 
 
 
@@ -94,10 +164,8 @@ export default function CheckoutPage() {
     setIsLoggedIn(true);
     // Only prefill once and do not overwrite fields the user has already edited.
     if (formInitializedRef.current) {
-      console.log("checkout: me effect skipped (form already initialized)");
       return;
     }
-    console.log("checkout: prefill address from me.address:", me.address);
     const current = typeof getValues === 'function' ? getValues() : {};
     if (!current.fullName) setValue("fullName", me.name || "");
     if (!current.email) setValue("email", me.email || "");
@@ -124,11 +192,9 @@ export default function CheckoutPage() {
   // Watch form values and autosave with debounce
   useEffect(() => {
     const subscription = watch((value) => {
-      console.log("checkout: watch ->", value);
       if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
       saveTimeoutRef.current = setTimeout(() => {
         const vals = getValues();
-        console.log("checkout: autosave values ->", vals);
         updateUserAddressConvex(vals);
       }, 600);
     });
@@ -202,7 +268,6 @@ export default function CheckoutPage() {
   const updateUserAddressConvex = async (addressData) => {
     if (me && me._id) {
       try {
-            console.log("updateUserAddressConvex called with:", addressData, "me:", me && me._id);
             // Convex `updateUserProfile` validator expects address to only contain
             // { state, city, pinCode, fullAddress } — remove extra fields.
             // Normalize address to ensure `fullAddress` is a string.
@@ -228,14 +293,12 @@ export default function CheckoutPage() {
                 fullAddress: fullAddress || "",
               },
             };
-            console.log("updateUserAddressConvex payload:", payload);
             const res = await fetch("/api/convex/users/updateUserProfile", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
               body: JSON.stringify(payload),
         });
         const result = await res.json();
-        console.log("updateUserAddressConvex result:", result);
         if (!result || !result.success) {
           showToastMessage("Failed saving address");
         }
@@ -349,7 +412,7 @@ export default function CheckoutPage() {
 
       if (!orderResult?.success) throw new Error(orderResult?.message || "Failed to create order");
 
-      // Send confirmation emails
+      // Send confirmation emails and create Shiprocket order
       await Promise.all([
         fetch("/api/send-order-confirmation", {
           method: "POST",
@@ -388,6 +451,22 @@ export default function CheckoutPage() {
             },
           }),
         }).catch(console.error),
+        // Automatically create Shiprocket order
+        fetch("/api/auto-shiprocket", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            orderNumber: orderResult.orderNumber,
+          }),
+        }).then(response => response.json())
+          .then(result => {
+            if (!result.success) {
+              console.error("Shiprocket order creation failed:", result.error);
+            }
+          })
+          .catch(error => {
+            console.error("Error creating Shiprocket order:", error);
+          }),
       ]);
 
       // Clear cart if not direct purchase
@@ -400,7 +479,8 @@ export default function CheckoutPage() {
       }
 
       showToastMessage("Payment successful! Redirecting...");
-      setTimeout(() => router.push(`/order-success?orderNumber=${orderResult.orderNumber}`), 1500);
+      console.log("🔄 Redirecting to:", `/orders/${orderResult.orderNumber}`);
+      setTimeout(() => router.push(`/orders/${orderResult.orderNumber}`), 1500);
 
     } catch (error) {
       console.error("Payment processing error:", error);
@@ -422,6 +502,14 @@ export default function CheckoutPage() {
       setIsProcessing(false);
       return;
     }
+
+    // Configure payment method based on user selection
+    const config = {
+      upi: { method: "upi" },
+      card: { method: "card" },
+      netbanking: { method: "netbanking" },
+      wallet: { method: "wallet" }
+    };
 
     const options = {
       key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || "rzp_live_RtYKQ2F9glN6Vf",
@@ -448,6 +536,24 @@ export default function CheckoutPage() {
         },
       },
     };
+
+    // Add payment method restriction if user selected a specific method
+    if (selectedPaymentMethod && config[selectedPaymentMethod]) {
+      options.config = {
+        display: {
+          blocks: {
+            banks: {
+              name: selectedPaymentMethod === 'netbanking' ? 'Pay using Netbanking' : 'Pay Now',
+              instruments: [config[selectedPaymentMethod]]
+            }
+          },
+          sequence: ['block.banks'],
+          preferences: {
+            show_default_blocks: false // Hide other payment methods
+          }
+        }
+      };
+    }
 
     const razorpay = new Razorpay(options);
     razorpay.on("payment.failed", (response) => {
@@ -485,6 +591,21 @@ export default function CheckoutPage() {
   };
 
   const handleCODConfirmation = async () => {
+    // Check pincode delivery availability for COD (allow if temporary error)
+    const currentPincode = getValues('pincode');
+    if (pincodeCheckStatus === 'unavailable' && !deliveryInfo?.temporaryError) {
+      showToastMessage("Please verify that delivery is available to your pincode");
+      setShowCODConfirmation(false);
+      return;
+    }
+    
+    // Check if COD is available for this pincode (skip if temporary error)
+    if (deliveryInfo && !deliveryInfo.temporaryError && !deliveryInfo.codAvailable) {
+      showToastMessage("Cash on Delivery is not available for your pincode. Please choose online payment.");
+      setShowCODConfirmation(false);
+      return;
+    }
+    
     setShowCODConfirmation(false);
     setIsProcessing(true);
     try {
@@ -497,13 +618,31 @@ export default function CheckoutPage() {
       const orderResult = await createOrderMutation({ userId: me?._id || null, items: mappedItems, shippingDetails: currentShippingDetails, paymentDetails: { amount: finalTotal, currency: "INR", status: "pending", paymentMethod: "cod" }, orderTotal: finalTotal, status: "confirmed" });
         if (orderResult?.success) {
         showToastMessage("Order placed successfully!");
-        fetch("/api/send-order-confirmation", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ userEmail: currentShippingDetails.email, userName: currentShippingDetails.fullName, orderNumber: orderResult.orderNumber, orderItems: mappedItems, orderTotal: finalTotal, shippingDetails: currentShippingDetails, paymentDetails: { amount: finalTotal, currency: "INR", status: "pending", paymentMethod: "cod" } }) }).catch(console.error);
-        fetch("/api/send-admin-notification", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ orderNumber: orderResult.orderNumber, customerName: currentShippingDetails.fullName, customerEmail: currentShippingDetails.email, orderTotal: finalTotal, items: mappedItems, shippingAddress: `${currentShippingDetails.address}, ${currentShippingDetails.city}, ${currentShippingDetails.state} - ${currentShippingDetails.pincode}`, shippingDetails: currentShippingDetails, paymentDetails: { amount: finalTotal, currency: "INR", status: "pending", paymentMethod: "cod" } }) }).catch(console.error);
+        // Send confirmation emails and create Shiprocket order
+        Promise.all([
+          fetch("/api/send-order-confirmation", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ userEmail: currentShippingDetails.email, userName: currentShippingDetails.fullName, orderNumber: orderResult.orderNumber, orderItems: mappedItems, orderTotal: finalTotal, shippingDetails: currentShippingDetails, paymentDetails: { amount: finalTotal, currency: "INR", status: "pending", paymentMethod: "cod" } }) }).catch(console.error),
+          fetch("/api/send-admin-notification", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ orderNumber: orderResult.orderNumber, customerName: currentShippingDetails.fullName, customerEmail: currentShippingDetails.email, orderTotal: finalTotal, items: mappedItems, shippingAddress: `${currentShippingDetails.address}, ${currentShippingDetails.city}, ${currentShippingDetails.state} - ${currentShippingDetails.pincode}`, shippingDetails: currentShippingDetails, paymentDetails: { amount: finalTotal, currency: "INR", status: "pending", paymentMethod: "cod" } }) }).catch(console.error),
+          // Automatically create Shiprocket order for COD
+          fetch("/api/auto-shiprocket", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ orderNumber: orderResult.orderNumber }),
+          }).then(response => response.json())
+            .then(result => {
+              if (!result.success) {
+                console.error("Shiprocket order creation failed for COD:", result.error);
+              }
+            })
+            .catch(error => {
+              console.error("Error creating Shiprocket order for COD:", error);
+            }),
+        ]);
         if (!isDirectPurchase) {
           if (me) { try { await clearCartMutation({ userId: me._id }); } catch (e) { console.error(e); } }
           else { try { clearGuestCart(); } catch (e) { console.error(e); } }
         }
-        setTimeout(() => { router.push(`/order-success?orderNumber=${orderResult.orderNumber}`); }, 1500);
+        console.log("🔄 COD Order - Redirecting to:", `/orders/${orderResult.orderNumber}`);
+        setTimeout(() => { router.push(`/orders/${orderResult.orderNumber}`); }, 1500);
       } else { showToastMessage(orderResult?.message || "Order failed"); }
     } catch (error) { showToastMessage(`Failed: ${error.message}`); }
     finally { setIsProcessing(false); }
@@ -511,6 +650,35 @@ export default function CheckoutPage() {
 
   const handlePayment = async () => {
     if (!isFormValid()) { showToastMessage("Please fill all required fields"); return; }
+    
+    // Check pincode delivery availability
+    const currentPincode = getValues('pincode');
+    if (!currentPincode || currentPincode.length !== 6) {
+      showToastMessage("Please enter a valid 6-digit pincode");
+      return;
+    }
+    
+    if (pincodeCheckStatus === 'checking') {
+      showToastMessage("Please wait while we check delivery availability for your pincode");
+      return;
+    }
+    
+    // Allow checkout if there's a temporary error (like rate limiting)
+    if (pincodeCheckStatus === 'unavailable' && !deliveryInfo?.temporaryError) {
+      showToastMessage("Delivery is not available to your pincode. Please try a different pincode.");
+      return;
+    }
+    
+    // If status is warning or temporary error, allow checkout to proceed
+    if (pincodeCheckStatus !== 'available' && pincodeCheckStatus !== 'warning') {
+      // Trigger pincode check if not already done
+      await checkPincodeDelivery(currentPincode);
+      if (pincodeCheckStatus === 'unavailable' && !deliveryInfo?.temporaryError) {
+        showToastMessage("Please verify that delivery is available to your pincode");
+        return;
+      }
+    }
+    
     const stockValidation = validateStock();
     if (!stockValidation.isValid) { showToastMessage(stockValidation.message); return; }
     if (selectedPaymentMethod === "cod") { setShowCODConfirmation(true); return; }
@@ -648,9 +816,82 @@ export default function CheckoutPage() {
                     <input type="text" placeholder="Landmark (Optional)" {...register('landmark')} onBlur={() => updateUserAddressConvex(getValues())} className="col-span-2 px-4 py-3 bg-white border border-gray-900 rounded-xl text-sm focus:ring-2 focus:ring-gray-900 focus:border-transparent" />
                     <input type="text" placeholder="City *" {...register('city')} onBlur={() => updateUserAddressConvex(getValues())} className="px-4 py-3 bg-white border border-gray-900 rounded-xl text-sm focus:ring-2 focus:ring-gray-900 focus:border-transparent" />
                     <input type="text" placeholder="State *" {...register('state')} onBlur={() => updateUserAddressConvex(getValues())} className="px-4 py-3 bg-white border border-gray-900 rounded-xl text-sm focus:ring-2 focus:ring-gray-900 focus:border-transparent" />
-                    <input type="text" placeholder="Pincode *" {...register('pincode')} onBlur={() => updateUserAddressConvex(getValues())} className="px-4 py-3 bg-white border border-gray-900 rounded-xl text-sm focus:ring-2 focus:ring-gray-900 focus:border-transparent" />
+                    
+                    {/* Enhanced Pincode Input with Delivery Check */}
+                    <div className="relative">
+                      <input 
+                        type="text" 
+                        placeholder="Pincode *" 
+                        {...register('pincode', {
+                          pattern: {
+                            value: /^\d{6}$/,
+                            message: "Please enter a valid 6-digit pincode"
+                          }
+                        })} 
+                        onBlur={() => updateUserAddressConvex(getValues())} 
+                        className={`px-4 py-3 pr-10 bg-white border rounded-xl text-sm focus:ring-2 focus:border-transparent w-full ${
+                          pincodeCheckStatus === 'available' ? 'border-green-500 focus:ring-green-500' :
+                          pincodeCheckStatus === 'unavailable' ? 'border-red-500 focus:ring-red-500' :
+                          'border-gray-900 focus:ring-gray-900'
+                        }`}
+                        maxLength={6}
+                      />
+                      
+                      {/* Delivery Check Status Icon */}
+                      <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                        {pincodeCheckStatus === 'checking' && (
+                          <Loader2 className="w-4 h-4 text-gray-500 animate-spin" />
+                        )}
+                        {pincodeCheckStatus === 'available' && (
+                          <Check className="w-4 h-4 text-green-500" />
+                        )}
+                        {pincodeCheckStatus === 'unavailable' && (
+                          <X className="w-4 h-4 text-red-500" />
+                        )}
+                      </div>
+                    </div>
+                    
                     <input type="text" value="India" disabled className="px-4 py-3 bg-gray-100 border border-gray-900 rounded-xl text-sm text-gray-500" />
                   </div>
+                  
+                  {/* Delivery Status Messages */}
+                  {pincodeCheckStatus === 'available' && deliveryInfo && (
+                    <div className="mt-3 p-3 bg-green-50 border border-green-200 rounded-xl">
+                      <div className="flex items-center gap-2 text-green-700">
+                        <Check className="w-4 h-4" />
+                        <span className="text-sm font-medium">Delivery Available!</span>
+                      </div>
+                      <div className="mt-1 text-xs text-green-600">
+                        {deliveryInfo.estimatedDays && (
+                          <p>• Estimated delivery: {deliveryInfo.estimatedDays} days</p>
+                        )}
+                        {deliveryInfo.codAvailable && (
+                          <p>• Cash on Delivery available</p>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                  
+                  {pincodeCheckStatus === 'warning' && pincodeError && (
+                    <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded-xl">
+                      <div className="flex items-center gap-2 text-yellow-700">
+                        <AlertCircle className="w-4 h-4" />
+                        <span className="text-sm font-medium">Delivery Check Unavailable</span>
+                      </div>
+                      <p className="mt-1 text-xs text-yellow-600">{pincodeError}</p>
+                      <p className="mt-1 text-xs text-yellow-600">You can proceed with checkout. We'll verify delivery after order placement.</p>
+                    </div>
+                  )}
+                  
+                  {pincodeCheckStatus === 'unavailable' && pincodeError && (
+                    <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-xl">
+                      <div className="flex items-center gap-2 text-red-700">
+                        <AlertCircle className="w-4 h-4" />
+                        <span className="text-sm font-medium">Delivery Not Available</span>
+                      </div>
+                      <p className="mt-1 text-xs text-red-600">{pincodeError}</p>
+                    </div>
+                  )}
               </div>
 
              
@@ -804,8 +1045,6 @@ export default function CheckoutPage() {
           </div>
         </div>
       </div>
-
-      {/* Miss Discount Prompt removed per request */}
 
       {/* COD Confirmation Modal */}
       <AnimatePresence>

@@ -401,6 +401,9 @@ export default defineSchema({
       fullName: v.string(),
       email: v.string(),
       phone: v.string(),
+      flatNo: v.optional(v.string()),
+      area: v.optional(v.string()),
+      landmark: v.optional(v.string()),
       address: v.string(),
       city: v.string(),
       state: v.string(),
@@ -431,6 +434,20 @@ export default defineSchema({
           updatedBy: v.optional(v.string()), // Who updated this status
         })
       )
+    ),
+    // Shiprocket integration
+    shiprocketDetails: v.optional(
+      v.object({
+        shiprocketOrderId: v.optional(v.number()),
+        shipmentId: v.optional(v.number()),
+        awbCode: v.optional(v.string()),
+        courierCompanyId: v.optional(v.number()),
+        courierName: v.optional(v.string()),
+        trackingUrl: v.optional(v.string()),
+        createdAt: v.optional(v.number()),
+        status: v.optional(v.string()), // Shiprocket order status
+        error: v.optional(v.string()), // Error message if creation failed
+      })
     ),
     // Timestamps
     createdAt: v.number(),

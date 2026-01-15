@@ -62,7 +62,7 @@ export async function POST(request) {
       from: process.env.EMAIL_FROM || `Walkdrobe <${process.env.EMAIL_USER}>`,
       to: userEmail,
       subject: `Order Confirmation`,
-      text: `Hi ${userName},\n\nThank you for your purchase!\nOrder Number: ${orderNumber}\nTotal: ${orderTotal}\nExpected delivery: ${formattedDeliveryDate}\n\nIf you have questions, reply to this email.`,
+      text: `Hi ${userName},\n\nThank you for your purchase!\nOrder Number: ${orderNumber}\nTotal: ${orderTotal}\nExpected delivery: ${formattedDeliveryDate}\n\nTrack your order: https://walkdrobe.in/orders/${orderNumber}\n\nIf you have questions, reply to this email.`,
       html: `
 <body style="margin:0; padding:0; background-color:#f8f9fa; font-family: Arial, sans-serif;">
     <table width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#f8f9fa">
@@ -168,11 +168,23 @@ export async function POST(request) {
             <!-- CTA -->
             <tr>
               <td align="center" style="padding:24px;">
-                <a href="https://walkdrobe.in/orders" 
+                <a href="https://walkdrobe.in/orders/${orderNumber}" 
                    style="background:#000000; color:#ffffff; text-decoration:none; padding:14px 28px; 
                           border-radius:6px; font-size:14px; font-weight:600; display:inline-block;">
                   Track Your Order
                 </a>
+              </td>
+            </tr>
+
+            <!-- Additional Info -->
+            <tr>
+              <td style="padding:0 32px 24px 32px; color:#555555; font-size:14px; text-align:center;">
+                <p style="margin:0;">Expected delivery: <strong>${formattedDeliveryDate}</strong></p>
+                <p style="margin:8px 0 0 0;">
+                  <a href="https://walkdrobe.in/orders/${orderNumber}" style="color:#000000; text-decoration:none;">
+                    View detailed tracking: https://walkdrobe.in/orders/${orderNumber}
+                  </a>
+                </p>
               </td>
             </tr>
 

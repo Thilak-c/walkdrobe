@@ -17,9 +17,6 @@ export async function POST(request) {
       estimatedDeliveryDate,
     } = await request.json();
 
-    console.log("Sending order status update email to:", customerEmail);
-    console.log("Order:", orderNumber, "Status:", status);
-
     // Create transporter
     const transporter = nodemailer.createTransport({
       host: "smtp.hostinger.com",
@@ -333,8 +330,6 @@ export async function POST(request) {
       subject: `${statusInfo.title} - Order #${orderNumber}`,
       html: emailHtml,
     });
-
-    console.log("Email sent successfully:", info.messageId);
 
     return NextResponse.json({
       success: true,

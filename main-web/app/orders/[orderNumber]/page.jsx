@@ -32,6 +32,11 @@ export default function OrderDetailsPage({ params }) {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState("");
+  
+  // Shiprocket tracking state
+  const [shiprocketTracking, setShiprocketTracking] = useState(null);
+  const [isLoadingTracking, setIsLoadingTracking] = useState(false);
+  const [trackingError, setTrackingError] = useState(null);
 
   useEffect(() => {
     if (typeof document !== "undefined") {
@@ -54,6 +59,39 @@ export default function OrderDetailsPage({ params }) {
     api.orders.getOrderByNumber,
     orderNumber ? { orderNumber } : "skip"
   );
+
+  // Fetch Shiprocket tracking data
+  const fetchShiprocketTracking = async () => {
+    if (!order || !order.shiprocketDetails?.shipmentId) {
+      return;
+    }
+
+    setIsLoadingTracking(true);
+    setTrackingError(null);
+
+    try {
+      const response = await fetch(`/api/shiprocket/track?orderNumber=${orderNumber}`);
+      const data = await response.json();
+
+      if (data.success) {
+        setShiprocketTracking(data.tracking);
+      } else {
+        setTrackingError(data.error || 'Failed to fetch tracking data');
+      }
+    } catch (error) {
+      console.error('Error fetching Shiprocket tracking:', error);
+      setTrackingError('Failed to fetch tracking data');
+    } finally {
+      setIsLoadingTracking(false);
+    }
+  };
+
+  // Fetch tracking data when order is loaded
+  useEffect(() => {
+    if (order && order.shiprocketDetails?.shipmentId) {
+      fetchShiprocketTracking();
+    }
+  }, [order?.shiprocketDetails?.shipmentId]);
 
   const showToastMessage = (message) => {
     setToastMessage(message);
@@ -1036,6 +1074,113 @@ export default function OrderDetailsPage({ params }) {
                       );
                     })}
                 </div>
+              </div>
+            )}
+
+            {/* Shiprocket Live Tracking */}
+            {order.shiprocketDetails?.shipmentId && (
+              <div className="bg-white rounded-xl border border-gray-200 p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="font-bold flex items-center space-x-2">
+                    <Package className="w-5 h-5" />
+                    <span>Live Tracking</span>
+                  </h3>
+                  <button
+                    onClick={fetchShiprocketTracking}
+                    disabled={isLoadingTracking}
+                    className="text-xs text-blue-600 hover:text-blue-700 disabled:text-gray-400"
+                  >
+                    {isLoadingTracking ? 'Refreshing...' : 'Refresh'}
+                  </button>
+                </div>
+
+                {isLoadingTracking && !shiprocketTracking && (
+                  <div className="flex items-center justify-center py-8">
+                    <div className="w-6 h-6 border-2 border-gray-200 border-t-gray-900 rounded-full animate-spin"></div>
+                  </div>
+                )}
+
+                {trackingError && (
+                  <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 text-sm text-yellow-800">
+                    <AlertCircle className="w-4 h-4 inline mr-2" />
+                    {trackingError}
+                  </div>
+                )}
+
+                {shiprocketTracking && (
+                  <div className="space-y-4">
+                    {/* Tracking Header */}
+                    <div className="bg-gray-50 rounded-lg p-3 space-y-2 text-sm">
+                      {shiprocketTracking.awbCode && (
+                        <div className="flex justify-between">
+                          <span className="text-gray-600">AWB Code:</span>
+                          <span className="font-mono font-medium">{shiprocketTracking.awbCode}</span>
+                        </div>
+                      )}
+                      {shiprocketTracking.courierName && (
+                        <div className="flex justify-between">
+                          <span className="text-gray-600">Courier:</span>
+                          <span className="font-medium">{shiprocketTracking.courierName}</span>
+                        </div>
+                      )}
+                      {shiprocketTracking.currentStatus && (
+                        <div className="flex justify-between">
+                          <span className="text-gray-600">Status:</span>
+                          <span className="font-medium capitalize">{shiprocketTracking.currentStatus}</span>
+                        </div>
+                      )}
+                      {shiprocketTracking.expectedDeliveryDate && (
+                        <div className="flex justify-between">
+                          <span className="text-gray-600">Expected:</span>
+                          <span className="font-medium text-blue-600">
+                            {new Date(shiprocketTracking.expectedDeliveryDate).toLocaleDateString('en-IN', {
+                              year: 'numeric',
+                              month: 'short',
+                              day: 'numeric'
+                            })}
+                          </span>
+                        </div>
+                      )}
+                      {shiprocketTracking.trackingUrl && (
+                        <a
+                          href={shiprocketTracking.trackingUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center justify-center space-x-2 mt-3 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium"
+                        >
+                          <ExternalLink className="w-4 h-4" />
+                          <span>Track on Shiprocket</span>
+                        </a>
+                      )}
+                    </div>
+
+                    {/* Tracking Activities */}
+                    {shiprocketTracking.activities && shiprocketTracking.activities.length > 0 && (
+                      <div className="space-y-3">
+                        <h4 className="text-sm font-semibold text-gray-700">Shipment History</h4>
+                        <div className="space-y-3">
+                          {shiprocketTracking.activities.map((activity, idx) => (
+                            <div key={idx} className="flex items-start space-x-3 pb-3 border-b last:border-b-0">
+                              <div className="w-2 h-2 bg-blue-500 rounded-full mt-2 flex-shrink-0"></div>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-medium text-gray-900">{activity.status}</p>
+                                {activity.location && (
+                                  <p className="text-xs text-gray-500 mt-1">
+                                    <MapPin className="w-3 h-3 inline mr-1" />
+                                    {activity.location}
+                                  </p>
+                                )}
+                                {activity.date && (
+                                  <p className="text-xs text-gray-400 mt-1">{activity.date}</p>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             )}
 

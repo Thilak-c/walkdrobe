@@ -12,15 +12,15 @@ const generateOrderNumber = () => {
   return `ORD${timestamp}${random}`;
 };
 
-// Calculate estimated delivery date (7 business days from order)
+// Calculate estimated delivery date - now gets updated by Shiprocket integration
 const calculateEstimatedDelivery = (orderDate = Date.now()) => {
   const deliveryDate = new Date(orderDate);
   
-  // Add 7-10 business days
+  // Add 3-5 business days as initial estimate (will be updated by Shiprocket)
   let daysAdded = 0;
   let businessDaysAdded = 0;
   
-  while (businessDaysAdded < 7) {
+  while (businessDaysAdded < 3) {
     deliveryDate.setDate(deliveryDate.getDate() + 1);
     daysAdded++;
     
@@ -63,6 +63,9 @@ export const createOrder = mutation({
       fullName: v.string(),
       email: v.string(),
       phone: v.string(),
+      flatNo: v.optional(v.string()),
+      area: v.optional(v.string()),
+      landmark: v.optional(v.string()),
       address: v.string(),
       city: v.string(),
       state: v.string(),
@@ -572,5 +575,74 @@ export const updateProductSalesOnOrderComplete = mutation({
         quantity: item.quantity,
       });
     }
+  },
+});
+
+// Update order with Shiprocket details
+export const updateOrderWithShiprocket = mutation({
+  args: {
+    orderId: v.id("orders"),
+    shiprocketDetails: v.optional(v.object({
+      shiprocketOrderId: v.optional(v.number()),
+      shipmentId: v.optional(v.number()),
+      awbCode: v.optional(v.string()),
+      courierCompanyId: v.optional(v.number()),
+      courierName: v.optional(v.string()),
+      trackingUrl: v.optional(v.string()),
+      status: v.optional(v.string()),
+      error: v.optional(v.string()),
+    })),
+    estimatedDeliveryDate: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    try {
+      const updateData = {
+        updatedAt: Date.now(),
+      };
+
+      if (args.shiprocketDetails) {
+        updateData.shiprocketDetails = {
+          ...args.shiprocketDetails,
+          createdAt: Date.now(),
+        };
+      }
+
+      if (args.estimatedDeliveryDate) {
+        updateData.estimatedDeliveryDate = args.estimatedDeliveryDate;
+      }
+
+      await ctx.db.patch(args.orderId, updateData);
+
+      return {
+        success: true,
+        message: "Order updated with Shiprocket details",
+      };
+    } catch (error) {
+      console.error("Error updating order with Shiprocket details:", error);
+      throw new Error("Failed to update order with Shiprocket details");
+    }
+  },
+});
+
+// Get orders with Shiprocket details
+export const getOrdersWithShiprocket = query({
+  args: {
+    limit: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const limit = args.limit || 50;
+    
+    const orders = await ctx.db
+      .query("orders")
+      .order("desc")
+      .take(limit);
+
+    return orders.map(order => ({
+      ...order,
+      hasShiprocketOrder: !!order.shiprocketDetails?.shiprocketOrderId,
+      shiprocketStatus: order.shiprocketDetails?.status || null,
+      awbCode: order.shiprocketDetails?.awbCode || null,
+      courierName: order.shiprocketDetails?.courierName || null,
+    }));
   },
 });

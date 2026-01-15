@@ -15,7 +15,6 @@ const transporter = nodemailer.createTransport({
 export async function POST(request) {
   try {
     const body = await request.json();
-    console.log('Received admin notification request:', JSON.stringify(body, null, 2));
 
     const {
       orderNumber,
