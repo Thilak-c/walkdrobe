@@ -3,6 +3,7 @@ import { Poppins, Inter, Anton } from "next/font/google";
 import "./globals.css";
 import { ConvexProvider, convex } from "../convexClient"; // Revert to named import
 import LayoutWrapper from "../components/LayoutWrapper";
+import QueryProvider from "../components/QueryProvider";
 import { Suspense } from "react"; // Import Suspense
 import { WebsiteStructuredData, OrganizationStructuredData } from "@/components/StructuredData";
 
@@ -40,7 +41,6 @@ export const metadata = {
     default: "Walkdrobe - Premium Footwear Store in Patna",
     template: "%s | Walkdrobe"
   },
-
   description: "Discover premium footwear at Walkdrobe, Patna's favorite shoe store. Shop sneakers, sports shoes, and more. Visit us or shop online!",
   keywords: ["footwear", "shoes", "sneakers", "sports shoes", "Patna", "shoe store", "premium footwear", "walkdrobe"],
   authors: [{ name: "Walkdrobe" }],
@@ -51,6 +51,21 @@ export const metadata = {
     address: false,
     telephone: false,
   },
+  icons: {
+    icon: [
+      { url: '/favicon.ico' },
+      { url: '/favicon-16x16.png', sizes: '16x16', type: 'image/png' },
+      { url: '/favicon-32x32.png', sizes: '32x32', type: 'image/png' },
+    ],
+    apple: [
+      { url: '/apple-touch-icon.png', sizes: '180x180', type: 'image/png' },
+    ],
+    other: [
+      { rel: 'android-chrome-192x192', url: '/android-chrome-192x192.png' },
+      { rel: 'android-chrome-512x512', url: '/android-chrome-512x512.png' },
+    ],
+  },
+  manifest: '/site.webmanifest',
   openGraph: {
     type: "website",
     locale: "en_IN",
@@ -100,17 +115,19 @@ export default function RootLayout({ children }) {
       <body
         className={`${geistSans.variable} ${geistMono.variable} ${poppins.variable} ${inter.variable} ${anton.variable} antialiased font-anton`}
       >
-        <ConvexProvider client={convex}>
-          {/* <AccessGate> */}
-          <Suspense fallback={<div>Loading page...</div>}>
-            {" "}
-            {/* Add Suspense boundary */}
-            <LayoutWrapper>
-              {children}
-            </LayoutWrapper>
-          </Suspense>
-          {/* </AccessGate> */}
-        </ConvexProvider>
+        <QueryProvider>
+          <ConvexProvider client={convex}>
+            {/* <AccessGate> */}
+            <Suspense fallback={<div>Loading page...</div>}>
+              {" "}
+              {/* Add Suspense boundary */}
+              <LayoutWrapper>
+                {children}
+              </LayoutWrapper>
+            </Suspense>
+            {/* </AccessGate> */}
+          </ConvexProvider>
+        </QueryProvider>
       </body>
     </html>
   );

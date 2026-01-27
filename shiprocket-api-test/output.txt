@@ -1,9 +1,0 @@
-🚀 Testing Shiprocket API...
-Email: t800843976@gmail.com
-Password: d33YXEEhKLjU#u2#JokgM6pPdRD8$KVr
-
-🔐 Authenticating...
-❌ Error: 400 {
-  message: 'User blocked due to too many failed login attempts.',
-  status_code: 400
-}

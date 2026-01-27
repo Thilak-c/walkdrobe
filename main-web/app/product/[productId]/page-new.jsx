@@ -134,10 +134,10 @@ export default function ProductPage() {
   };
 
   // Loading state
-  if (product === undefined) {
+  if (isLoading) {
     return (
-      <div className="min-h-screen bg-white flex items-center justify-center">
-        <div className="w-8 h-8 border-2 border-gray-200 border-t-gray-900 rounded-full animate-spin" />
+      <div className="min-h-screen flex items-center justify-center bg-white">
+        <div className="loader-4"></div>
       </div>
     );
   }

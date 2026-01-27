@@ -1,13 +1,16 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   allowedDevOrigins: ["local-origin.dev", "*.local-origin.dev"],
+  // Optimize production build
+  swcMinify: true,
+  compiler: {
+    removeConsole: process.env.NODE_ENV === 'production',
+  },
   images: {
-    // Enable image optimization
     formats: ['image/avif', 'image/webp'],
-    // Device sizes for responsive images
     deviceSizes: [320, 420, 640, 768, 1024, 1280, 1536],
-    // Image sizes for srcset
     imageSizes: [16, 32, 48, 64, 96, 128, 256],
+    unoptimized: false,
     remotePatterns: [
       {
         protocol: "http",
@@ -28,9 +31,8 @@ const nextConfig = {
       {
         protocol: "https",
         hostname: "insys.walkdrobe.in",
-        pathname: "/**",
+        pathname: "/api/uploads/**",
       },
-      // Common CDNs (in case you use them)
       {
         protocol: "https",
         hostname: "res.cloudinary.com",

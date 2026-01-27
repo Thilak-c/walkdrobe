@@ -34,57 +34,50 @@ export default function Navbar() {
   };
 
   return (
-    <nav className="z-50 fixed top-0 left-0 right-0 hidden md:block">
-      <div className="max-w-7xl mx-auto px- py-4">
-        <motion.div 
-          initial={{ scale: 0.95, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          transition={{ duration: 0.3, delay: 0.1, ease: [0.22, 1, 0.36, 1] }}
-          className="flex items-center justify-between bg-white/80 backdrop-blur-md rounded-full px-6 py-3 shadow-lg border border-gray-100"
-        >
+    <nav className="fixed top-0 left-0 right-0 z-50 bg-white border-b border-gray-100 hidden md:block">
+      <motion.div 
+        initial={{ y: -100, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+        className="max-w-7xl mx-auto px-6"
+      >
+        <div className="flex items-center justify-between h-16">
           
-          {/* Left: Logo */}
+          {/* Logo */}
           <motion.div
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.4, delay: 0.2 }}
+            transition={{ duration: 0.5, delay: 0.2 }}
           >
             <Link href="/" className="shrink-0">
               <img src="/logo.png" alt="Walkdrobe" className="h-6" />
             </Link>
           </motion.div>
 
-          {/* Center: Navigation */}
-          <div className="flex items-center gap-8">
-            {[
-              { label: "ALL", link: "all" },
-              { label: "SNEAKERS", link: "sneakers" },
-              { label: "SPORTS", link: "sports" }
-            ].map((item, idx) => (
-              <motion.div 
-                key={item.label} 
-                className="flex items-center gap-8"
-                initial={{ opacity: 0, y: -10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.3, delay: 0.2 + idx * 0.1 }}
-              >
-                {idx > 0 && <span className="text-gray-300">|</span>}
-                <Link
-                  href={`/shop?ct=${item.link}`}
-                  className="text-gray-800 font-medium tracking-wide hover:text-black transition-colors text-sm"
-                >
-                  {item.label}
-                </Link>
-              </motion.div>
-            ))}
-          </div>
-
-          {/* Right: Icons */}
+          {/* Center Navigation */}
           <motion.div 
-            className="flex items-center gap-2"
+            className="flex items-center gap-8"
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.3 }}
+          >
+            <Link href="/shop?ct=all" className="text-sm text-gray-600 hover:text-black transition-colors">
+              All
+            </Link>
+            <Link href="/shop?ct=sneakers" className="text-sm text-gray-600 hover:text-black transition-colors">
+              Sneakers
+            </Link>
+            <Link href="/shop?ct=sports" className="text-sm text-gray-600 hover:text-black transition-colors">
+              Sports
+            </Link>
+          </motion.div>
+
+          {/* Right Icons */}
+          <motion.div 
+            className="flex items-center gap-3"
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.4, delay: 0.3 }}
+            transition={{ duration: 0.5, delay: 0.4 }}
           >
             {/* Search */}
             <div className="relative" ref={searchRef}>
@@ -105,12 +98,12 @@ export default function Navbar() {
                       autoFocus
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
-                      className="w-40 px-3 py-1.5 text-sm border border-gray-200 rounded-full outline-none focus:border-gray-400"
+                      className="w-40 px-3 py-1.5 text-sm border border-gray-200 rounded-lg outline-none focus:border-gray-400"
                     />
                     <button
                       type="button"
                       onClick={() => { setSearchOpen(false); setSearchTerm(""); }}
-                      className="ml-2 p-1.5 hover:bg-gray-100 rounded-full"
+                      className="ml-2 p-1.5 hover:bg-gray-100 rounded-lg"
                     >
                       <X className="w-4 h-4" />
                     </button>
@@ -122,9 +115,9 @@ export default function Navbar() {
                     animate={{ scale: 1, opacity: 1 }}
                     exit={{ scale: 0.8, opacity: 0 }}
                     onClick={() => setSearchOpen(true)}
-                    className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+                    className="p-2 hover:bg-gray-50 rounded-lg transition-colors"
                   >
-                    <Search className="w-5 h-5 text-gray-700" />
+                    <Search className="w-5 h-5 text-gray-600" />
                   </motion.button>
                 )}
               </AnimatePresence>
@@ -139,15 +132,15 @@ export default function Navbar() {
 
             {/* User */}
             <Link href={me ? "/account" : "/login"}>
-              <button className="p-2 hover:bg-gray-100 rounded-full transition-colors">
-                <User className="w-5 h-5 text-gray-700" />
+              <button className="p-2 hover:bg-gray-50 rounded-lg transition-colors">
+                <User className="w-5 h-5 text-gray-600" />
               </button>
             </Link>
 
             {/* Wishlist */}
             <Link href="/wishlist">
-              <button className="relative p-2 hover:bg-gray-100 rounded-full transition-colors">
-                <Heart className="w-5 h-5 text-gray-700" />
+              <button className="relative p-2 hover:bg-gray-50 rounded-lg transition-colors">
+                <Heart className="w-5 h-5 text-gray-600" />
                 {wishlistSummary?.itemCount > 0 && (
                   <span className="absolute -top-1 -right-1 w-4 h-4 bg-black text-white text-[10px] rounded-full flex items-center justify-center font-bold">
                     {wishlistSummary.itemCount > 9 ? "9+" : wishlistSummary.itemCount}
@@ -158,8 +151,8 @@ export default function Navbar() {
 
             {/* Cart */}
             <Link href="/cart">
-              <button className="relative p-2 hover:bg-gray-100 rounded-full transition-colors">
-                <ShoppingBag className="w-5 h-5 text-gray-700" />
+              <button className="relative p-2 hover:bg-gray-50 rounded-lg transition-colors">
+                <ShoppingBag className="w-5 h-5 text-gray-600" />
                 {me && cartSummary?.totalItems > 0 && (
                   <span className="absolute -top-1 -right-1 w-4 h-4 bg-black text-white text-[10px] rounded-full flex items-center justify-center font-bold">
                     {cartSummary.totalItems > 9 ? "9+" : cartSummary.totalItems}
@@ -168,8 +161,8 @@ export default function Navbar() {
               </button>
             </Link>
           </motion.div>
-        </motion.div>
-      </div>
+        </div>
+      </motion.div>
     </nav>
   );
 }
@@ -192,7 +185,7 @@ export function NavbarMobile() {
   return (
     <>
       {/* Top Bar */}
-      <nav className="fixed top-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md md:hidden">
+      <nav className="fixed top-0 left-0 right-0 z-40 bg-white backdrop-blur-md md:hidden">
         <div className="flex items-center justify-between px-4 py-3">
           {/* Menu */}
           <button
