@@ -35,7 +35,7 @@ export default function HeroSection() {
   const prevSlide = () => setCurrentSlide((prev) => (prev - 1 + heroImages.length) % heroImages.length);
 
   return (
-    <section className="relative bg-gray-900 overflow-hidden h-screen">
+    <section className="relative bg-white overflow-hidden h-screen">
       {/* Background Image Slider - All images rendered, only opacity changes */}
       <div className="absolute inset-0">
         {heroImages.map((img, idx) => (
@@ -68,7 +68,7 @@ export default function HeroSection() {
         
         <div className="absolute inset-0 bg-gradient-to-r from-black/60 via-black/30 to-transparent" />
       </div>
-
+removerem
       {/* Content */}
       <div className="relative z-10 h-full">
         <div className="max-w-7xl mx-auto px-4 md:px-6 w-full h-full flex items-center">

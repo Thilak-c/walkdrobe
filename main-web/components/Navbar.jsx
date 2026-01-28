@@ -4,10 +4,63 @@ import Link from "next/link";
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { motion, AnimatePresence } from "framer-motion";
-import { ShoppingBag, Heart, Search, Menu, X, User } from "lucide-react";
+import { ShoppingBag, Heart, Search, Menu, X, User, ChevronLeft, ChevronRight } from "lucide-react";
 import SidebarDrawer from "./SidebarDrawer";
 import SearchDropdown from "./SearchDropdown";
 import MobileSearchModal from "./MobileSearchModal";
+
+// ---------- Promo Bar Component ----------
+function PromoBar() {
+  const [isVisible, setIsVisible] = useState(true);
+
+  const offers = [
+    " Buy 2 Pairs Get Flat ₹400 OFF",
+    "Free Delivery for Prepaid Orders",
+    "T&C - All offers are only applicable on prepaid orders     "
+  ]
+
+  const allOffers = offers.join("  •  •  •  ");
+
+  if (!isVisible) return null;
+
+  return (
+    <div className="bg-black text-white relative overflow-hidden">
+      <div className="relative py-1.5 flex items-center">
+        {/* Scrolling text */}
+        <div className="flex-1 overflow-hidden">
+          <div className="flex animate-scroll whitespace-nowrap">
+            <span className="text-xs font-medium tracking-wide px-4">
+              {allOffers}    •    {allOffers}    •     {allOffers}
+            </span>
+          </div>
+        </div>
+
+        {/* Close Button */}
+        <button
+          onClick={() => setIsVisible(false)}
+          className="absolute right-2 flex items-center justify-center w-5 h-5 rounded-full hover:bg-white/20 transition-colors shrink-0"
+          aria-label="Close banner"
+        >
+          <X className="w-3 h-3" />
+        </button>
+      </div>
+
+      <style jsx>{`
+        @keyframes scroll {
+          0% {
+            transform: translateX(0);
+          }
+          100% {
+            transform: translateX(-33.333%);
+          }
+        }
+        .animate-scroll {
+          animation: scroll 30s linear infinite;
+        }
+      `}</style>
+    </div>
+  );
+}
 
 // ---------- Desktop Navbar ----------
 export default function Navbar() {
@@ -35,6 +88,9 @@ export default function Navbar() {
 
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 bg-white border-b border-gray-100 hidden md:block">
+      {/* Promo Bar */}
+      <PromoBar />
+      
       <motion.div 
         initial={{ y: -100, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
@@ -186,6 +242,9 @@ export function NavbarMobile() {
     <>
       {/* Top Bar */}
       <nav className="fixed top-0 left-0 right-0 z-40 bg-white backdrop-blur-md md:hidden">
+        {/* Promo Bar */}
+        <PromoBar />
+        
         <div className="flex items-center justify-between px-4 py-3">
           {/* Menu */}
           <button

@@ -321,15 +321,36 @@ export default function CheckoutPage() {
       const subtotal = directPurchaseItem.price * directPurchaseItem.quantity;
       const deliveryFee = subtotal >= 999 ? 0 : 50;
       const protectPromiseFee = directPurchaseItem.quantity * 9;
-      return { subtotal, deliveryFee, protectPromiseFee, finalTotal: subtotal + protectPromiseFee + deliveryFee };
+      
+      // COD charge: ₹100 per item (must be paid online)
+      const codCharge = selectedPaymentMethod === "cod" ? directPurchaseItem.quantity * 100 : 0;
+      
+      return { 
+        subtotal, 
+        deliveryFee, 
+        protectPromiseFee, 
+        codCharge,
+        finalTotal: subtotal + protectPromiseFee + deliveryFee + codCharge 
+      };
     } else {
-      if (!effectiveCartItems) return { subtotal: 0, deliveryFee: 0, protectPromiseFee: 0, finalTotal: 0 };
+      if (!effectiveCartItems) return { subtotal: 0, deliveryFee: 0, protectPromiseFee: 0, codCharge: 0, finalTotal: 0 };
+      
       const deliveryFee = effectiveCartTotals.totalPrice >= 999 ? 0 : 50;
-      return { subtotal: effectiveCartTotals.totalPrice, deliveryFee, protectPromiseFee: effectiveCartTotals.totalItems * 9, finalTotal: effectiveCartTotals.totalPrice + effectiveCartTotals.totalItems * 9 + deliveryFee };
+      
+      // COD charge: ₹100 per item (must be paid online)
+      const codCharge = selectedPaymentMethod === "cod" ? effectiveCartTotals.totalItems * 100 : 0;
+      
+      return { 
+        subtotal: effectiveCartTotals.totalPrice, 
+        deliveryFee, 
+        protectPromiseFee: effectiveCartTotals.totalItems * 9, 
+        codCharge,
+        finalTotal: effectiveCartTotals.totalPrice + effectiveCartTotals.totalItems * 9 + deliveryFee + codCharge 
+      };
     }
   };
 
-  const { subtotal, deliveryFee, protectPromiseFee, finalTotal } = (isDirectPurchase ? getOrderTotals() : (effectiveCartItems.length === 0 ? { subtotal: 0, deliveryFee: 0, protectPromiseFee: 0, finalTotal: 0 } : getOrderTotals()));
+  const { subtotal, deliveryFee, protectPromiseFee, codCharge, finalTotal } = (isDirectPurchase ? getOrderTotals() : (effectiveCartItems.length === 0 ? { subtotal: 0, deliveryFee: 0, protectPromiseFee: 0, codCharge: 0, finalTotal: 0 } : getOrderTotals()));
   const hybridDiscount = Math.round(finalTotal * 0.05);
   const hybridFinalTotal = finalTotal - hybridDiscount;
   const hybridUpfrontAmount = Math.round(hybridFinalTotal * 0.20);
@@ -384,6 +405,18 @@ export default function CheckoutPage() {
         country: paymentData.customerDetails?.country || "India",
       };
 
+      // Determine payment status and method based on payment type
+      let paymentStatus = "paid";
+      let paymentMethod = "razorpay";
+      
+      if (paymentData.isHybridPayment) {
+        paymentStatus = "partial";
+        paymentMethod = "hybrid";
+      } else if (paymentData.isCODPayment) {
+        paymentStatus = "partial"; // COD charge paid, remaining on delivery
+        paymentMethod = "cod";
+      }
+
       // Create order in database
       const orderResult = await createOrderMutation({
         userId: paymentData.userId || null,
@@ -394,8 +427,10 @@ export default function CheckoutPage() {
           razorpayPaymentId: response.razorpay_payment_id,
           amount: Number(paymentData.orderTotal) || 0,
           currency: "INR",
-          status: paymentData.isHybridPayment ? "partial" : "paid",
-          paymentMethod: paymentData.isHybridPayment ? "hybrid" : "razorpay",
+          status: paymentStatus,
+          paymentMethod: paymentMethod,
+          codCharge: paymentData.codDetails?.codCharge || 0,
+          remainingCOD: paymentData.codDetails?.remainingCOD || 0,
         },
         orderTotal: Number(paymentData.orderTotal) || 0,
         status: "confirmed",
@@ -608,44 +643,71 @@ export default function CheckoutPage() {
     
     setShowCODConfirmation(false);
     setIsProcessing(true);
+    
     try {
       const currentShippingDetails = getCurrentShippingDetails();
       if (!currentShippingDetails.fullName || !currentShippingDetails.email || !currentShippingDetails.phone || !currentShippingDetails.address || !currentShippingDetails.flatNo || !currentShippingDetails.area || !currentShippingDetails.city || !currentShippingDetails.pincode) {
-        showToastMessage("Please fill all required fields"); setIsProcessing(false); return;
+        showToastMessage("Please fill all required fields"); 
+        setIsProcessing(false); 
+        return;
       }
-      const mappedItems = isDirectPurchase ? [{ productId: directPurchaseItem.productId, name: directPurchaseItem.productName, price: directPurchaseItem.price, quantity: directPurchaseItem.quantity, size: directPurchaseItem.size, image: directPurchaseItem.productImage }]
-        : userCart.items.map((item) => ({ productId: item.productId, name: item.productName, price: item.price, quantity: item.quantity, size: item.size, image: item.productImage }));
-      const orderResult = await createOrderMutation({ userId: me?._id || null, items: mappedItems, shippingDetails: currentShippingDetails, paymentDetails: { amount: finalTotal, currency: "INR", status: "pending", paymentMethod: "cod" }, orderTotal: finalTotal, status: "confirmed" });
-        if (orderResult?.success) {
-        showToastMessage("Order placed successfully!");
-        // Send confirmation emails and create Shiprocket order
-        Promise.all([
-          fetch("/api/send-order-confirmation", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ userEmail: currentShippingDetails.email, userName: currentShippingDetails.fullName, orderNumber: orderResult.orderNumber, orderItems: mappedItems, orderTotal: finalTotal, shippingDetails: currentShippingDetails, paymentDetails: { amount: finalTotal, currency: "INR", status: "pending", paymentMethod: "cod" } }) }).catch(console.error),
-          fetch("/api/send-admin-notification", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ orderNumber: orderResult.orderNumber, customerName: currentShippingDetails.fullName, customerEmail: currentShippingDetails.email, orderTotal: finalTotal, items: mappedItems, shippingAddress: `${currentShippingDetails.address}, ${currentShippingDetails.city}, ${currentShippingDetails.state} - ${currentShippingDetails.pincode}`, shippingDetails: currentShippingDetails, paymentDetails: { amount: finalTotal, currency: "INR", status: "pending", paymentMethod: "cod" } }) }).catch(console.error),
-          // Automatically create Shiprocket order for COD
-          fetch("/api/auto-shiprocket", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ orderNumber: orderResult.orderNumber }),
-          }).then(response => response.json())
-            .then(result => {
-              if (!result.success) {
-                console.error("Shiprocket order creation failed for COD:", result.error);
-              }
-            })
-            .catch(error => {
-              console.error("Error creating Shiprocket order for COD:", error);
-            }),
-        ]);
-        if (!isDirectPurchase) {
-          if (me) { try { await clearCartMutation({ userId: me._id }); } catch (e) { console.error(e); } }
-          else { try { clearGuestCart(); } catch (e) { console.error(e); } }
+
+      // Create Razorpay order for COD charge (₹100 per item)
+      const response = await fetch("/api/create-order", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ 
+          amount: codCharge, // Only charge the COD fee online
+          currency: "INR", 
+          receipt: `cod_${Date.now()}`, 
+          notes: { 
+            userId: me?._id || "guest", 
+            userEmail: currentShippingDetails.email, 
+            userName: currentShippingDetails.fullName,
+            paymentType: "cod",
+            codCharge: codCharge,
+            totalAmount: finalTotal,
+            remainingCOD: finalTotal - codCharge
+          } 
+        }),
+      });
+
+      const data = await response.json();
+      if (!data.success) throw new Error(data.error || "Failed to create order");
+
+      // Open Razorpay modal to collect COD charge
+      const paymentData = {
+        orderId: data.order.id,
+        amount: data.order.amount, // COD charge amount
+        currency: data.order.currency,
+        customerDetails: currentShippingDetails,
+        items: isDirectPurchase 
+          ? [{ 
+              productId: directPurchaseItem.productId, 
+              productName: directPurchaseItem.productName, 
+              productImage: directPurchaseItem.productImage, 
+              price: directPurchaseItem.price, 
+              size: directPurchaseItem.size, 
+              quantity: directPurchaseItem.quantity 
+            }] 
+          : userCart.items,
+        orderTotal: finalTotal,
+        isDirectPurchase,
+        userId: me?._id,
+        isCODPayment: true,
+        codDetails: {
+          codCharge: codCharge,
+          remainingCOD: finalTotal - codCharge,
+          totalAmount: finalTotal
         }
-        console.log("🔄 COD Order - Redirecting to:", `/orders/${orderResult.orderNumber}`);
-        setTimeout(() => { router.push(`/orders/${orderResult.orderNumber}`); }, 1500);
-      } else { showToastMessage(orderResult?.message || "Order failed"); }
-    } catch (error) { showToastMessage(`Failed: ${error.message}`); }
-    finally { setIsProcessing(false); }
+      };
+
+      await openRazorpayModal(paymentData);
+      
+    } catch (error) { 
+      showToastMessage(`Failed: ${error.message}`); 
+      setIsProcessing(false);
+    }
   };
 
   const handlePayment = async () => {
@@ -978,7 +1040,7 @@ export default function CheckoutPage() {
                     </div>
                     <div className="flex-1">
                       <p className="font-medium text-gray-900">Cash on Delivery</p>
-                      <p className="text-xs text-gray-500">Pay when you receive</p>
+                      <p className="text-xs text-gray-500">₹{codCharge || 0} online + rest on delivery</p>
                     </div>
                     <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${selectedPaymentMethod === "cod" ? "border-gray-900 bg-gray-900" : "border-gray-300"}`}>
                       {selectedPaymentMethod === "cod" && <Check className="w-3 h-3 text-white" />}
@@ -1007,6 +1069,15 @@ export default function CheckoutPage() {
                   <span className="text-gray-500">Protection Fee</span>
                   <span className="text-gray-900">₹{protectPromiseFee}</span>
                 </div>
+                {selectedPaymentMethod === "cod" && codCharge > 0 && (
+                  <div className="flex justify-between items-center">
+                    <div className="flex items-center gap-1">
+                      <span className="text-orange-600 font-medium">COD Charge</span>
+                      <span className="text-xs text-gray-400">(₹100/item)</span>
+                    </div>
+                    <span className="text-orange-600 font-medium">₹{codCharge}</span>
+                  </div>
+                )}
                 {selectedPaymentMethod === "hybrid" && (
                   <div className="flex justify-between text-green-600">
                     <span>Hybrid Discount (5%)</span>
@@ -1018,6 +1089,12 @@ export default function CheckoutPage() {
                   <span className="font-bold text-lg text-gray-900">₹{(selectedPaymentMethod === "hybrid" ? hybridFinalTotal : finalTotal).toLocaleString()}</span>
                 </div>
               </div>
+
+              {selectedPaymentMethod === "cod" && codCharge > 0 && (
+                <div className="mt-4 p-3 bg-orange-50 border border-orange-200 rounded-xl">
+                  <p className="text-orange-700 text-xs font-medium">⚠️ COD Charge (₹{codCharge}) must be paid online now. Remaining amount will be collected on delivery.</p>
+                </div>
+              )}
 
               {selectedPaymentMethod === "hybrid" && (
                 <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-xl">
@@ -1032,6 +1109,8 @@ export default function CheckoutPage() {
               >
                 {isProcessing ? (
                   <><Loader2 className="w-5 h-5 animate-spin" /> Processing...</>
+                ) : selectedPaymentMethod === "cod" ? (
+                  <><Lock className="w-4 h-4" /> Pay COD Charge ₹{codCharge.toLocaleString()}</>
                 ) : (
                   <><Lock className="w-4 h-4" /> Pay ₹{(selectedPaymentMethod === "hybrid" ? hybridUpfrontAmount : finalTotal).toLocaleString()}</>
                 )}
@@ -1079,18 +1158,33 @@ export default function CheckoutPage() {
                 </div>
 
                 {/* Payment */}
-                <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl mb-4">
-                  <Truck className="w-6 h-6 text-gray-600" />
-                  <div>
-                    <p className="font-medium text-gray-900 text-sm">Cash on Delivery</p>
-                    <p className="text-xs text-gray-500">Pay ₹{finalTotal} when you receive</p>
+                <div className="space-y-2 mb-4">
+                  <div className="flex items-center gap-3 p-3 bg-orange-50 border border-orange-200 rounded-xl">
+                    <CreditCard className="w-6 h-6 text-orange-600" />
+                    <div>
+                      <p className="font-medium text-gray-900 text-sm">Pay Online Now</p>
+                      <p className="text-xs text-orange-600">COD Charge: ₹{codCharge}</p>
+                    </div>
                   </div>
+                  <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl">
+                    <Truck className="w-6 h-6 text-gray-600" />
+                    <div>
+                      <p className="font-medium text-gray-900 text-sm">Pay on Delivery</p>
+                      <p className="text-xs text-gray-500">Remaining: ₹{finalTotal - codCharge}</p>
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="p-3 bg-blue-50 border border-blue-200 rounded-xl mb-4">
+                  <p className="text-blue-700 text-xs">
+                    <strong>How it works:</strong> Pay ₹{codCharge} now to confirm your order. The remaining ₹{finalTotal - codCharge} will be collected when you receive your order.
+                  </p>
                 </div>
 
                 <div className="flex gap-3">
                   <button onClick={() => setShowCODConfirmation(false)} className="flex-1 py-3 border border-gray-300 text-gray-600 rounded-full font-medium">Cancel</button>
                   <button onClick={handleCODConfirmation} disabled={isProcessing} className="flex-[2] py-3 bg-gray-900 text-white rounded-full font-semibold disabled:opacity-50 flex items-center justify-center gap-2">
-                    {isProcessing ? <><Loader2 className="w-4 h-4 animate-spin" /> Processing...</> : <><Check className="w-4 h-4" /> Confirm Order</>}
+                    {isProcessing ? <><Loader2 className="w-4 h-4 animate-spin" /> Processing...</> : <><CreditCard className="w-4 h-4" /> Pay ₹{codCharge} Now</>}
                   </button>
                 </div>
               </div>
