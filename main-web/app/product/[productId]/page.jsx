@@ -208,17 +208,11 @@ export default function ProductPage() {
       ? SIZE_CHART_DATA.find((r) => parseFloat(r.uk) === uk)
       : null;
 
-    if (sizeSystem === "US") {
-      // Size chart doesn't include US in this dataset — fallback to uk+1
-      return entry && entry.us ? String(entry.us) : String(uk + 1);
-    }
-    if (sizeSystem === "EU") {
-      return entry && entry.euro ? String(entry.euro) : String(uk + 33);
-    }
-    if (sizeSystem === "CM") {
-      return entry && entry.cm ? String(entry.cm) : size;
-    }
-    return String(uk);
+    // Return object with EU and US sizes for separate styling
+    const euSize = entry && entry.euro ? String(entry.euro) : String(Math.round(uk + -33));
+    const usSize = entry && entry.us ? String(entry.us) : String(Math.round(uk + 1));
+    
+    return { eu: euSize, us: usSize };
   };
 
   if (isLoading) {
@@ -371,9 +365,13 @@ export default function ProductPage() {
                       const isOut = stock === 0;
                       const isSelected = selectedSize === size;
                       const isLow = stock > 0 && stock < 5;
+                      const sizeLabel = getSizeLabel(size);
                       return (
-                        <motion.button key={size} whileTap={{ scale: isOut ? 1 : 0.95 }} onClick={() => !isOut && setSelectedSize(size)} disabled={isOut} className={`relative py-3 rounded-xl font-medium transition-all text-sm ${isSelected ? "bg-gray-900 text-white" : isOut ? "bg-gray-100 text-gray-300 cursor-not-allowed" : "bg-gray-100 text-gray-700 hover:bg-gray-200"}`}>
-                          {getSizeLabel(size)}
+                        <motion.button key={size} whileTap={{ scale: isOut ? 1 : 0.95 }} onClick={() => !isOut && setSelectedSize(size)} disabled={isOut} className={`relative py-3 rounded-xl font-medium transition-all text-sm ${isSelected ? "bg-gray-900 text-white" : isOut ? "bg-gray-100 text-gray-300 cursor-not-allowed" : "bg-gray-100 hover:bg-gray-200"}`}>
+                          <div className="flex flex-col items-center leading-tight">
+                            <span className={isSelected ? "text-white font-bold" : "text-gray-900 font-bold"}>{sizeLabel.eu}</span>
+                            <span className={isSelected ? "text-white/70 text-xs" : "text-gray-400 text-xs"}>({sizeLabel.us})</span>
+                          </div>
                           {isLow && !isSelected && <span className="absolute -top-1 -right-1 w-2 h-2 bg-orange-500 rounded-full" />}
                           {isOut && <span className="absolute inset-0 flex items-center justify-center"><span className="w-full h-px bg-gray-300 rotate-45 absolute" /></span>}
                         </motion.button>
@@ -383,7 +381,7 @@ export default function ProductPage() {
                   {selectedSize && (
                     <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="flex items-center gap-2 text-sm">
                       <Check className="w-4 h-4 text-green-600" />
-                      <span className="text-gray-600">Size {getSizeLabel(selectedSize)} selected{product.sizeStock?.[selectedSize] < 5 && product.sizeStock?.[selectedSize] > 0 && <span className="text-orange-500 ml-2">• Only {product.sizeStock[selectedSize]} left</span>}</span>
+                      <span className="text-gray-600">Size {getSizeLabel(selectedSize).eu} ({getSizeLabel(selectedSize).us}) selected{product.sizeStock?.[selectedSize] < 5 && product.sizeStock?.[selectedSize] > 0 && <span className="text-orange-500 ml-2">• Only {product.sizeStock[selectedSize]} left</span>}</span>
                     </motion.div>
                   )}
                   {!selectedSize && <p className="text-gray-400 text-sm">Please select a size to continue</p>}
