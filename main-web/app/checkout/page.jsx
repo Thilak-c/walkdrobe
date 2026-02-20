@@ -38,6 +38,12 @@ export default function CheckoutPage() {
   const saveTimeoutRef = useRef(null);
   const formInitializedRef = useRef(false);
   
+  // Coupon states
+  const [couponCode, setCouponCode] = useState("");
+  const [appliedCoupon, setAppliedCoupon] = useState(null);
+  const [couponError, setCouponError] = useState("");
+  const [isApplyingCoupon, setIsApplyingCoupon] = useState(false);
+  
   // Pincode delivery check states
   const [pincodeCheckStatus, setPincodeCheckStatus] = useState(null); // null, 'checking', 'available', 'unavailable'
   const [deliveryInfo, setDeliveryInfo] = useState(null);
@@ -68,6 +74,74 @@ export default function CheckoutPage() {
 
   const handlePaymentMethodChange = (method) => {
     setSelectedPaymentMethod(method);
+    // Clear coupon if COD is selected
+    if (method === "cod" && appliedCoupon) {
+      setAppliedCoupon(null);
+      setCouponCode("");
+      setCouponError("");
+      showToastMessage("Coupons are only valid for prepaid orders");
+    }
+  };
+
+  // Coupon validation function
+  const handleApplyCoupon = async () => {
+    if (!couponCode.trim()) {
+      setCouponError("Please enter a coupon code");
+      return;
+    }
+
+    if (selectedPaymentMethod === "cod") {
+      setCouponError("Coupons are only valid for prepaid orders");
+      return;
+    }
+
+    setIsApplyingCoupon(true);
+    setCouponError("");
+
+    try {
+      const currentSubtotal = isDirectPurchase 
+        ? directPurchaseItem.price * directPurchaseItem.quantity 
+        : effectiveCartTotals.totalPrice;
+
+      // Validate coupon using Convex
+      const result = await fetch("/api/convex/coupons/validate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          code: couponCode.toUpperCase(),
+          userId: me?._id,
+          orderTotal: currentSubtotal,
+          paymentMethod: selectedPaymentMethod,
+        }),
+      });
+
+      const data = await result.json();
+
+      if (!data.valid) {
+        setCouponError(data.error || "Invalid coupon code");
+        setIsApplyingCoupon(false);
+        return;
+      }
+
+      setAppliedCoupon({
+        code: data.coupon.code,
+        type: data.coupon.discountType,
+        discount: data.coupon.discountValue,
+        discountAmount: data.coupon.discountAmount,
+      });
+      showToastMessage("Coupon applied successfully!");
+      setIsApplyingCoupon(false);
+    } catch (error) {
+      setCouponError("Failed to apply coupon");
+      setIsApplyingCoupon(false);
+    }
+  };
+
+  const handleRemoveCoupon = () => {
+    setAppliedCoupon(null);
+    setCouponCode("");
+    setCouponError("");
+    showToastMessage("Coupon removed");
   };
 
   // Pincode delivery check function
@@ -325,32 +399,46 @@ export default function CheckoutPage() {
       // COD charge: ₹100 per item (must be paid online)
       const codCharge = selectedPaymentMethod === "cod" ? directPurchaseItem.quantity * 100 : 0;
       
+      // Coupon discount (only for prepaid orders)
+      let couponDiscount = 0;
+      if (appliedCoupon && selectedPaymentMethod !== "cod") {
+        couponDiscount = appliedCoupon.discountAmount || 0;
+      }
+      
       return { 
         subtotal, 
         deliveryFee, 
         protectPromiseFee, 
         codCharge,
-        finalTotal: subtotal + protectPromiseFee + deliveryFee + codCharge 
+        couponDiscount,
+        finalTotal: Math.max(0, subtotal + protectPromiseFee + deliveryFee + codCharge - couponDiscount)
       };
     } else {
-      if (!effectiveCartItems) return { subtotal: 0, deliveryFee: 0, protectPromiseFee: 0, codCharge: 0, finalTotal: 0 };
+      if (!effectiveCartItems) return { subtotal: 0, deliveryFee: 0, protectPromiseFee: 0, codCharge: 0, couponDiscount: 0, finalTotal: 0 };
       
       const deliveryFee = effectiveCartTotals.totalPrice >= 999 ? 0 : 50;
       
       // COD charge: ₹100 per item (must be paid online)
       const codCharge = selectedPaymentMethod === "cod" ? effectiveCartTotals.totalItems * 100 : 0;
       
+      // Coupon discount (only for prepaid orders)
+      let couponDiscount = 0;
+      if (appliedCoupon && selectedPaymentMethod !== "cod") {
+        couponDiscount = appliedCoupon.discountAmount || 0;
+      }
+      
       return { 
         subtotal: effectiveCartTotals.totalPrice, 
         deliveryFee, 
         protectPromiseFee: effectiveCartTotals.totalItems * 9, 
         codCharge,
-        finalTotal: effectiveCartTotals.totalPrice + effectiveCartTotals.totalItems * 9 + deliveryFee + codCharge 
+        couponDiscount,
+        finalTotal: Math.max(0, effectiveCartTotals.totalPrice + effectiveCartTotals.totalItems * 9 + deliveryFee + codCharge - couponDiscount)
       };
     }
   };
 
-  const { subtotal, deliveryFee, protectPromiseFee, codCharge, finalTotal } = (isDirectPurchase ? getOrderTotals() : (effectiveCartItems.length === 0 ? { subtotal: 0, deliveryFee: 0, protectPromiseFee: 0, codCharge: 0, finalTotal: 0 } : getOrderTotals()));
+  const { subtotal, deliveryFee, protectPromiseFee, codCharge, couponDiscount, finalTotal } = (isDirectPurchase ? getOrderTotals() : (effectiveCartItems.length === 0 ? { subtotal: 0, deliveryFee: 0, protectPromiseFee: 0, codCharge: 0, couponDiscount: 0, finalTotal: 0 } : getOrderTotals()));
   const hybridDiscount = Math.round(finalTotal * 0.05);
   const hybridFinalTotal = finalTotal - hybridDiscount;
   const hybridUpfrontAmount = Math.round(hybridFinalTotal * 0.20);
@@ -1056,6 +1144,74 @@ export default function CheckoutPage() {
             <div className="bg-gray-50 rounded-2xl p-5 lg:sticky lg:top-24">
               <h2 className="text-base font-semibold text-gray-900 mb-4">Order Summary</h2>
               
+              {/* Coupon Code Section */}
+              {selectedPaymentMethod !== "cod" && (
+                <div className="mb-4 pb-4 border-b border-gray-200">
+                  <div className="space-y-2">
+                    {!appliedCoupon ? (
+                      <>
+                        <div className="flex gap-2">
+                          <input
+                            type="text"
+                            placeholder="Enter coupon code"
+                            value={couponCode}
+                            onChange={(e) => {
+                              setCouponCode(e.target.value.toUpperCase());
+                              setCouponError("");
+                            }}
+                            className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-900 focus:border-transparent"
+                          />
+                          <button
+                            onClick={handleApplyCoupon}
+                            disabled={isApplyingCoupon || !couponCode.trim()}
+                            className="px-4 py-2 bg-gray-900 text-white text-sm font-medium rounded-lg hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                          >
+                            {isApplyingCoupon ? <Loader2 className="w-4 h-4 animate-spin" /> : "Apply"}
+                          </button>
+                        </div>
+                        {couponError && (
+                          <p className="text-red-500 text-xs flex items-center gap-1">
+                            <AlertCircle className="w-3 h-3" />
+                            {couponError}
+                          </p>
+                        )}
+                      </>
+                    ) : (
+                      <div className="flex items-center justify-between p-3 bg-green-50 border border-green-200 rounded-lg">
+                        <div className="flex items-center gap-2">
+                          <Check className="w-4 h-4 text-green-600" />
+                          <div>
+                            <p className="text-sm font-medium text-green-900">{appliedCoupon.code}</p>
+                            <p className="text-xs text-green-600">
+                              {appliedCoupon.type === "flat" 
+                                ? `₹${appliedCoupon.discount} off` 
+                                : `${appliedCoupon.discount}% off`}
+                            </p>
+                          </div>
+                        </div>
+                        <button
+                          onClick={handleRemoveCoupon}
+                          className="p-1 text-green-600 hover:text-green-800 transition-colors"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {selectedPaymentMethod === "cod" && (
+                <div className="mb-4 pb-4 border-b border-gray-200">
+                  <div className="p-3 bg-gray-100 border border-gray-300 rounded-lg">
+                    <p className="text-gray-500 text-xs flex items-center gap-1">
+                      <AlertCircle className="w-3 h-3" />
+                      Coupons are only available for prepaid orders
+                    </p>
+                  </div>
+                </div>
+              )}
+              
               <div className="space-y-3 text-sm">
                 <div className="flex justify-between">
                   <span className="text-gray-500">Subtotal</span>
@@ -1076,6 +1232,15 @@ export default function CheckoutPage() {
                       <span className="text-xs text-gray-400">(₹100/item)</span>
                     </div>
                     <span className="text-orange-600 font-medium">₹{codCharge}</span>
+                  </div>
+                )}
+                {couponDiscount > 0 && (
+                  <div className="flex justify-between items-center text-green-600">
+                    <div className="flex items-center gap-1">
+                      <span className="font-medium">Coupon Discount</span>
+                      <span className="text-xs">({appliedCoupon?.code})</span>
+                    </div>
+                    <span className="font-medium">-₹{couponDiscount}</span>
                   </div>
                 )}
                 {selectedPaymentMethod === "hybrid" && (

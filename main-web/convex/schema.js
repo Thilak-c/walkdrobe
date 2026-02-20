@@ -1048,4 +1048,50 @@ export default defineSchema({
     createdAt: v.string(),
   })
     .index("by_date", ["date"]),
+
+  // Coupons table for discount codes
+  coupons: defineTable({
+    code: v.string(), // Coupon code (e.g., "FIRST100", "SAVE200")
+    description: v.string(), // Description of the coupon
+    discountType: v.string(), // "flat" or "percentage"
+    discountValue: v.number(), // Amount or percentage
+    minOrderValue: v.number(), // Minimum order value required
+    maxDiscount: v.optional(v.number()), // Maximum discount for percentage coupons
+    usageLimit: v.optional(v.number()), // Total usage limit (null = unlimited)
+    usageCount: v.number(), // Current usage count
+    perUserLimit: v.optional(v.number()), // Per user usage limit
+    validFrom: v.string(), // Start date
+    validUntil: v.string(), // End date
+    isActive: v.boolean(), // Active status
+    applicableCategories: v.optional(v.array(v.string())), // Specific categories
+    excludedCategories: v.optional(v.array(v.string())), // Excluded categories
+    applicableProducts: v.optional(v.array(v.string())), // Specific products
+    paymentMethods: v.optional(v.array(v.string())), // Allowed payment methods
+    createdBy: v.id("users"),
+    createdAt: v.string(),
+    updatedAt: v.string(),
+    isDeleted: v.optional(v.boolean()),
+    deletedAt: v.optional(v.string()),
+  })
+    .index("by_code", ["code"])
+    .index("by_active", ["isActive"])
+    .index("by_valid_until", ["validUntil"])
+    .index("by_created", ["createdAt"])
+    .index("by_deleted", ["isDeleted"]),
+
+  // Coupon Usage table for tracking coupon usage
+  couponUsage: defineTable({
+    couponId: v.id("coupons"),
+    couponCode: v.string(),
+    userId: v.optional(v.id("users")),
+    orderNumber: v.string(),
+    discountAmount: v.number(),
+    orderTotal: v.number(),
+    usedAt: v.string(),
+  })
+    .index("by_coupon", ["couponId"])
+    .index("by_user", ["userId"])
+    .index("by_order", ["orderNumber"])
+    .index("by_used_at", ["usedAt"])
+    .index("by_user_coupon", ["userId", "couponId"]),
 });

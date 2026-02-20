@@ -210,7 +210,7 @@ export default function ProductPage() {
 
     // Return object with EU and US sizes for separate styling
     const euSize = entry && entry.euro ? String(entry.euro) : String(Math.round(uk + -33));
-    const usSize = entry && entry.us ? String(entry.us) : String(Math.round(uk + 1));
+    const usSize = entry && entry.us ? String(entry.us) : String(Math.round(uk));
     
     return { eu: euSize, us: usSize };
   };
