@@ -12,6 +12,7 @@ import type * as auth from "../auth.js";
 import type * as cart from "../cart.js";
 import type * as category from "../category.js";
 import type * as chatSessions from "../chatSessions.js";
+import type * as coupons from "../coupons.js";
 import type * as crons from "../crons.js";
 import type * as dailyAccess from "../dailyAccess.js";
 import type * as emailNotifications from "../emailNotifications.js";
@@ -43,6 +44,7 @@ declare const fullApi: ApiFromModules<{
   cart: typeof cart;
   category: typeof category;
   chatSessions: typeof chatSessions;
+  coupons: typeof coupons;
   crons: typeof crons;
   dailyAccess: typeof dailyAccess;
   emailNotifications: typeof emailNotifications;

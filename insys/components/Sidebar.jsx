@@ -22,6 +22,7 @@ import {
   Upload,
   TrendingDown,
   ShoppingCart,
+  Tag,
 } from "lucide-react";
 import toast from "react-hot-toast";
 
@@ -51,6 +52,7 @@ const offlineNavItems = [
 const websiteNavItems = [
   { href: "/website", label: "Dashboard", icon: LayoutDashboard, description: "Website overview" },
   { href: "/website/orders", label: "Orders", icon: ShoppingCart, description: "Customer orders" },
+  { href: "/website/coupons", label: "Coupons", icon: Tag, description: "Discount codes" },
   { href: "/website/add-product", label: "Add Product", icon: PlusCircle, description: "Add to website" },
   { href: "/website/products", label: "All Products", icon: Package, description: "Website inventory" },
   { href: "/website/import", label: "Import", icon: Upload, description: "Bulk import products" },
