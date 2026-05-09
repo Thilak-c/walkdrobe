@@ -44,7 +44,7 @@ export default function AuthWrapper({ children }) {
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <div className="inline-flex items-center justify-center w-16 h-16 bg-gray-900 rounded-2xl mb-4 animate-pulse">
-            <Package className="w-8 h-8 text-white" />
+            {/* <Package className="w-8 h-8 text-white" /> */}
           </div>
           <p className="text-gray-400 text-sm">Loading...</p>
         </div>

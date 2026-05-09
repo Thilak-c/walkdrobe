@@ -20,7 +20,7 @@ export default function LoginPage() {
 
   // Demo credentials (replace with actual auth)
   const VALID_CREDENTIALS = {
-    adminId: "admin",
+    adminId: "Walkdrobe",
     password: "walkdrobe123"
   };
 
@@ -72,16 +72,10 @@ export default function LoginPage() {
       
       <div className="relative w-full max-w-md">
         {/* Logo */}
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-gray-900 rounded-2xl mb-4">
-            <Package className="w-8 h-8 text-white" />
-          </div>
-          <h1 className="text-2xl font-bold text-gray-900 font-poppins">Walkdrobe</h1>
-          <p className="text-gray-400 text-sm tracking-wider">INVENTORY SYSTEM</p>
-        </div>
+     
 
         {/* Card */}
-        <div className="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
+        <div className="bg-white shadow-xl border border-gray-100 overflow-hidden">
           {step === 1 ? (
             /* Step 1: Login Form */
             <form onSubmit={handleLogin} className="p-8">
@@ -167,7 +161,7 @@ export default function LoginPage() {
                 <button
                   onClick={() => handleStoreSelect("website")}
                   disabled={isLoading}
-                  className={`w-full p-5 rounded-2xl border-2 transition-all text-left group hover:border-gray-900 hover:shadow-lg ${
+                  className={`w-full p-5 border-2 transition-all text-left group hover:border-gray-900 hover:shadow-lg ${
                     storeType === "website" ? "border-gray-900 bg-gray-50" : "border-gray-100"
                   }`}
                 >
