@@ -16,7 +16,8 @@ import {
   Sparkles,
   ShoppingBag,
   Bell,
-  RefreshCw
+  RefreshCw,
+  Plus
 } from "lucide-react";
 import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip } from "recharts";
 import Link from "next/link";
