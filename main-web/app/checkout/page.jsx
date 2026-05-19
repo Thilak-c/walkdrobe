@@ -639,6 +639,7 @@ export default function CheckoutPage() {
       amount: paymentData.amount,
       currency: paymentData.currency || "INR",
       name: "Walkdrobe",
+      image: "https://walkdrobe.in/favicon.ico",
       description: paymentData.isHybridPayment 
         ? `Hybrid Payment - ₹${paymentData.hybridDetails?.upfrontAmount} upfront` 
         : "Order Payment",
