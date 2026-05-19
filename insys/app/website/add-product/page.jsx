@@ -4,7 +4,25 @@ import { useState } from "react";
 import { useMutation } from "convex/react";
 import { api } from "../../../../main-web/convex/_generated/api";
 import Sidebar from "@/components/Sidebar";
-import { Package, Plus, X, Upload, CheckCircle, Globe, ArrowLeft } from "lucide-react";
+import {
+  Package,
+  Plus,
+  X,
+  Upload,
+  CheckCircle2,
+  Globe,
+  ArrowLeft,
+  Tag,
+  DollarSign,
+  Layers,
+  Palette,
+  Eye,
+  IndianRupee,
+  BadgeAlert,
+  Percent,
+  RefreshCw,
+  Image as ImageIcon
+} from "lucide-react";
 import toast from "react-hot-toast";
 import Link from "next/link";
 
@@ -15,17 +33,27 @@ const CATEGORIES = ["All", "Sneakers", "Sports"];
 export default function WebsiteAddProduct() {
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [uploadingState, setUploadingState] = useState({ main: false, secondary: false });
   const [form, setForm] = useState({
-    sku: "", name: "", category: "", color: "", secondaryColor: "",
-    sizes: [], sizeStock: {}, costPrice: "", sellingPrice: "",
-    description: "", mainImage: "", otherImages: [],
+    sku: "",
+    name: "",
+    category: "",
+    color: "",
+    secondaryColor: "",
+    sizes: [],
+    sizeStock: {},
+    costPrice: "",
+    sellingPrice: "",
+    description: "",
+    mainImage: "",
+    otherImages: [],
   });
 
   const addProduct = useMutation(api.products.addProduct);
 
   const toggleSize = (size) => {
     const has = form.sizes.includes(size);
-    const sizes = has ? form.sizes.filter(s => s !== size) : [...form.sizes, size];
+    const sizes = has ? form.sizes.filter((s) => s !== size) : [...form.sizes, size];
     const sizeStock = { ...form.sizeStock };
     if (has) delete sizeStock[size];
     else sizeStock[size] = 0;
@@ -36,8 +64,8 @@ export default function WebsiteAddProduct() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!form.sku || !form.name || !form.sellingPrice) return toast.error("Fill required fields");
-    if (form.sizes.length === 0) return toast.error("Select at least one size");
+    if (!form.sku || !form.name || !form.sellingPrice) return toast.error("Please fill in all required fields.");
+    if (form.sizes.length === 0) return toast.error("Please configure stock for at least one size.");
 
     setLoading(true);
     try {
@@ -56,53 +84,92 @@ export default function WebsiteAddProduct() {
         secondaryColor: form.secondaryColor || undefined,
       });
       setSuccess(true);
-      toast.success("Product added!");
+      toast.success("Product successfully added to catalog!");
     } catch (err) {
-      toast.error(err.message || "Failed to add");
+      toast.error(err.message || "Failed to save product details.");
     } finally {
       setLoading(false);
     }
   };
 
   const reset = () => {
-    setForm({ sku: "", name: "", category: "", color: "", secondaryColor: "", sizes: [], sizeStock: {}, costPrice: "", sellingPrice: "", description: "", mainImage: "", otherImages: [] });
+    setForm({
+      sku: "",
+      name: "",
+      category: "",
+      color: "",
+      secondaryColor: "",
+      sizes: [],
+      sizeStock: {},
+      costPrice: "",
+      sellingPrice: "",
+      description: "",
+      mainImage: "",
+      otherImages: [],
+    });
     setSuccess(false);
   };
 
   const uploadImage = async (file, isMain = true) => {
     const fd = new FormData();
     fd.append("file", file);
+    
+    // Set upload state loading
+    if (isMain) setUploadingState(prev => ({ ...prev, main: true }));
+    else setUploadingState(prev => ({ ...prev, secondary: true }));
+    
     try {
-      toast.loading("Uploading...", { id: "upload" });
+      toast.loading("Uploading photo content...", { id: "upload" });
       const res = await fetch("/api/upload", { method: "POST", body: fd });
       const data = await res.json();
       if (data.success && data.url) {
-        if (isMain) setForm(f => ({ ...f, mainImage: data.url }));
-        else setForm(f => ({ ...f, otherImages: [...f.otherImages, data.url] }));
-        toast.success("Uploaded!", { id: "upload" });
+        if (isMain) setForm((f) => ({ ...f, mainImage: data.url }));
+        else setForm((f) => ({ ...f, otherImages: [...f.otherImages, data.url] }));
+        toast.success("Photo uploaded successfully!", { id: "upload" });
       } else {
-        toast.error(data.error || "Upload failed", { id: "upload" });
+        toast.error(data.error || "Upload process failed.", { id: "upload" });
       }
     } catch (err) {
       console.error("Upload error:", err);
-      toast.error("Upload failed - check if main-web is running", { id: "upload" });
+      toast.error("Upload failed - Verify backend systems are active.", { id: "upload" });
+    } finally {
+      if (isMain) setUploadingState(prev => ({ ...prev, main: false }));
+      else setUploadingState(prev => ({ ...prev, secondary: false }));
     }
   };
 
+  // Profit Calculations
+  const cp = parseFloat(form.costPrice) || 0;
+  const sp = parseFloat(form.sellingPrice) || 0;
+  const profit = sp - cp;
+  const profitPercentage = cp > 0 ? (profit / cp) * 100 : 0;
+
   if (success) {
     return (
-      <div className="flex min-h-screen bg-gray-50">
+      <div className="flex min-h-screen bg-slate-50/50">
         <Sidebar />
         <main className="flex-1 p-4 lg:p-8 flex items-center justify-center">
-          <div className="bg-white rounded-2xl p-10 border border-gray-200 text-center max-w-md">
-            <div className="w-16 h-16 bg-gray-900 rounded-full flex items-center justify-center mx-auto mb-4">
-              <CheckCircle className="w-8 h-8 text-white" />
+          <div className="bg-white rounded-3xl p-10 border border-slate-200/80 text-center max-w-md shadow-lg animate-fadeIn">
+            <div className="w-16 h-16 bg-slate-900 rounded-full flex items-center justify-center mx-auto mb-5 shadow-md shadow-slate-100">
+              <CheckCircle2 className="w-8 h-8 text-white" />
             </div>
-            <h2 className="text-xl font-bold text-gray-900 mb-2">Product Added!</h2>
-            <p className="text-gray-500 mb-6">Successfully added to website inventory</p>
+            <h2 className="text-2xl font-extrabold text-slate-800 tracking-tight">Product Cataloged!</h2>
+            <p className="text-slate-500 text-sm mt-2 mb-8 leading-relaxed">
+              Your product has been registered successfully and is now active across your online digital storefront.
+            </p>
             <div className="flex gap-3 justify-center">
-              <button onClick={reset} className="px-5 py-2.5 bg-gray-900 text-white rounded-lg font-medium hover:bg-gray-800">Add Another</button>
-              <Link href="/website/products" className="px-5 py-2.5 border border-gray-200 rounded-lg font-medium hover:bg-gray-50">View Products</Link>
+              <button
+                onClick={reset}
+                className="px-5 py-3 bg-slate-900 hover:bg-slate-800 text-white rounded-2xl text-xs font-semibold shadow-sm transition-all cursor-pointer"
+              >
+                Catalog Another Product
+              </button>
+              <Link
+                href="/website/products"
+                className="px-5 py-3 border border-slate-200 hover:bg-slate-50 rounded-2xl text-xs font-semibold text-slate-600 transition-all"
+              >
+                Browse Products
+              </Link>
             </div>
           </div>
         </main>
@@ -111,145 +178,345 @@ export default function WebsiteAddProduct() {
   }
 
   return (
-    <div className="flex min-h-screen bg-gray-50">
+    <div className="flex min-h-screen bg-slate-50/50">
       <Sidebar />
-      <main className="flex-1 p-4 lg:p-8">
-        <div className="max-w-2xl mx-auto">
+      <main className="flex-1 p-4 lg:p-8 overflow-x-hidden">
+        <div className="max-w-4xl mx-auto">
           {/* Header */}
-          <div className="mb-6 pt-12 lg:pt-0">
-            <Link href="/website" className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 mb-2">
-              <ArrowLeft size={14} /> Back
+          <div className="mb-8 pt-12 lg:pt-0">
+            <Link href="/website/products" className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-400 hover:text-slate-700 transition-colors uppercase tracking-wider mb-3">
+              <ArrowLeft className="w-3.5 h-3.5" /> <span>Back to Catalog</span>
             </Link>
-            <div className="flex items-center gap-2 mb-1">
-              <Globe size={16} className="text-gray-400" />
-              <p className="text-gray-400 text-xs font-medium">WEBSITE STORE</p>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-blue-500 tracking-widest text-[10px] font-bold uppercase mb-1">Website Store</p>
+                <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight font-poppins">Add New Product</h1>
+                <p className="text-slate-500 text-sm mt-1">Catalog new shoes, load digital images, configure pricing, and scale sizing grids.</p>
+              </div>
             </div>
-            <h1 className="text-2xl font-bold text-gray-900">Add Product</h1>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
-            {/* Basic Info */}
-            <div className="bg-white rounded-xl p-5 border border-gray-200">
-              <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                <Package size={18} className="text-gray-400" /> Basic Info
-              </h3>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="col-span-2">
-                  <label className="text-sm text-gray-600 mb-1 block">SKU *</label>
-                  <input value={form.sku} onChange={e => setForm({ ...form, sku: e.target.value.toUpperCase() })} placeholder="WD-001" className="w-full px-3 py-2.5 bg-gray-50 rounded-lg text-sm font-mono border-0 focus:ring-2 focus:ring-gray-900" required />
-                </div>
-                <div className="col-span-2">
-                  <label className="text-sm text-gray-600 mb-1 block">Name *</label>
-                  <input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} placeholder="Product name" className="w-full px-3 py-2.5 bg-gray-50 rounded-lg text-sm border-0 focus:ring-2 focus:ring-gray-900" required />
-                </div>
-                <div>
-                  <label className="text-sm text-gray-600 mb-1 block">Category</label>
-                  <select value={form.category} onChange={e => setForm({ ...form, category: e.target.value })} className="w-full px-3 py-2.5 bg-gray-50 rounded-lg text-sm border-0 focus:ring-2 focus:ring-gray-900">
-                    <option value="">Select</option>
-                    {CATEGORIES.map(c => <option key={c}>{c}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="text-sm text-gray-600 mb-1 block">Color</label>
-                  <select value={form.color} onChange={e => setForm({ ...form, color: e.target.value })} className="w-full px-3 py-2.5 bg-gray-50 rounded-lg text-sm border-0 focus:ring-2 focus:ring-gray-900">
-                    <option value="">Select</option>
-                    {COLORS.map(c => <option key={c}>{c}</option>)}
-                  </select>
-                </div>
-                <div className="col-span-2">
-                  <label className="text-sm text-gray-600 mb-1 block">Description</label>
-                  <textarea value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} rows={2} className="w-full px-3 py-2.5 bg-gray-50 rounded-lg text-sm resize-none border-0 focus:ring-2 focus:ring-gray-900" placeholder="Optional description" />
-                </div>
-              </div>
-            </div>
-
-            {/* Images */}
-            <div className="bg-white rounded-xl p-5 border border-gray-200">
-              <h3 className="font-semibold text-gray-900 mb-4">Images</h3>
-              <div className="flex gap-3 flex-wrap">
-                {form.mainImage ? (
-                  <div className="w-20 h-20 rounded-lg overflow-hidden relative group border border-gray-200">
-                    <img src={form.mainImage} className="w-full h-full object-cover" />
-                    <button type="button" onClick={() => setForm({ ...form, mainImage: "" })} className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center">
-                      <X className="text-white" size={20} />
-                    </button>
-                    <span className="absolute bottom-0 left-0 right-0 bg-gray-900 text-white text-[10px] text-center">Main</span>
+          <form onSubmit={handleSubmit} className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Left Column: Form Details */}
+            <div className="lg:col-span-2 space-y-6">
+              
+              {/* Card 1: Basic Specifications */}
+              <div className="bg-white rounded-3xl border border-slate-200/60 p-6 shadow-sm space-y-4">
+                <h3 className="font-bold text-slate-800 text-sm flex items-center gap-2 border-b border-slate-50 pb-3">
+                  <Package className="w-4.5 h-4.5 text-slate-400" /> Basic Specifications
+                </h3>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="col-span-2">
+                    <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">Item SKU code *</label>
+                    <input
+                      type="text"
+                      required
+                      value={form.sku}
+                      onChange={(e) => setForm({ ...form, sku: e.target.value.toUpperCase() })}
+                      placeholder="e.g. WD-SNEAK-01"
+                      className="w-full px-4 py-2.5 bg-slate-50/50 hover:bg-slate-50 border border-slate-200 focus:border-slate-800 rounded-xl text-xs font-mono font-bold focus:outline-none"
+                    />
                   </div>
-                ) : (
-                  <label className="w-20 h-20 border-2 border-dashed border-gray-300 rounded-lg flex flex-col items-center justify-center cursor-pointer hover:bg-gray-50 hover:border-gray-400">
-                    <Upload size={18} className="text-gray-400" />
-                    <span className="text-[10px] text-gray-400">Main</span>
-                    <input type="file" accept="image/*" className="hidden" onChange={e => e.target.files?.[0] && uploadImage(e.target.files[0], true)} />
-                  </label>
-                )}
-                {form.otherImages.map((img, i) => (
-                  <div key={i} className="w-20 h-20 rounded-lg overflow-hidden relative group border border-gray-200">
-                    <img src={img} className="w-full h-full object-cover" />
-                    <button type="button" onClick={() => setForm({ ...form, otherImages: form.otherImages.filter((_, j) => j !== i) })} className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center">
-                      <X className="text-white" size={20} />
-                    </button>
-                  </div>
-                ))}
-                {form.otherImages.length < 4 && (
-                  <label className="w-20 h-20 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center cursor-pointer hover:bg-gray-50 hover:border-gray-400">
-                    <Plus size={18} className="text-gray-400" />
-                    <input type="file" accept="image/*" className="hidden" onChange={e => e.target.files?.[0] && uploadImage(e.target.files[0], false)} />
-                  </label>
-                )}
-              </div>
-            </div>
 
-            {/* Sizes & Stock */}
-            <div className="bg-white rounded-xl p-5 border border-gray-200">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="font-semibold text-gray-900">Sizes & Stock</h3>
-                <span className="text-sm text-gray-900 font-bold">{totalStock} total</span>
+                  <div className="col-span-2">
+                    <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">Product Name *</label>
+                    <input
+                      type="text"
+                      required
+                      value={form.name}
+                      onChange={(e) => setForm({ ...form, name: e.target.value })}
+                      placeholder="e.g. Premium Leather Sneakers"
+                      className="w-full px-4 py-2.5 bg-slate-50/50 hover:bg-slate-50 border border-slate-200 focus:border-slate-800 rounded-xl text-xs focus:outline-none"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">Store Category</label>
+                    <select
+                      value={form.category}
+                      onChange={(e) => setForm({ ...form, category: e.target.value })}
+                      className="w-full px-3 py-2.5 bg-slate-50/50 hover:bg-slate-50 border border-slate-200 focus:border-slate-800 rounded-xl text-xs focus:outline-none"
+                    >
+                      <option value="">Select Category</option>
+                      {CATEGORIES.map((c) => (
+                        <option key={c} value={c}>{c}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">Primary Color</label>
+                    <select
+                      value={form.color}
+                      onChange={(e) => setForm({ ...form, color: e.target.value })}
+                      className="w-full px-3 py-2.5 bg-slate-50/50 hover:bg-slate-50 border border-slate-200 focus:border-slate-800 rounded-xl text-xs focus:outline-none"
+                    >
+                      <option value="">Select Color</option>
+                      {COLORS.map((c) => (
+                        <option key={c} value={c}>{c}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="col-span-2">
+                    <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">Catalog Description</label>
+                    <textarea
+                      value={form.description}
+                      onChange={(e) => setForm({ ...form, description: e.target.value })}
+                      rows={3}
+                      placeholder="Enter detailed description about fits, material quality, and styles..."
+                      className="w-full px-4 py-2.5 bg-slate-50/50 hover:bg-slate-50 border border-slate-200 focus:border-slate-800 rounded-xl text-xs focus:outline-none resize-none"
+                    />
+                  </div>
+                </div>
               </div>
-              <div className="flex flex-wrap gap-2 mb-4">
-                {SIZES.map(s => (
-                  <button key={s} type="button" onClick={() => toggleSize(s)} className={`w-10 h-10 rounded-lg text-sm font-medium transition ${form.sizes.includes(s) ? "bg-gray-900 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"}`}>{s}</button>
-                ))}
-              </div>
-              {form.sizes.length > 0 && (
-                <div className="grid grid-cols-4 gap-2">
-                  {form.sizes.sort((a, b) => +a - +b).map(s => (
-                    <div key={s} className="bg-gray-50 rounded-lg p-2">
-                      <label className="text-xs text-gray-500">Size {s}</label>
-                      <input type="number" min="0" value={form.sizeStock[s] || ""} onChange={e => setForm({ ...form, sizeStock: { ...form.sizeStock, [s]: parseInt(e.target.value) || 0 } })} className="w-full px-2 py-1.5 bg-white border border-gray-200 rounded text-sm mt-1 focus:ring-2 focus:ring-gray-900 focus:border-transparent" />
+
+              {/* Card 2: Size Grid & Inventory Stock */}
+              <div className="bg-white rounded-3xl border border-slate-200/60 p-6 shadow-sm space-y-4">
+                <div className="flex items-center justify-between border-b border-slate-50 pb-3">
+                  <h3 className="font-bold text-slate-800 text-sm flex items-center gap-2">
+                    <Layers className="w-4.5 h-4.5 text-slate-400" /> Size Grid & Inventory Stock
+                  </h3>
+                  <span className="text-xs bg-slate-100 font-extrabold text-slate-700 px-3 py-1 rounded-xl shadow-sm border border-slate-200">
+                    {totalStock} Pair{totalStock !== 1 ? "s" : ""} Total
+                  </span>
+                </div>
+
+                <div className="space-y-4">
+                  <p className="text-xs text-slate-400 leading-relaxed">
+                    Select shoe sizes to activate and enter exact stock quantities.
+                  </p>
+
+                  <div className="flex flex-wrap gap-2.5">
+                    {SIZES.map((s) => {
+                      const isActive = form.sizes.includes(s);
+                      return (
+                        <button
+                          key={s}
+                          type="button"
+                          onClick={() => toggleSize(s)}
+                          className={`w-12 h-12 rounded-2xl text-xs font-bold transition-all border flex items-center justify-center cursor-pointer ${
+                            isActive
+                              ? "bg-slate-900 border-slate-900 text-white shadow-md shadow-slate-100 scale-105"
+                              : "bg-white border-slate-200 text-slate-500 hover:border-slate-300 hover:bg-slate-50"
+                          }`}
+                        >
+                          {s}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {form.sizes.length > 0 && (
+                    <div className="grid grid-cols-3 sm:grid-cols-6 gap-2.5 pt-2 animate-fadeIn">
+                      {form.sizes
+                        .sort((a, b) => +a - +b)
+                        .map((s) => (
+                          <div key={s} className="bg-slate-50/70 border border-slate-100 rounded-2xl p-2.5 text-center">
+                            <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">UK {s}</label>
+                            <input
+                              type="number"
+                              min="0"
+                              required
+                              value={form.sizeStock[s] || ""}
+                              onChange={(e) =>
+                                setForm({
+                                  ...form,
+                                  sizeStock: { ...form.sizeStock, [s]: parseInt(e.target.value) || 0 },
+                                })
+                              }
+                              className="w-full px-2 py-1.5 bg-white border border-slate-200 rounded-xl text-center text-xs font-bold focus:outline-none"
+                              placeholder="0"
+                            />
+                          </div>
+                        ))}
                     </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Pricing */}
-            <div className="bg-white rounded-xl p-5 border border-gray-200">
-              <h3 className="font-semibold text-gray-900 mb-4">Pricing</h3>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="text-sm text-gray-600 mb-1 block">Cost Price (₹)</label>
-                  <input type="number" value={form.costPrice} onChange={e => setForm({ ...form, costPrice: e.target.value })} placeholder="0" className="w-full px-3 py-2.5 bg-gray-50 rounded-lg text-sm border-0 focus:ring-2 focus:ring-gray-900" />
-                </div>
-                <div>
-                  <label className="text-sm text-gray-600 mb-1 block">Selling Price (₹) *</label>
-                  <input type="number" value={form.sellingPrice} onChange={e => setForm({ ...form, sellingPrice: e.target.value })} placeholder="0" className="w-full px-3 py-2.5 bg-gray-50 rounded-lg text-sm border-0 focus:ring-2 focus:ring-gray-900" required />
+                  )}
                 </div>
               </div>
-              {form.costPrice && form.sellingPrice && +form.costPrice > 0 && (
-                <div className="mt-3 p-3 bg-gray-100 rounded-lg flex justify-between text-sm">
-                  <span className="text-gray-600">Profit</span>
-                  <span className="font-bold text-gray-900">₹{(+form.sellingPrice - +form.costPrice).toFixed(0)} ({(((+form.sellingPrice - +form.costPrice) / +form.costPrice) * 100).toFixed(0)}%)</span>
-                </div>
-              )}
             </div>
 
-            {/* Submit */}
-            <div className="flex gap-3">
-              <button type="button" onClick={reset} className="px-5 py-3 border border-gray-200 rounded-xl text-gray-600 hover:bg-gray-50">Reset</button>
-              <button type="submit" disabled={loading} className="flex-1 py-3 bg-gray-900 text-white rounded-xl font-medium hover:bg-gray-800 disabled:opacity-50 flex items-center justify-center gap-2">
-                {loading ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Plus size={18} />}
-                {loading ? "Adding..." : "Add Product"}
-              </button>
+            {/* Right Column: Pricing & Photo Media */}
+            <div className="space-y-6">
+              
+              {/* Card 3: Pricing Analytics */}
+              <div className="bg-white rounded-3xl border border-slate-200/60 p-6 shadow-sm space-y-4">
+                <h3 className="font-bold text-slate-800 text-sm flex items-center gap-2 border-b border-slate-50 pb-3">
+                  <DollarSign className="w-4.5 h-4.5 text-slate-400" /> Pricing & Financials
+                </h3>
+
+                <div className="space-y-4">
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">Cost Price (₹)</label>
+                    <div className="relative">
+                      <IndianRupee className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 w-3.5 h-3.5" />
+                      <input
+                        type="number"
+                        min="0"
+                        value={form.costPrice}
+                        onChange={(e) => setForm({ ...form, costPrice: e.target.value })}
+                        placeholder="0"
+                        className="w-full pl-9 pr-4 py-2.5 bg-slate-50/50 hover:bg-slate-50 border border-slate-200 focus:border-slate-800 rounded-xl text-xs font-bold focus:outline-none"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">Selling Price (₹) *</label>
+                    <div className="relative">
+                      <IndianRupee className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 w-3.5 h-3.5" />
+                      <input
+                        type="number"
+                        min="0"
+                        required
+                        value={form.sellingPrice}
+                        onChange={(e) => setForm({ ...form, sellingPrice: e.target.value })}
+                        placeholder="0"
+                        className="w-full pl-9 pr-4 py-2.5 bg-slate-50/50 hover:bg-slate-50 border border-slate-200 focus:border-slate-800 rounded-xl text-xs font-extrabold focus:outline-none"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Profit Margin Visualization Indicator */}
+                  {cp > 0 && sp > 0 && (
+                    <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 space-y-2.5 animate-fadeIn">
+                      <div className="flex justify-between text-xs font-medium">
+                        <span className="text-slate-400">Profit Margin</span>
+                        <span className={`font-extrabold ${profit >= 0 ? "text-emerald-600" : "text-rose-500"}`}>
+                          ₹{profit.toFixed(0)} ({profitPercentage.toFixed(0)}%)
+                        </span>
+                      </div>
+                      
+                      {/* Bar indicator */}
+                      <div className="w-full h-1.5 bg-slate-200 rounded-full overflow-hidden">
+                        <div
+                          className={`h-full rounded-full ${profit >= 0 ? "bg-emerald-500" : "bg-rose-500"}`}
+                          style={{ width: `${Math.min(Math.max(profitPercentage, 0), 100)}%` }}
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Card 4: Catalog Photos */}
+              <div className="bg-white rounded-3xl border border-slate-200/60 p-6 shadow-sm space-y-4">
+                <h3 className="font-bold text-slate-800 text-sm flex items-center gap-2 border-b border-slate-50 pb-3">
+                  <ImageIcon className="w-4.5 h-4.5 text-slate-400" /> Product Photos
+                </h3>
+
+                <div className="space-y-5">
+                  
+                  {/* Primary Photo Uploader */}
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-400 uppercase block mb-2">Primary Cover Photo</label>
+                    {form.mainImage ? (
+                      <div className="w-full h-36 rounded-2xl overflow-hidden relative group border shadow-sm bg-slate-50">
+                        <img src={form.mainImage} className="w-full h-full object-cover" />
+                        <button
+                          type="button"
+                          onClick={() => setForm({ ...form, mainImage: "" })}
+                          className="absolute inset-0 bg-slate-900/60 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity cursor-pointer text-white text-xs font-bold gap-1.5"
+                        >
+                          <X className="w-5 h-5" /> Remove Cover
+                        </button>
+                      </div>
+                    ) : (
+                      <label className="h-36 border-2 border-dashed border-slate-200 hover:border-slate-400 hover:bg-slate-50 rounded-2xl flex flex-col items-center justify-center cursor-pointer transition-all">
+                        {uploadingState.main ? (
+                          <>
+                            <RefreshCw className="w-6 h-6 text-blue-500 animate-spin" />
+                            <span className="text-[10px] text-slate-400 mt-2">Uploading Photo...</span>
+                          </>
+                        ) : (
+                          <>
+                            <Upload className="w-6 h-6 text-slate-300" />
+                            <span className="text-[10px] text-slate-500 font-bold mt-2">Upload Main Image</span>
+                            <span className="text-[8px] text-slate-400 mt-1">Accepts PNG, JPG, JPEG</span>
+                          </>
+                        )}
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          disabled={uploadingState.main}
+                          onChange={(e) => e.target.files?.[0] && uploadImage(e.target.files[0], true)}
+                        />
+                      </label>
+                    )}
+                  </div>
+
+                  {/* Secondary Photos */}
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-400 uppercase block mb-2">Secondary Gallery Images</label>
+                    <div className="grid grid-cols-4 gap-2">
+                      {form.otherImages.map((img, i) => (
+                        <div key={i} className="w-full aspect-square rounded-xl overflow-hidden relative group border shadow-sm bg-slate-50">
+                          <img src={img} className="w-full h-full object-cover" />
+                          <button
+                            type="button"
+                            onClick={() => setForm({ ...form, otherImages: form.otherImages.filter((_, j) => j !== i) })}
+                            className="absolute inset-0 bg-slate-900/60 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity cursor-pointer text-white"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                        </div>
+                      ))}
+                      
+                      {form.otherImages.length < 4 && (
+                        <label className="aspect-square border-2 border-dashed border-slate-200 hover:border-slate-400 hover:bg-slate-50 rounded-xl flex flex-col items-center justify-center cursor-pointer transition-all">
+                          {uploadingState.secondary ? (
+                            <RefreshCw className="w-4 h-4 text-blue-500 animate-spin" />
+                          ) : (
+                            <>
+                              <Plus className="w-4 h-4 text-slate-300" />
+                              <span className="text-[8px] text-slate-400 mt-1">Add Detail</span>
+                            </>
+                          )}
+                          <input
+                            type="file"
+                            accept="image/*"
+                            className="hidden"
+                            disabled={uploadingState.secondary}
+                            onChange={(e) => e.target.files?.[0] && uploadImage(e.target.files[0], false)}
+                          />
+                        </label>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Submit Buttons */}
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={reset}
+                  className="px-5 py-3.5 border border-slate-200 hover:bg-slate-50 text-slate-500 rounded-2xl text-xs font-semibold transition-colors cursor-pointer"
+                >
+                  Reset Form
+                </button>
+                
+                <button
+                  type="submit"
+                  disabled={loading || uploadingState.main || uploadingState.secondary}
+                  className="flex-1 py-3.5 bg-slate-900 hover:bg-slate-800 disabled:bg-slate-300 text-white rounded-2xl text-xs font-semibold shadow-sm transition-all flex items-center justify-center gap-1.5 cursor-pointer disabled:cursor-not-allowed"
+                >
+                  {loading ? (
+                    <>
+                      <RefreshCw className="w-4 h-4 animate-spin" />
+                      <span>Saving Catalog Entry...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Plus className="w-4 h-4" />
+                      <span>Register Product</span>
+                    </>
+                  )}
+                </button>
+              </div>
+
             </div>
           </form>
         </div>

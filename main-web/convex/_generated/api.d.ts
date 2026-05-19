@@ -9,6 +9,7 @@
  */
 
 import type * as auth from "../auth.js";
+import type * as backup from "../backup.js";
 import type * as cart from "../cart.js";
 import type * as category from "../category.js";
 import type * as chatSessions from "../chatSessions.js";
@@ -41,6 +42,7 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   auth: typeof auth;
+  backup: typeof backup;
   cart: typeof cart;
   category: typeof category;
   chatSessions: typeof chatSessions;

@@ -1,0 +1,16 @@
+{
+  "name": "walkdrobe-mongodb-backup",
+  "version": "1.0.0",
+  "description": "Automated every-6-hour 1-to-1 data mirroring system from Convex to MongoDB.",
+  "main": "backup.js",
+  "type": "module",
+  "scripts": {
+    "start": "node backup.js",
+    "cron": "node cron.js"
+  },
+  "dependencies": {
+    "convex": "^1.27.3",
+    "dotenv": "^16.4.5",
+    "mongodb": "^6.3.0"
+  }
+}

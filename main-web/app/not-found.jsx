@@ -220,7 +220,6 @@ export default function NotFound() {
             { name: "New Arrivals", href: "/shop" },
             { name: "Best Sellers", href: "/shop" },
             { name: "Track Order", href: "/track-order" },
-            { name: "Contact", href: "/contact" },
           ].map((link, index) => (
             <Link key={link.href} href={link.href}>
               <motion.span

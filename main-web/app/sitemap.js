@@ -20,22 +20,10 @@ export default async function sitemap() {
       priority: 0.9,
     },
     {
-      url: `${baseUrl}/contact`,
-      lastModified: new Date(),
-      changeFrequency: "monthly",
-      priority: 0.5,
-    },
-    {
       url: `${baseUrl}/faq`,
       lastModified: new Date(),
       changeFrequency: "monthly",
       priority: 0.5,
-    },
-    {
-      url: `${baseUrl}/offline-shops`,
-      lastModified: new Date(),
-      changeFrequency: "monthly",
-      priority: 0.6,
     },
     {
       url: `${baseUrl}/track-order`,

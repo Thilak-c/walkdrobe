@@ -57,11 +57,7 @@ export default function FooterSimple() {
                   FAQ
                 </Link>
               </li>
-              <li>
-                <Link href="/contact" className="text-gray-500 hover:text-black transition-colors text-sm">
-                  Contact Us
-                </Link>
-              </li>
+
             </ul>
           </div>
 
@@ -94,7 +90,6 @@ export default function FooterSimple() {
           <div className="flex gap-4 text-gray-400 text-xs">
             <Link href="/privacy" className="hover:text-black transition-colors">Privacy</Link>
             <Link href="/terms" className="hover:text-black transition-colors">Terms</Link>
-            <Link href="/contact" className="hover:text-black transition-colors">Contact</Link>
           </div>
         </div>
       </div>

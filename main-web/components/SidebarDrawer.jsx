@@ -247,20 +247,8 @@ export default function SidebarDrawer({ open, onClose, width = "w-4/5 max-w-sm" 
         <div className="absolute bottom-0 left-0 right-0 bg-white border-t border-gray-200">
           {/* Small Links Row */}
           <div className="flex items-center justify-center gap-1.5 px-2 py-1.5 text-[10px] text-gray-500 border-b border-gray-100">
-            <Link href="/contact" onClick={onClose} className="hover:text-gray-900">
-              Contact us
-            </Link>
-            {/* <span>·</span> */}
-            {/* <Link href="/return-policy" onClick={onClose} className="hover:text-gray-900">
-              Return Policy
-            </Link> */}
-            <span>·</span>
             <Link href="/track-order" onClick={onClose} className="hover:text-gray-900">
               Track Order
-            </Link>
-            <span>·</span>
-            <Link href="/offline-shops" onClick={onClose} className="hover:text-gray-900">
-              Offline Shops
             </Link>
             <span>·</span>
             <Link href="/faq" onClick={onClose} className="hover:text-gray-900">

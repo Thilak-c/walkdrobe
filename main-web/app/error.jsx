@@ -156,12 +156,14 @@ ${debugInfo.userAgent}
                         >
                             Go Home
                         </Link>
-                        <Link
-                            href="/contact"
+                        <a
+                            href="https://wa.me/919122583392"
+                            target="_blank"
+                            rel="noopener noreferrer"
                             className="px-3 md:px-6 py-2.5 md:py-3 bg-blue-600 text-white rounded-lg md:rounded-xl text-sm md:text-base font-medium hover:bg-blue-700 transition-colors text-center"
                         >
                             Support
-                        </Link>
+                        </a>
                     </div>
                 </div>
 

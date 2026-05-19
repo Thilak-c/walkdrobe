@@ -43,8 +43,8 @@ export default function AuthWrapper({ children }) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-gray-900 rounded-2xl mb-4 animate-pulse">
-            {/* <Package className="w-8 h-8 text-white" /> */}
+          <div className="inline-flex items-center justify-center w-16 h-16 bg-white border border-slate-100 rounded-3xl mb-4 animate-bounce p-2 shadow-sm">
+            <img src="/logo.png" alt="Walkdrobe Logo" className="w-12 h-12 object-contain" />
           </div>
           <p className="text-gray-400 text-sm">Loading...</p>
         </div>

@@ -75,7 +75,6 @@ export default function Footer() {
               {[
                 { name: "Size Chart", href: "/size-chart" },
                 { name: "Track Order", href: "/track-order" },
-                { name: "Contact Us", href: "/contact" },
                 { name: "FAQ", href: "/faq" },
               ].map((item) => (
                 <li key={item.name}>

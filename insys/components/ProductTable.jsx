@@ -3,12 +3,32 @@
 import { useState } from "react";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "../../main-web/convex/_generated/api";
-import { Save, X, Package, Barcode as BarcodeIcon, Edit2, Plus, Trash2, Upload } from "lucide-react";
+import {
+  Save,
+  X,
+  Package,
+  Barcode as BarcodeIcon,
+  Edit2,
+  Plus,
+  Trash2,
+  Upload,
+  Copy,
+  Printer,
+  ChevronRight,
+  IndianRupee,
+  Layers,
+  CheckCircle2,
+  AlertCircle,
+  HelpCircle,
+  RefreshCw,
+  Image as ImageIcon
+} from "lucide-react";
 import Barcode from "@/components/Barcode";
 import toast from "react-hot-toast";
+import { motion, AnimatePresence } from "framer-motion";
 
-const ALL_SIZES = ["41","42","43","44","45","46"];
-const COLORS = ["Black", "White", "Brown", "Navy", "Grey", "Red", "Blue", "Green", "Beige", "Tan"];
+const ALL_SIZES = ["41", "42", "43", "44", "45", "46"];
+const COLORS = ["Black", "White", "Brown", "Navy", "Grey", "Red", "Blue", "Green", "Beige", "Tan", "Multi"];
 const CATEGORIES = ["All", "Sneakers", "Sports"];
 
 export default function ProductTable({ products }) {
@@ -16,8 +36,7 @@ export default function ProductTable({ products }) {
   const [editForm, setEditForm] = useState({});
   const [showBarcodeId, setShowBarcodeId] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
-  const [uploadingMain, setUploadingMain] = useState(false);
-  const [uploadingOther, setUploadingOther] = useState(false);
+  const [uploadingState, setUploadingState] = useState({ main: false, secondary: false });
 
   // Fetch full product data only when editing
   const editingProduct = useQuery(
@@ -37,6 +56,9 @@ export default function ProductTable({ products }) {
 
   const handleSave = async () => {
     if (!editingProductId) return;
+    if (!editForm.name || !editForm.price) return toast.error("Product name and selling price are required.");
+    if (editForm.sizes?.length === 0) return toast.error("Please configure at least one active size.");
+
     setIsSaving(true);
     try {
       await updateProduct({
@@ -44,8 +66,8 @@ export default function ProductTable({ products }) {
         name: editForm.name,
         category: editForm.category,
         description: editForm.description,
-        mainImage: editForm.mainImage,
-        otherImages: editForm.otherImages,
+        mainImage: editForm.mainImage || "/placeholder.png",
+        otherImages: editForm.otherImages.length > 0 ? editForm.otherImages : undefined,
         price: parseFloat(editForm.price) || 0,
         costPrice: parseFloat(editForm.costPrice) || 0,
         color: editForm.color,
@@ -53,22 +75,22 @@ export default function ProductTable({ products }) {
         availableSizes: editForm.sizes,
         sizeStock: editForm.sizeStock,
       });
-      toast.success("Product updated!");
+      toast.success("Product successfully updated!");
       closeModal();
     } catch (error) {
-      toast.error(error.message || "Failed to update product");
+      toast.error(error.message || "Failed to update product details.");
     } finally {
       setIsSaving(false);
     }
   };
 
   const handleDelete = async (product) => {
-    if (!confirm(`Move "${product.name}" to trash?`)) return;
+    if (!confirm(`Are you sure you want to permanently move "${product.name}" to trash?`)) return;
     try {
       await moveToTrash({ id: product._id });
-      toast.success("Moved to trash!");
+      toast.success("Product successfully moved to trash!");
     } catch (error) {
-      toast.error(error.message || "Failed to delete");
+      toast.error(error.message || "Failed to delete product.");
     }
   };
 
@@ -94,7 +116,6 @@ export default function ProductTable({ products }) {
 
   const startEditing = (product) => {
     setEditingProductId(product._id);
-    // Form will be populated when editingProduct data loads
   };
 
   // Populate form when full product data is loaded
@@ -116,7 +137,6 @@ export default function ProductTable({ products }) {
     }
   };
 
-  // Call populateForm when editingProduct changes
   if (editingProduct && Object.keys(editForm).length === 0) {
     populateForm();
   }
@@ -152,168 +172,211 @@ export default function ProductTable({ products }) {
     return Object.values(editForm.sizeStock || {}).reduce((sum, qty) => sum + (qty || 0), 0);
   };
 
-  const getStockStatus = (stock) => {
-    if (stock === 0) return { label: "Out of Stock", class: "badge-danger" };
-    if (stock <= 10) return { label: "Low Stock", class: "badge-warning" };
-    return { label: "In Stock", class: "badge-success" };
-  };
+  const uploadImage = async (file, isMain = true) => {
+    const fd = new FormData();
+    fd.append("file", file);
+    
+    if (isMain) setUploadingState(prev => ({ ...prev, main: true }));
+    else setUploadingState(prev => ({ ...prev, secondary: true }));
 
-  const handleMainImageUpload = async (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setUploadingMain(true);
-    const formData = new FormData();
-    formData.append("file", file);
     try {
-      toast.loading("Uploading...", { id: "upload-main" });
-      const res = await fetch("/api/upload", { method: "POST", body: formData });
+      toast.loading("Uploading photo content...", { id: "upload" });
+      const res = await fetch("/api/upload", { method: "POST", body: fd });
       const data = await res.json();
       if (data.success) {
-        setEditForm({ ...editForm, mainImage: data.url });
-        toast.success("Image uploaded!", { id: "upload-main" });
+        if (isMain) setEditForm((f) => ({ ...f, mainImage: data.url }));
+        else setEditForm((f) => ({ ...f, otherImages: [...(f.otherImages || []), data.url] }));
+        toast.success("Photo uploaded successfully!", { id: "upload" });
       } else {
-        toast.error(data.error || "Upload failed", { id: "upload-main" });
+        toast.error("Upload failed.", { id: "upload" });
       }
     } catch {
-      toast.error("Upload failed", { id: "upload-main" });
+      toast.error("Upload failed.", { id: "upload" });
     } finally {
-      setUploadingMain(false);
+      if (isMain) setUploadingState(prev => ({ ...prev, main: false }));
+      else setUploadingState(prev => ({ ...prev, secondary: false }));
     }
   };
 
-  const handleOtherImagesUpload = async (e) => {
-    const files = Array.from(e.target.files || []);
-    if (files.length === 0) return;
-    const remainingSlots = 5 - (editForm.otherImages?.length || 0);
-    const filesToUpload = files.slice(0, remainingSlots);
-    setUploadingOther(true);
-    toast.loading(`Uploading ${filesToUpload.length} image(s)...`, { id: "upload-other" });
-    const uploadedUrls = [];
-    for (const file of filesToUpload) {
-      try {
-        const formData = new FormData();
-        formData.append("file", file);
-        const res = await fetch("/api/upload", { method: "POST", body: formData });
-        const data = await res.json();
-        if (data.success) uploadedUrls.push(data.url);
-      } catch {}
-    }
-    if (uploadedUrls.length > 0) {
-      setEditForm({ ...editForm, otherImages: [...(editForm.otherImages || []), ...uploadedUrls] });
-      toast.success(`${uploadedUrls.length} image(s) uploaded!`, { id: "upload-other" });
-    } else {
-      toast.error("Upload failed", { id: "upload-other" });
-    }
-    setUploadingOther(false);
-    e.target.value = "";
-  };
-
-  const removeOtherImage = (idx) => {
-    setEditForm({
-      ...editForm,
-      otherImages: editForm.otherImages.filter((_, i) => i !== idx)
+  const copyToClipboard = (text, label) => {
+    navigator.clipboard.writeText(text);
+    toast.success(`${label} copied!`, {
+      style: {
+        background: "#0f172a",
+        color: "#fff",
+        borderRadius: "10px",
+      }
     });
   };
 
+  // Drawer Price Calculations
+  const cp = parseFloat(editForm.costPrice) || 0;
+  const sp = parseFloat(editForm.price) || 0;
+  const profit = sp - cp;
+  const profitPercentage = cp > 0 ? (profit / cp) * 100 : 0;
+
   if (!products?.length) {
     return (
-      <div className="bg-white rounded-2xl p-12 text-center border border-gray-100">
-        <div className="w-16 h-16 bg-gray-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
-          <Package className="w-8 h-8 text-gray-400" />
+      <div className="bg-white rounded-3xl p-16 text-center border border-slate-200/60 shadow-sm">
+        <div className="w-14 h-14 bg-slate-50 border rounded-2xl flex items-center justify-center mx-auto mb-4">
+          <Package className="w-6 h-6 text-slate-400" />
         </div>
-        <h3 className="text-lg font-semibold text-gray-900 mb-2">No products found</h3>
-        <p className="text-gray-500 text-sm">Try adjusting your filters</p>
+        <h3 className="text-base font-bold text-slate-700">No Shoes Found</h3>
+        <p className="text-slate-500 text-xs mt-1">Try adjusting your queries or filters.</p>
       </div>
     );
   }
 
   return (
     <>
-      <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+      <div className="bg-white rounded-3xl border border-slate-200/60 shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full">
+          <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="bg-gray-50 border-b border-gray-100">
-                <th className="text-left px-6 py-4 text-xs font-semibold text-gray-500 uppercase">Product</th>
-                <th className="text-left px-6 py-4 text-xs font-semibold text-gray-500 uppercase">Category</th>
-                <th className="text-left px-6 py-4 text-xs font-semibold text-gray-500 uppercase">Price</th>
-                <th className="text-left px-6 py-4 text-xs font-semibold text-gray-500 uppercase">Stock</th>
-                <th className="text-left px-6 py-4 text-xs font-semibold text-gray-500 uppercase">Status</th>
-                <th className="text-left px-6 py-4 text-xs font-semibold text-gray-500 uppercase">Actions</th>
+              <tr className="bg-slate-50 border-b border-slate-100 text-slate-400 font-semibold text-[11px] uppercase tracking-wider">
+                <th className="px-6 py-4">Shoe Details</th>
+                <th className="px-6 py-4">SKU / Code</th>
+                <th className="px-6 py-4">Category</th>
+                <th className="px-6 py-4 text-right">Price</th>
+                <th className="px-6 py-4 text-center">Stock Count</th>
+                <th className="px-6 py-4 text-center">Availability</th>
+                <th className="px-6 py-4 text-right">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-50">
+            <tbody className="divide-y divide-slate-100">
               {products.map((product) => {
-                const totalStock = getTotalStock(product);
-                const status = getStockStatus(totalStock);
+                const stockVal = getTotalStock(product);
+                const isOutOfStock = stockVal === 0;
+                const isLowStock = stockVal > 0 && stockVal <= 10;
                 const sizes = product.availableSizes || [];
                 const sizeStock = product.sizeStock || {};
+
                 return (
-                  <tr key={product._id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4">
+                  <tr key={product._id} className="hover:bg-slate-50/50 transition-colors group">
+                    {/* Item Details */}
+                    <td className="px-6 py-4.5">
                       <div className="flex items-center gap-3">
-                        <div className="w-12 h-12 bg-gray-100 rounded-xl overflow-hidden shrink-0">
+                        <div className="w-12 h-12 bg-slate-100 rounded-xl overflow-hidden border border-slate-150 shadow-sm flex items-center justify-center relative">
                           {product.mainImage ? (
-                            <img src={product.mainImage} alt="" className="w-full h-full object-cover" />
+                            <img src={product.mainImage} className="w-full h-full object-cover" />
                           ) : (
-                            <div className="w-full h-full flex items-center justify-center">
-                              <Package className="w-5 h-5 text-gray-300" />
-                            </div>
+                            <Package className="w-5 h-5 text-slate-300" />
                           )}
                         </div>
                         <div>
-                          <p className="font-semibold text-gray-900 text-sm">{product.name}</p>
-                          <p className="text-xs text-gray-400 font-mono">{product.itemId}</p>
-                          <button
-                            onClick={() => setShowBarcodeId(showBarcodeId === product._id ? null : product._id)}
-                            className="text-[10px] text-blue-500 hover:underline flex items-center gap-1 mt-1"
+                          <span
+                            className="font-bold text-slate-800 text-sm tracking-tight hover:underline cursor-pointer"
+                            onClick={() => startEditing(product)}
                           >
-                            <BarcodeIcon size={10} /> Barcode
-                          </button>
-                          {showBarcodeId === product._id && (
-                            <div className="mt-2">
-                              <Barcode value={product.itemId} width={100} height={35} dataItem={product.itemId} />
-                            </div>
-                          )}
+                            {product.name}
+                          </span>
+                          
+                          <div className="flex items-center gap-1.5 mt-1">
+                            <button
+                              onClick={() => setShowBarcodeId(showBarcodeId === product._id ? null : product._id)}
+                              className="text-[9px] font-bold text-blue-500 hover:text-blue-600 flex items-center gap-1 bg-blue-50 px-2 py-0.5 rounded-md cursor-pointer transition-colors"
+                            >
+                              <BarcodeIcon size={9} /> Barcode Preview
+                            </button>
+                            {showBarcodeId === product._id && (
+                              <div className="absolute bg-white rounded-2xl shadow-xl border border-slate-200 p-4 z-20 mt-6.5 animate-fadeIn">
+                                <Barcode value={product.itemId} width={120} height={40} dataItem={product.itemId} />
+                                <span className="block text-center font-mono text-[9px] font-bold text-slate-400 mt-2">SKU: {product.itemId}</span>
+                              </div>
+                            )}
+                          </div>
                         </div>
                       </div>
                     </td>
-                    <td className="px-6 py-4 text-sm text-gray-600">{product.category || "—"}</td>
-                    <td className="px-6 py-4 text-sm font-semibold text-gray-900">₹{product.price}</td>
-                    <td className="px-6 py-4">
-                      <div className="flex flex-wrap gap-1">
-                        {sizes.length > 0 ? sizes.sort((a,b) => a-b).map(size => (
-                          <span key={size} className={`text-[10px] px-1.5 py-0.5 rounded ${
-                            (sizeStock[size] || 0) === 0 ? "bg-red-100 text-red-600" : "bg-gray-100 text-gray-600"
-                          }`}>
-                            {size}:{sizeStock[size] || 0}
-                          </span>
-                        )) : <span className="text-xs text-gray-400">—</span>}
+
+                    {/* SKU Code */}
+                    <td className="px-6 py-4.5">
+                      <div className="flex items-center gap-1.5">
+                        <span className="font-mono text-xs font-bold text-slate-500 tracking-tight">{product.itemId}</span>
+                        <button
+                          onClick={() => copyToClipboard(product.itemId, "SKU")}
+                          className="text-slate-300 hover:text-slate-500 transition-colors cursor-pointer"
+                          title="Copy SKU code"
+                        >
+                          <Copy className="w-3 h-3" />
+                        </button>
                       </div>
-                      <p className="text-[10px] text-gray-400 mt-1">Total: {totalStock}</p>
                     </td>
-                    <td className="px-6 py-4">
-                      <span className={`badge ${status.class}`}>{status.label}</span>
+
+                    {/* Category */}
+                    <td className="px-6 py-4.5 text-slate-600 text-xs font-semibold">
+                      {product.category || "—"}
                     </td>
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-2">
+
+                    {/* Price */}
+                    <td className="px-6 py-4.5 text-right font-extrabold text-slate-800 text-sm">
+                      ₹{product.price?.toLocaleString("en-IN")}
+                    </td>
+
+                    {/* Stock quantities per size */}
+                    <td className="px-6 py-4.5">
+                      <div className="flex flex-col items-center">
+                        <div className="flex flex-wrap gap-1 justify-center max-w-[200px]">
+                          {sizes.length > 0 ? (
+                            sizes.sort((a, b) => +a - +b).map((size) => (
+                              <span
+                                key={size}
+                                className={`text-[9px] px-2 py-0.5 rounded-lg border font-bold ${
+                                  (sizeStock[size] || 0) === 0
+                                    ? "bg-rose-50 border-rose-100 text-rose-600"
+                                    : "bg-slate-50 border-slate-100 text-slate-600"
+                                }`}
+                              >
+                                {size}: {sizeStock[size] || 0}
+                              </span>
+                            ))
+                          ) : (
+                            <span className="text-xs text-slate-400">—</span>
+                          )}
+                        </div>
+                        <span className={`text-[10px] font-bold block mt-1.5 ${isOutOfStock ? "text-rose-500" : isLowStock ? "text-amber-500" : "text-slate-400"}`}>
+                          Total: {stockVal} Pairs
+                        </span>
+                      </div>
+                    </td>
+
+                    {/* Availability */}
+                    <td className="px-6 py-4.5 text-center">
+                      <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full border text-[10px] font-bold shadow-sm justify-center ${
+                        isOutOfStock
+                          ? "bg-rose-50 border-rose-200 text-rose-700"
+                          : isLowStock
+                          ? "bg-amber-50 border-amber-200 text-amber-700"
+                          : "bg-emerald-50 border-emerald-200 text-emerald-700"
+                      }`}>
+                        <span className={`w-1.5 h-1.5 rounded-full ${isOutOfStock ? "bg-rose-500" : isLowStock ? "bg-amber-500" : "bg-emerald-500"}`} />
+                        <span>{isOutOfStock ? "Depleted" : isLowStock ? "Low Stock" : "In Stock"}</span>
+                      </span>
+                    </td>
+
+                    {/* Actions */}
+                    <td className="px-6 py-4.5">
+                      <div className="flex items-center justify-end gap-1">
                         <button
                           onClick={() => startEditing(product)}
-                          className="flex items-center gap-1 px-3 py-2 bg-gray-900 text-white rounded-lg text-xs font-medium hover:bg-gray-800"
+                          className="p-2 bg-slate-50 hover:bg-slate-100 text-slate-500 hover:text-slate-800 border border-slate-100 hover:border-slate-200 rounded-xl transition-all shadow-sm cursor-pointer"
+                          title="Edit Shoe Specs"
                         >
-                          <Edit2 size={14} /> Edit
+                          <Edit2 className="w-3.5 h-3.5" />
                         </button>
                         <button
                           onClick={() => printLabel(product.itemId)}
-                          className="flex items-center gap-1 px-3 py-2 bg-blue-50 text-blue-600 rounded-lg text-xs font-medium hover:bg-blue-100"
+                          className="p-2 bg-blue-50 hover:bg-blue-100 text-blue-500 hover:text-blue-700 border border-blue-100 rounded-xl transition-all shadow-sm cursor-pointer"
+                          title="Print Barcode Label"
                         >
-                          Print
+                          <Printer className="w-3.5 h-3.5" />
                         </button>
                         <button
                           onClick={() => handleDelete(product)}
-                          className="flex items-center gap-1 px-3 py-2 bg-red-50 text-red-600 rounded-lg text-xs font-medium hover:bg-red-100"
+                          className="p-2 bg-rose-50 hover:bg-rose-100 text-rose-500 hover:text-rose-700 border border-rose-100 rounded-xl transition-all shadow-sm cursor-pointer"
+                          title="Move to Trash"
                         >
-                          <Trash2 size={14} />
+                          <Trash2 className="w-3.5 h-3.5" />
                         </button>
                       </div>
                     </td>
@@ -325,237 +388,300 @@ export default function ProductTable({ products }) {
         </div>
       </div>
 
+      {/* Product Editor Modal */}
+      <AnimatePresence>
+        {editingProductId && (
+          <div className="fixed inset-0 z-50 overflow-hidden flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={closeModal}
+              className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm"
+            />
 
-      {/* Full Edit Product Modal */}
-      {editingProductId && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
-            {!editingProduct ? (
-              <div className="p-12 text-center">
-                <div className="w-8 h-8 border-2 border-gray-200 border-t-gray-900 rounded-full animate-spin mx-auto mb-4" />
-                <p className="text-gray-500">Loading product...</p>
-              </div>
-            ) : (
-              <>
-            <div className="p-4 border-b border-gray-100 flex items-center justify-between shrink-0">
-              <div>
-                <h3 className="font-semibold text-gray-900">Edit Product</h3>
-                <p className="text-xs text-gray-400">{editingProduct.itemId}</p>
-              </div>
-              <button onClick={closeModal} className="p-2 hover:bg-gray-100 rounded-lg">
-                <X size={20} />
-              </button>
-            </div>
-            
-            <div className="p-4 overflow-y-auto flex-1 space-y-5">
-              {/* Basic Info */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Product Name</label>
-                  <input
-                    type="text"
-                    value={editForm.name}
-                    onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
-                    className="w-full px-3 py-2 bg-gray-50 border-0 rounded-xl focus:ring-2 focus:ring-gray-900 text-sm"
-                  />
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-white rounded-3xl shadow-2xl max-w-2xl w-full border border-slate-100 overflow-hidden z-10 flex flex-col max-h-[90vh]"
+            >
+              {!editingProduct ? (
+                <div className="py-24 text-center">
+                  <div className="w-10 h-10 border-2 border-slate-900 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+                  <p className="text-slate-500 text-sm">Retrieving product specs...</p>
                 </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
-                  <select
-                    value={editForm.category}
-                    onChange={(e) => setEditForm({ ...editForm, category: e.target.value })}
-                    className="w-full px-3 py-2 bg-gray-50 border-0 rounded-xl focus:ring-2 focus:ring-gray-900 text-sm"
-                  >
-                    <option value="">Select category</option>
-                    {CATEGORIES.map(cat => <option key={cat} value={cat}>{cat}</option>)}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Primary Color</label>
-                  <select
-                    value={editForm.color}
-                    onChange={(e) => setEditForm({ ...editForm, color: e.target.value })}
-                    className="w-full px-3 py-2 bg-gray-50 border-0 rounded-xl focus:ring-2 focus:ring-gray-900 text-sm"
-                  >
-                    <option value="">Select color</option>
-                    {COLORS.map(c => <option key={c} value={c}>{c}</option>)}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Secondary Color</label>
-                  <select
-                    value={editForm.secondaryColor}
-                    onChange={(e) => setEditForm({ ...editForm, secondaryColor: e.target.value })}
-                    className="w-full px-3 py-2 bg-gray-50 border-0 rounded-xl focus:ring-2 focus:ring-gray-900 text-sm"
-                  >
-                    <option value="">None</option>
-                    {COLORS.map(c => <option key={c} value={c}>{c}</option>)}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Cost Price (₹)</label>
-                  <input
-                    type="number"
-                    value={editForm.costPrice}
-                    onChange={(e) => setEditForm({ ...editForm, costPrice: e.target.value })}
-                    className="w-full px-3 py-2 bg-gray-50 border-0 rounded-xl focus:ring-2 focus:ring-gray-900 text-sm"
-                    min="0"
-                    step="0.01"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Selling Price (₹)</label>
-                  <input
-                    type="number"
-                    value={editForm.price}
-                    onChange={(e) => setEditForm({ ...editForm, price: e.target.value })}
-                    className="w-full px-3 py-2 bg-gray-50 border-0 rounded-xl focus:ring-2 focus:ring-gray-900 text-sm"
-                    min="0"
-                    step="0.01"
-                  />
-                </div>
-
-                <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
-                  <textarea
-                    value={editForm.description}
-                    onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
-                    rows={2}
-                    className="w-full px-3 py-2 bg-gray-50 border-0 rounded-xl focus:ring-2 focus:ring-gray-900 text-sm resize-none"
-                  />
-                </div>
-              </div>
-
-              {/* Images */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Main Image</label>
-                <div className="flex gap-3 items-start">
-                  {editForm.mainImage && (
-                    <div className="w-20 h-20 bg-gray-100 rounded-xl overflow-hidden relative group shrink-0">
-                      <img src={editForm.mainImage} alt="Main" className="w-full h-full object-cover" />
-                      <button
-                        type="button"
-                        onClick={() => setEditForm({ ...editForm, mainImage: "" })}
-                        className="absolute top-1 right-1 p-1 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
-                      >
-                        <X size={12} />
-                      </button>
+              ) : (
+                <>
+                  <div className="px-6 py-5 bg-slate-900 text-white flex items-center justify-between shadow-md shrink-0">
+                    <div>
+                      <span className="text-[10px] font-semibold tracking-widest text-slate-400 uppercase">Offline Shop Editor</span>
+                      <h2 className="text-xl font-bold tracking-tight">Edit SKU #{editingProduct.itemId}</h2>
                     </div>
-                  )}
-                  <label className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-gray-50 border-2 border-dashed border-gray-200 rounded-xl cursor-pointer hover:bg-gray-100 ${uploadingMain ? 'opacity-50' : ''}`}>
-                    <input type="file" accept="image/*" onChange={handleMainImageUpload} className="hidden" disabled={uploadingMain} />
-                    <Upload size={18} className="text-gray-400" />
-                    <span className="text-sm text-gray-500">{uploadingMain ? "Uploading..." : "Upload new image"}</span>
-                  </label>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Additional Images (up to 5)</label>
-                <div className="flex flex-wrap gap-2">
-                  {(editForm.otherImages || []).map((img, idx) => (
-                    <div key={idx} className="w-16 h-16 bg-gray-100 rounded-xl overflow-hidden relative group">
-                      <img src={img} alt={`Additional ${idx + 1}`} className="w-full h-full object-cover" />
-                      <button
-                        type="button"
-                        onClick={() => removeOtherImage(idx)}
-                        className="absolute top-1 right-1 p-0.5 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
-                      >
-                        <X size={10} />
-                      </button>
-                    </div>
-                  ))}
-                  {(editForm.otherImages?.length || 0) < 5 && (
-                    <label className={`w-16 h-16 bg-gray-50 border-2 border-dashed border-gray-200 rounded-xl flex flex-col items-center justify-center cursor-pointer hover:bg-gray-100 ${uploadingOther ? 'opacity-50' : ''}`}>
-                      <input type="file" accept="image/*" multiple onChange={handleOtherImagesUpload} className="hidden" disabled={uploadingOther} />
-                      {uploadingOther ? (
-                        <div className="w-4 h-4 border-2 border-gray-300 border-t-gray-600 rounded-full animate-spin" />
-                      ) : (
-                        <Plus size={16} className="text-gray-400" />
-                      )}
-                    </label>
-                  )}
-                </div>
-              </div>
-
-              {/* Sizes & Stock */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Available Sizes</label>
-                <div className="flex flex-wrap gap-2 mb-3">
-                  {ALL_SIZES.map(size => (
                     <button
-                      key={size}
-                      type="button"
-                      onClick={() => toggleSize(size)}
-                      className={`w-10 h-10 rounded-lg text-sm font-medium transition-all ${
-                        editForm.sizes?.includes(size)
-                          ? "bg-gray-900 text-white"
-                          : "bg-gray-100 text-gray-400 hover:bg-gray-200"
-                      }`}
+                      onClick={closeModal}
+                      className="p-2 bg-white/10 hover:bg-white/20 text-white rounded-xl transition-colors border border-white/5 cursor-pointer"
                     >
-                      {size}
+                      <X className="w-5 h-5" />
                     </button>
-                  ))}
-                </div>
+                  </div>
 
-                {editForm.sizes?.length > 0 && (
-                  <>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Stock per Size</label>
-                    <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
-                      {editForm.sizes.sort((a,b) => parseInt(a) - parseInt(b)).map(size => (
-                        <div key={size} className="bg-gray-50 rounded-lg p-2">
-                          <label className="block text-[10px] text-gray-500 mb-1 text-center">Size {size}</label>
+                  <div className="flex-1 overflow-y-auto p-6 space-y-6">
+                    {/* Form Group: Specs */}
+                    <div className="bg-slate-50/70 border border-slate-100 p-5 rounded-2xl shadow-sm space-y-4">
+                      <div className="flex items-center gap-2 text-slate-800 font-bold text-sm mb-1">
+                        <Package className="w-4.5 h-4.5 text-slate-500" />
+                        <h3>Shoe Specifications</h3>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="col-span-2">
+                          <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">Product Name *</label>
                           <input
-                            type="number"
-                            value={editForm.sizeStock?.[size] ?? 0}
-                            onChange={(e) => updateSizeQty(size, e.target.value)}
-                            className="w-full px-2 py-1.5 text-center border border-gray-200 rounded-lg text-sm"
-                            min="0"
+                            type="text"
+                            value={editForm.name}
+                            onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                            className="w-full px-4 py-2.5 bg-white border border-slate-200 focus:border-slate-800 rounded-xl text-xs font-bold focus:outline-none"
                           />
                         </div>
-                      ))}
+
+                        <div>
+                          <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">Category</label>
+                          <select
+                            value={editForm.category}
+                            onChange={(e) => setEditForm({ ...editForm, category: e.target.value })}
+                            className="w-full px-3 py-2.5 bg-white border border-slate-200 focus:border-slate-800 rounded-xl text-xs focus:outline-none"
+                          >
+                            <option value="">Select Category</option>
+                            {CATEGORIES.map((c) => (
+                              <option key={c} value={c}>{c}</option>
+                            ))}
+                          </select>
+                        </div>
+
+                        <div>
+                          <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">Color</label>
+                          <select
+                            value={editForm.color}
+                            onChange={(e) => setEditForm({ ...editForm, color: e.target.value })}
+                            className="w-full px-3 py-2.5 bg-white border border-slate-200 focus:border-slate-800 rounded-xl text-xs focus:outline-none"
+                          >
+                            <option value="">Select Color</option>
+                            {COLORS.map((c) => (
+                              <option key={c} value={c}>{c}</option>
+                            ))}
+                          </select>
+                        </div>
+
+                        <div className="col-span-2">
+                          <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">Description</label>
+                          <textarea
+                            value={editForm.description}
+                            onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
+                            rows={2}
+                            className="w-full px-4 py-2.5 bg-white border border-slate-200 focus:border-slate-800 rounded-xl text-xs focus:outline-none resize-none"
+                          />
+                        </div>
+                      </div>
                     </div>
-                  </>
-                )}
 
-                <div className="bg-gray-50 rounded-xl p-3 flex justify-between items-center mt-3">
-                  <span className="text-sm text-gray-600">Total Stock</span>
-                  <span className="text-lg font-bold">{calculateTotalStock()}</span>
-                </div>
-              </div>
-            </div>
+                    {/* Form Group: Photo Media */}
+                    <div className="bg-slate-50/70 border border-slate-100 p-5 rounded-2xl shadow-sm space-y-4">
+                      <div className="flex items-center gap-2 text-slate-800 font-bold text-sm mb-1">
+                        <ImageIcon className="w-4.5 h-4.5 text-slate-500" />
+                        <h3>Media & Visuals</h3>
+                      </div>
 
-            <div className="p-4 border-t border-gray-100 flex gap-3 shrink-0">
-              <button onClick={closeModal} className="flex-1 py-3 border border-gray-200 rounded-xl hover:bg-gray-50 font-medium">
-                Cancel
-              </button>
-              <button
-                onClick={handleSave}
-                disabled={isSaving}
-                className="flex-1 py-3 bg-gray-900 text-white rounded-xl hover:bg-gray-800 flex items-center justify-center gap-2 font-medium disabled:opacity-50"
-              >
-                {isSaving ? (
-                  <>
-                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                    Saving...
-                  </>
-                ) : (
-                  <>
-                    <Save size={18} /> Save Changes
-                  </>
-                )}
-              </button>
-            </div>
-            </>
-            )}
+                      <div className="flex gap-3 flex-wrap">
+                        {editForm.mainImage ? (
+                          <div className="w-16 h-16 rounded-xl overflow-hidden relative group border shadow-sm bg-white">
+                            <img src={editForm.mainImage} className="w-full h-full object-cover" />
+                            <button
+                              type="button"
+                              onClick={() => setEditForm({ ...editForm, mainImage: "" })}
+                              className="absolute inset-0 bg-slate-900/60 opacity-0 group-hover:opacity-100 flex items-center justify-center cursor-pointer text-white"
+                            >
+                              <X className="w-4 h-4" />
+                            </button>
+                            <span className="absolute bottom-0 left-0 right-0 bg-slate-900 text-white text-[8px] text-center font-bold">Cover</span>
+                          </div>
+                        ) : (
+                          <label className="w-16 h-16 border-2 border-dashed border-slate-200 hover:border-slate-400 rounded-xl flex flex-col items-center justify-center cursor-pointer transition-all bg-white">
+                            {uploadingState.main ? (
+                              <RefreshCw className="w-4 h-4 text-blue-500 animate-spin" />
+                            ) : (
+                              <>
+                                <Upload className="w-4 h-4 text-slate-300" />
+                                <span className="text-[7px] text-slate-400 font-bold mt-1">Cover</span>
+                              </>
+                            )}
+                            <input
+                              type="file"
+                              accept="image/*"
+                              className="hidden"
+                              disabled={uploadingState.main}
+                              onChange={(e) => e.target.files?.[0] && uploadImage(e.target.files[0], true)}
+                            />
+                          </label>
+                        )}
+
+                        {editForm.otherImages?.map((img, i) => (
+                          <div key={i} className="w-16 h-16 rounded-xl overflow-hidden relative group border shadow-sm bg-white">
+                            <img src={img} className="w-full h-full object-cover" />
+                            <button
+                              type="button"
+                              onClick={() => setEditForm({ ...editForm, otherImages: editForm.otherImages.filter((_, j) => j !== i) })}
+                              className="absolute inset-0 bg-slate-900/60 opacity-0 group-hover:opacity-100 flex items-center justify-center cursor-pointer text-white"
+                            >
+                              <X className="w-4 h-4" />
+                            </button>
+                          </div>
+                        ))}
+
+                        {(editForm.otherImages?.length || 0) < 4 && (
+                          <label className="w-16 h-16 border-2 border-dashed border-slate-200 hover:border-slate-400 rounded-xl flex flex-col items-center justify-center cursor-pointer transition-all bg-white">
+                            {uploadingState.secondary ? (
+                              <RefreshCw className="w-4 h-4 text-blue-500 animate-spin" />
+                            ) : (
+                              <>
+                                <Plus className="w-4 h-4 text-slate-300" />
+                                <span className="text-[7px] text-slate-400 mt-1 font-bold">Detail</span>
+                              </>
+                            )}
+                            <input
+                              type="file"
+                              accept="image/*"
+                              className="hidden"
+                              disabled={uploadingState.secondary}
+                              onChange={(e) => e.target.files?.[0] && uploadImage(e.target.files[0], false)}
+                            />
+                          </label>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Form Group: Pricing & Profit */}
+                    <div className="bg-slate-50/70 border border-slate-100 p-5 rounded-2xl shadow-sm space-y-4">
+                      <div className="flex items-center gap-2 text-slate-800 font-bold text-sm mb-1">
+                        <IndianRupee className="w-4.5 h-4.5 text-slate-500" />
+                        <h3>Financials & Markup</h3>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">Cost Price (₹)</label>
+                          <input
+                            type="number"
+                            value={editForm.costPrice}
+                            onChange={(e) => setEditForm({ ...editForm, costPrice: e.target.value })}
+                            className="w-full px-4 py-2.5 bg-white border border-slate-200 focus:border-slate-800 rounded-xl text-xs font-bold focus:outline-none"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">Selling Price (₹) *</label>
+                          <input
+                            type="number"
+                            value={editForm.price}
+                            onChange={(e) => setEditForm({ ...editForm, price: e.target.value })}
+                            className="w-full px-4 py-2.5 bg-white border border-slate-200 focus:border-slate-800 rounded-xl text-xs font-extrabold focus:outline-none"
+                          />
+                        </div>
+
+                        {cp > 0 && sp > 0 && (
+                          <div className="col-span-2 p-3.5 bg-white border rounded-xl flex items-center justify-between text-xs">
+                            <span className="text-slate-400">Projected Margin Markup</span>
+                            <span className={`font-extrabold ${profit >= 0 ? "text-emerald-600" : "text-rose-500"}`}>
+                              ₹{profit.toFixed(0)} ({profitPercentage.toFixed(0)}%)
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Form Group: Sizes & Grid */}
+                    <div className="bg-slate-50/70 border border-slate-100 p-5 rounded-2xl shadow-sm space-y-4">
+                      <div className="flex items-center justify-between border-b border-slate-200/50 pb-2">
+                        <div className="flex items-center gap-2 text-slate-800 font-bold text-sm">
+                          <Layers className="w-4.5 h-4.5 text-slate-500" />
+                          <h3>Sizes & Quantities</h3>
+                        </div>
+                        <span className="text-xs bg-white font-extrabold text-slate-700 px-3 py-1 rounded-xl shadow-sm border border-slate-200">
+                          {calculateTotalStock()} Pairs Active
+                        </span>
+                      </div>
+
+                      <div className="space-y-4">
+                        <div className="flex flex-wrap gap-2">
+                          {ALL_SIZES.map((s) => {
+                            const isActive = editForm.sizes?.includes(s);
+                            return (
+                              <button
+                                key={s}
+                                type="button"
+                                onClick={() => toggleSize(s)}
+                                className={`w-10 h-10 rounded-xl text-xs font-bold transition-all border flex items-center justify-center cursor-pointer ${
+                                  isActive
+                                    ? "bg-slate-900 border-slate-900 text-white shadow-sm"
+                                    : "bg-white border-slate-200 text-slate-500 hover:border-slate-300 hover:bg-slate-50"
+                                }`}
+                              >
+                                {s}
+                              </button>
+                            );
+                          })}
+                        </div>
+
+                        {editForm.sizes?.length > 0 && (
+                          <div className="grid grid-cols-3 sm:grid-cols-6 gap-2 pt-1 animate-fadeIn">
+                            {editForm.sizes
+                              .sort((a, b) => +a - +b)
+                              .map((s) => (
+                                <div key={s} className="bg-white border rounded-xl p-2 text-center shadow-xs">
+                                  <label className="text-[9px] font-bold text-slate-400 uppercase block mb-1">UK {s}</label>
+                                  <input
+                                    type="number"
+                                    min="0"
+                                    value={editForm.sizeStock?.[s] ?? 0}
+                                    onChange={(e) => updateSizeQty(s, e.target.value)}
+                                    className="w-full px-2 py-1 bg-slate-50 border border-slate-200 rounded-lg text-center text-xs font-bold focus:outline-none focus:border-slate-800"
+                                  />
+                                </div>
+                              ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Footer Buttons */}
+                    <div className="flex gap-3 pt-3 shrink-0">
+                      <button
+                        type="button"
+                        onClick={closeModal}
+                        className="flex-1 px-5 py-3.5 border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-2xl text-xs font-semibold transition-colors cursor-pointer"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleSave}
+                        disabled={isSaving}
+                        className="flex-1 px-5 py-3.5 bg-slate-900 hover:bg-slate-800 text-white rounded-2xl text-xs font-semibold shadow-sm transition-colors cursor-pointer flex items-center justify-center gap-1.5"
+                      >
+                        {isSaving ? (
+                          <RefreshCw className="w-4 h-4 animate-spin" />
+                        ) : (
+                          <Save className="w-4 h-4" />
+                        )}
+                        <span>Save Catalog Changes</span>
+                      </button>
+                    </div>
+                  </div>
+                </>
+              )}
+            </motion.div>
           </div>
-        </div>
-      )}
+        )}
+      </AnimatePresence>
     </>
   );
 }
