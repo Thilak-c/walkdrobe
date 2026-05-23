@@ -234,7 +234,7 @@ export default function CouponsPage() {
           </div>
 
           {/* Stats Grid */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6 sm:mb-8">
             {[
               {
                 label: "Total Coupons",
@@ -310,7 +310,8 @@ export default function CouponsPage() {
                 <p className="text-slate-500 text-xs mt-1">There are no coupons configured at this moment.</p>
               </div>
             ) : (
-              <div className="overflow-x-auto">
+              <>
+              <div className="hidden md:block overflow-x-auto">
                 <table className="w-full text-left border-collapse">
                   <thead>
                     <tr className="bg-slate-50 border-b border-slate-100 text-slate-400 font-semibold text-[11px] uppercase tracking-wider">
@@ -405,6 +406,48 @@ export default function CouponsPage() {
                   </tbody>
                 </table>
               </div>
+
+              {/* Mobile Coupon Cards */}
+              <div className="md:hidden divide-y divide-slate-100">
+                {filteredCoupons.map((coupon) => {
+                  const isExpired = new Date(coupon.validUntil) < new Date();
+                  const isActive = coupon.isActive && !isExpired;
+                  return (
+                    <div key={coupon._id} className="p-3.5 space-y-2.5">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex items-center gap-2">
+                          <code className="px-2.5 py-0.5 bg-slate-100 rounded-lg text-[11px] font-mono font-extrabold text-slate-700 border border-slate-200">{coupon.code}</code>
+                          <button onClick={() => copyCode(coupon.code)} className="p-1 text-slate-400 hover:text-slate-600"><Copy className="w-3 h-3" /></button>
+                        </div>
+                        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-[9px] font-bold ${
+                          isActive ? "bg-emerald-50 border-emerald-200 text-emerald-700" : "bg-slate-100 border-slate-200 text-slate-500"
+                        }`}>
+                          <span className={`w-1.5 h-1.5 rounded-full ${isActive ? "bg-emerald-500" : "bg-slate-400"}`} />
+                          {isActive ? "Active" : isExpired ? "Expired" : "Inactive"}
+                        </span>
+                      </div>
+                      <p className="text-xs text-slate-600 leading-relaxed">{coupon.description}</p>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <span className="inline-flex items-center gap-1 text-[10px] font-bold bg-blue-50 border border-blue-100 px-2 py-0.5 rounded-lg text-slate-700">
+                            {coupon.discountType === "percentage" ? `${coupon.discountValue}% Off` : `₹${coupon.discountValue} Flat`}
+                          </span>
+                          <span className="text-[10px] text-slate-400">Min ₹{coupon.minOrderValue}</span>
+                        </div>
+                        <span className="text-[10px] text-slate-500"><span className="font-bold text-slate-700">{coupon.usageCount || 0}</span> / {coupon.usageLimit || "∞"} used</span>
+                      </div>
+                      <div className="flex items-center justify-between pt-1">
+                        <span className="text-[10px] text-slate-400">Until {new Date(coupon.validUntil).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}</span>
+                        <div className="flex items-center gap-1">
+                          <button onClick={() => handleEdit(coupon)} className="p-1.5 bg-slate-50 hover:bg-slate-100 text-slate-500 rounded-lg border border-slate-100 cursor-pointer"><Edit2 className="w-3 h-3" /></button>
+                          <button onClick={() => handleDelete(coupon._id)} className="p-1.5 bg-rose-50 hover:bg-rose-100 text-rose-500 rounded-lg border border-rose-100 cursor-pointer"><Trash2 className="w-3 h-3" /></button>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              </>
             )}
           </div>
         </div>
@@ -413,7 +456,7 @@ export default function CouponsPage() {
       {/* Creation Modal */}
       <AnimatePresence>
         {showAddModal && (
-          <div className="fixed inset-0 z-50 overflow-hidden flex items-center justify-center p-4">
+          <div className="fixed inset-0 z-50 overflow-hidden flex items-center justify-center p-2 sm:p-4">
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -426,7 +469,7 @@ export default function CouponsPage() {
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-white rounded-3xl shadow-2xl max-w-2xl w-full border border-slate-100 overflow-hidden z-10 flex flex-col max-h-[90vh]"
+              className="bg-white rounded-2xl sm:rounded-3xl shadow-2xl max-w-2xl w-full border border-slate-100 overflow-hidden z-10 flex flex-col max-h-[95vh] sm:max-h-[90vh]"
             >
               <div className="px-6 py-5 bg-slate-900 text-white flex items-center justify-between shadow-md">
                 <div>
@@ -443,7 +486,7 @@ export default function CouponsPage() {
                 </button>
               </div>
 
-              <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6 space-y-6">
+              <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 sm:space-y-6">
                 
                 {/* Form Group: Details */}
                 <div className="bg-slate-50/70 border border-slate-100 p-5 rounded-2xl shadow-sm space-y-4">

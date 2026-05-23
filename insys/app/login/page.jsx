@@ -55,7 +55,7 @@ export default function LoginPage() {
 
     setTimeout(() => {
       toast.success(`Welcome to ${type === "website" ? "Website" : "Offline Shop"} Inventory`);
-      router.push("/");
+      router.push(type === "website" ? "/website" : "/");
     }, 500);
   };
 
@@ -66,54 +66,61 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-      {/* Background pattern */}
-      <div className="absolute inset-0 pattern-dots opacity-50" />
+    <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4 relative overflow-hidden">
+      {/* Subtle modern gradient glow */}
+      <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] rounded-full bg-blue-100/45 blur-3xl" />
+      <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] rounded-full bg-emerald-100/35 blur-3xl" />
       
-      <div className="relative w-full max-w-md">
-        {/* Logo */}
-     
+      <div className="relative w-full max-w-sm sm:max-w-md animate-fadeIn">
+        {/* Logo Header */}
+        <div className="flex flex-col items-center mb-6">
+          <div className="w-11 h-11 bg-white rounded-2xl flex items-center justify-center shadow-xs border border-slate-150 p-2 mb-2">
+            <img src="/logo.png" alt="Walkdrobe Logo" className="w-7 h-7 object-contain" />
+          </div>
+          <h1 className="text-base font-bold text-slate-900 font-poppins tracking-tight">Walkdrobe</h1>
+          <p className="text-[9px] text-slate-400 tracking-widest font-extrabold">INVENTORY SYSTEM</p>
+        </div>
 
         {/* Card */}
-        <div className="bg-white shadow-xl border border-gray-100 overflow-hidden">
+        <div className="bg-white/90 backdrop-blur-md shadow-xl border border-slate-200/50 rounded-3xl overflow-hidden">
           {step === 1 ? (
             /* Step 1: Login Form */
-            <form onSubmit={handleLogin} className="p-8">
-              <h2 className="text-xl font-semibold text-gray-900 mb-2 font-poppins">Welcome back</h2>
-              <p className="text-gray-400 text-sm mb-8">Enter your credentials to continue</p>
+            <form onSubmit={handleLogin} className="p-6 sm:p-8">
+              <h2 className="text-lg font-bold text-slate-900 mb-1 font-poppins">Welcome back</h2>
+              <p className="text-slate-400 text-xs mb-6">Enter credentials to access inventory</p>
 
-              <div className="space-y-5">
+              <div className="space-y-4">
                 {/* Admin ID */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Admin ID</label>
+                  <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Admin ID</label>
                   <input
                     type="text"
                     value={credentials.adminId}
                     onChange={(e) => setCredentials({ ...credentials, adminId: e.target.value })}
                     placeholder="Enter admin ID"
-                    className="w-full px-4 py-3 bg-gray-50 border-0 rounded-xl focus:ring-2 focus:ring-gray-900 text-sm"
+                    className="w-full px-4 py-2.5 bg-slate-50/50 hover:bg-slate-50 focus:bg-white border border-slate-250/80 focus:border-slate-800 rounded-2xl text-xs focus:outline-none transition-all font-medium"
                     required
                   />
                 </div>
 
                 {/* Password */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Password</label>
+                  <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Password</label>
                   <div className="relative">
                     <input
                       type={showPassword ? "text" : "password"}
                       value={credentials.password}
                       onChange={(e) => setCredentials({ ...credentials, password: e.target.value })}
                       placeholder="Enter password"
-                      className="w-full px-4 py-3 bg-gray-50 border-0 rounded-xl focus:ring-2 focus:ring-gray-900 text-sm pr-12"
+                      className="w-full px-4 py-2.5 bg-slate-50/50 hover:bg-slate-50 focus:bg-white border border-slate-250/80 focus:border-slate-800 rounded-2xl text-xs focus:outline-none transition-all pr-12 font-medium"
                       required
                     />
                     <button
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                      className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
                     >
-                      {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                      {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                     </button>
                   </div>
                 </div>
@@ -123,85 +130,73 @@ export default function LoginPage() {
               <button
                 type="submit"
                 disabled={isLoading}
-                className="w-full mt-8 flex items-center justify-center gap-2 px-6 py-4 bg-gray-900 text-white rounded-xl hover:bg-gray-800 transition-colors font-medium disabled:opacity-50"
+                className="w-full mt-6 flex items-center justify-center gap-2 px-5 py-3.5 bg-slate-900 hover:bg-slate-800 text-white rounded-2xl transition-all font-bold text-xs shadow-sm cursor-pointer disabled:opacity-50"
               >
                 {isLoading ? (
-                  <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                 ) : (
                   <>
                     Continue
-                    <ArrowRight size={18} />
+                    <ArrowRight size={14} />
                   </>
                 )}
               </button>
-
-              {/* Bypass Button */}
-              {/* <button
-                type="button"
-                onClick={handleBypass}
-                className="w-full mt-4 flex items-center justify-center gap-2 px-6 py-3 border border-gray-200 text-gray-500 rounded-xl hover:bg-gray-50 hover:text-gray-700 transition-colors text-sm"
-              >
-                <Zap size={16} />
-                Quick Bypass (Dev Mode)
-              </button> */}
-
-              {/* Demo credentials hint */}
-              {/* <p className="text-center text-xs text-gray-400 mt-6">
-                Demo: admin / walkdrobe123
-              </p> */}
             </form>
           ) : (
             /* Step 2: Select Store Type */
-            <div className="p-8">
-              <h2 className="text-xl font-semibold text-gray-900 mb-2 font-poppins">Select Store</h2>
-              <p className="text-gray-400 text-sm mb-8">Choose which inventory to manage</p>
+            <div className="p-6 sm:p-8">
+              <h2 className="text-lg font-bold text-slate-900 mb-1 font-poppins">Select Store</h2>
+              <p className="text-slate-400 text-xs mb-6">Choose inventory model to manage</p>
 
-              <div className="space-y-4">
+              <div className="space-y-3">
                 {/* Website Option */}
                 <button
+                  type="button"
                   onClick={() => handleStoreSelect("website")}
                   disabled={isLoading}
-                  className={`w-full p-5 border-2 transition-all text-left group hover:border-gray-900 hover:shadow-lg ${
-                    storeType === "website" ? "border-gray-900 bg-gray-50" : "border-gray-100"
+                  className={`w-full p-4 rounded-2xl border border-slate-150 transition-all text-left group hover:border-slate-800 hover:shadow-md cursor-pointer ${
+                    storeType === "website" ? "border-slate-800 bg-blue-50/20" : "bg-white"
                   }`}
                 >
-                  <div className="flex items-center gap-4">
-                    <div className="p-3 bg-blue-100 rounded-xl group-hover:bg-blue-200 transition-colors">
-                      <Globe className="w-6 h-6 text-blue-600" />
+                  <div className="flex items-center gap-3">
+                    <div className="p-2.5 bg-blue-50 rounded-xl group-hover:bg-blue-100 transition-colors">
+                      <Globe className="w-5 h-5 text-blue-500" />
                     </div>
                     <div className="flex-1">
-                      <h3 className="font-semibold text-gray-900">Website Store</h3>
-                      <p className="text-sm text-gray-400">walkdrobe.in online inventory</p>
+                      <h3 className="text-xs font-bold text-slate-800">Website Store</h3>
+                      <p className="text-[10px] text-slate-400">walkdrobe.in online inventory</p>
                     </div>
-                    <ArrowRight className="w-5 h-5 text-gray-300 group-hover:text-gray-900 transition-colors" />
+                    <ArrowRight className="w-4 h-4 text-slate-300 group-hover:text-slate-800 transition-colors" />
                   </div>
                 </button>
 
                 {/* Offline Shop Option */}
                 <button
+                  type="button"
                   onClick={() => handleStoreSelect("offline")}
                   disabled={isLoading}
-                  className={`w-full p-5 rounded-2xl border-2 transition-all text-left group hover:border-gray-900 hover:shadow-lg ${
-                    storeType === "offline" ? "border-gray-900 bg-gray-50" : "border-gray-100"
+                  className={`w-full p-4 rounded-2xl border border-slate-150 transition-all text-left group hover:border-slate-800 hover:shadow-md cursor-pointer ${
+                    storeType === "offline" ? "border-slate-800 bg-emerald-50/20" : "bg-white"
                   }`}
                 >
-                  <div className="flex items-center gap-4">
-                    <div className="p-3 bg-emerald-100 rounded-xl group-hover:bg-emerald-200 transition-colors">
-                      <Store className="w-6 h-6 text-emerald-600" />
+                  <div className="flex items-center gap-3">
+                    <div className="p-2.5 bg-emerald-50 rounded-xl group-hover:bg-emerald-100 transition-colors">
+                      <Store className="w-5 h-5 text-emerald-500" />
                     </div>
                     <div className="flex-1">
-                      <h3 className="font-semibold text-gray-900">Offline Shop</h3>
-                      <p className="text-sm text-gray-400">Patna physical store inventory</p>
+                      <h3 className="text-xs font-bold text-slate-800">Offline Shop</h3>
+                      <p className="text-[10px] text-slate-400">Patna physical store inventory</p>
                     </div>
-                    <ArrowRight className="w-5 h-5 text-gray-300 group-hover:text-gray-900 transition-colors" />
+                    <ArrowRight className="w-4 h-4 text-slate-300 group-hover:text-slate-800 transition-colors" />
                   </div>
                 </button>
               </div>
 
               {/* Back button */}
               <button
+                type="button"
                 onClick={() => setStep(1)}
-                className="w-full mt-6 text-sm text-gray-400 hover:text-gray-600 transition-colors"
+                className="w-full mt-5 text-xs text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
               >
                 ← Back to login
               </button>
@@ -210,7 +205,7 @@ export default function LoginPage() {
         </div>
 
         {/* Footer */}
-        <p className="text-center text-xs text-gray-400 mt-6">
+        <p className="text-center text-[10px] text-slate-400 mt-6">
           © 2026 Walkdrobe. All rights reserved.
         </p>
       </div>

@@ -157,6 +157,7 @@ export default function Sidebar() {
       setStoreType(newType);
       setShowSwitcher(false);
       toast.success(`Switched to ${newType === "website" ? "Website Store" : "Offline Shop"}`);
+      router.push(newType === "website" ? "/website" : "/");
     }
   };
 
@@ -457,123 +458,7 @@ export default function Sidebar() {
           <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-ping" />
         </div>
 
-        {/* Notifications Popover */}
-        <div className="relative" ref={notifRef}>
-          <button
-            onClick={() => setNotificationsOpen(!notificationsOpen)}
-            className="p-2.5 bg-white/80 backdrop-blur-md border border-slate-200/80 hover:border-slate-300 rounded-2xl shadow-sm hover:shadow-md transition-all flex items-center justify-center text-slate-600 hover:text-slate-800 cursor-pointer relative"
-          >
-            <Bell className="w-4.5 h-4.5" />
-            {unreadCount > 0 && (
-              <span className="absolute -top-1.5 -right-1.5 bg-amber-500 text-white text-[9px] font-extrabold w-5 h-5 rounded-full flex items-center justify-center border-2 border-white animate-pulse">
-                {unreadCount}
-              </span>
-            )}
-          </button>
-
-          <AnimatePresence>
-            {notificationsOpen && (
-              <motion.div
-                initial={{ opacity: 0, y: 10, scale: 0.95 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                className="absolute right-0 mt-2.5 w-80 sm:w-96 bg-white rounded-3xl shadow-2xl border border-slate-100 overflow-hidden z-50 flex flex-col"
-              >
-                {/* Popover Header */}
-                <div className="px-4.5 py-3.5 bg-slate-900 text-white flex items-center justify-between">
-                  <div>
-                    <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400">System Logs</h4>
-                    <p className="text-sm font-extrabold tracking-tight mt-0.5">Notifications</p>
-                  </div>
-                  {unreadCount > 0 && (
-                    <button
-                      onClick={markAllAsRead}
-                      className="text-[10px] font-bold text-blue-400 hover:text-blue-300 transition-colors flex items-center gap-1 cursor-pointer"
-                    >
-                      <Check className="w-3.5 h-3.5" /> Mark read
-                    </button>
-                  )}
-                </div>
-
-                {/* Popover Body List */}
-                <div className="max-h-72 overflow-y-auto divide-y divide-slate-100">
-                  {notifications.length === 0 ? (
-                    <div className="py-10 text-center text-slate-400 text-xs italic">
-                      No notifications logged.
-                    </div>
-                  ) : (
-                    notifications.map((item) => (
-                      <div
-                        key={item.id}
-                        className={`p-4 flex gap-3 transition-colors hover:bg-slate-50/50 ${
-                          item.unread ? "bg-amber-50/20" : ""
-                        }`}
-                      >
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center justify-between gap-1">
-                            <span className="font-extrabold text-slate-800 text-xs flex items-center gap-1.5">
-                              {item.unread && <span className="w-1.5 h-1.5 bg-amber-500 rounded-full animate-ping" />}
-                              {item.title}
-                            </span>
-                            <span className="text-[9px] text-slate-400 whitespace-nowrap">{item.time}</span>
-                          </div>
-                          <p className="text-slate-500 text-[11px] mt-1 leading-relaxed">{item.message}</p>
-                        </div>
-                        <button
-                          onClick={() => clearNotification(item.id)}
-                          className="p-1 text-slate-300 hover:text-slate-600 transition-colors h-fit cursor-pointer"
-                          title="Dismiss"
-                        >
-                          <X className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    ))
-                  )}
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
-
-        {/* Profile Dropdown */}
-        <div className="relative" ref={profileRef}>
-          <button
-            onClick={() => setProfileOpen(!profileOpen)}
-            className="flex items-center gap-2 p-1 bg-white/80 backdrop-blur-md border border-slate-200/80 hover:border-slate-300 rounded-full shadow-sm hover:shadow-md transition-all cursor-pointer"
-          >
-            <div className="w-8 h-8 bg-slate-900 text-white rounded-full flex items-center justify-center font-bold text-xs shadow-sm">
-              AD
-            </div>
-          </button>
-
-          <AnimatePresence>
-            {profileOpen && (
-              <motion.div
-                initial={{ opacity: 0, y: 10, scale: 0.95 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                className="absolute right-0 mt-2.5 w-60 bg-white rounded-2xl shadow-2xl border border-slate-100 overflow-hidden z-50"
-              >
-                {/* Popover User Header */}
- 
-                {/* Popover Actions List */}
-                <div className="p-2 space-y-1">
-                  <div className="flex items-center gap-2 px-3 py-2 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-                    <Shield className="w-3.5 h-3.5 text-slate-400" />
-                    <span>Access Role: Admin</span>
-                  </div>
-                  <button
-                    onClick={handleLogout}
-                    className="w-full flex items-center gap-2 px-3 py-2.5 text-rose-500 hover:text-rose-600 hover:bg-rose-50/50 rounded-xl transition-all text-xs font-bold cursor-pointer"
-                  >
-                    <LogOut className="w-4 h-4" />
-                    <span>Sign Out Session</span>
-                  </button>
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
+     
       </div>
     </>
   );

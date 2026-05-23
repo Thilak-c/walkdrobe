@@ -241,7 +241,7 @@ export default function WebsiteOrdersPage() {
           </div>
 
           {/* Analytics Stats Grid */}
-          <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
+          <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4 mb-6 sm:mb-8">
             {[
               {
                 label: "All Orders",
@@ -304,7 +304,7 @@ export default function WebsiteOrdersPage() {
           </div>
 
           {/* Filters & Search Row */}
-          <div className="bg-white rounded-3xl border border-slate-200/60 p-5 shadow-sm mb-6 flex flex-col md:flex-row items-center gap-4 justify-between">
+          <div className="bg-white rounded-3xl border border-slate-200/60 p-3 sm:p-5 shadow-sm mb-4 sm:mb-6 flex flex-col md:flex-row items-center gap-3 sm:gap-4 justify-between">
             <div className="relative w-full md:w-96">
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 w-4.5 h-4.5" />
               <input
@@ -359,7 +359,8 @@ export default function WebsiteOrdersPage() {
                 <p className="text-slate-500 text-xs mt-1">There are no orders matching your current query criteria.</p>
               </div>
             ) : (
-              <div className="overflow-x-auto">
+              <>
+              <div className="hidden md:block overflow-x-auto">
                 <table className="w-full text-left border-collapse">
                   <thead>
                     <tr className="bg-slate-50 border-b border-slate-100 text-slate-400 font-semibold text-[11px] uppercase tracking-wider">
@@ -487,6 +488,62 @@ export default function WebsiteOrdersPage() {
                   </tbody>
                 </table>
               </div>
+
+              {/* Mobile Order Cards */}
+              <div className="md:hidden divide-y divide-slate-100">
+                {orders.map((order) => {
+                  const styleConfig = statusColors[order.status] || statusColors.pending;
+                  return (
+                    <div key={order._id} className="p-3.5 space-y-2.5">
+                      <div className="flex items-start justify-between gap-2">
+                        <div>
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-bold text-slate-800 text-[13px] cursor-pointer" onClick={() => handleOpenDrawer(order)}>{order.orderNumber}</span>
+                            <button onClick={() => copyToClipboard(order.orderNumber, "Order ID")} className="text-slate-400 hover:text-slate-600"><Copy className="w-3 h-3" /></button>
+                          </div>
+                          <div className="flex items-center gap-1 mt-0.5">
+                            <Calendar className="w-3 h-3 text-slate-400" />
+                            <span className="text-[10px] text-slate-400">{new Date(order.createdAt).toLocaleDateString("en-IN", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}</span>
+                          </div>
+                        </div>
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-[9px] font-bold bg-white">
+                          <span className={`w-1.5 h-1.5 rounded-full ${styleConfig.badge}`} />
+                          <span className={styleConfig.text}>{order.status}</span>
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-sm font-medium text-slate-700">{order.shippingDetails?.fullName}</p>
+                          <p className="text-[10px] text-slate-400">{order.shippingDetails?.city}, {order.shippingDetails?.state}</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="font-extrabold text-slate-800 text-sm">₹{order.orderTotal?.toLocaleString("en-IN")}</p>
+                          <span className="text-[8px] font-bold uppercase tracking-wider bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded">{order.paymentDetails?.paymentMethod || "cod"}</span>
+                        </div>
+                      </div>
+                      <div className="flex items-center justify-between pt-1">
+                        <div className="flex -space-x-2 overflow-hidden items-center">
+                          {order.items?.slice(0, 3).map((item, idx) => (
+                            <img key={idx} src={item.image} alt={item.name} className="inline-block h-7 w-7 rounded-lg ring-2 ring-white object-cover bg-slate-50" />
+                          ))}
+                          <span className="text-[10px] text-slate-400 ml-2">{order.items?.length} item{order.items?.length !== 1 ? "s" : ""}</span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <select value={order.status} disabled={updatingOrderId === order._id} onChange={(e) => handleStatusChange(order._id, e.target.value)} className="px-2 py-1 bg-white border border-slate-200 rounded-lg text-[10px] font-medium focus:outline-none cursor-pointer">
+                            <option value="pending">Pending</option>
+                            <option value="confirmed">Confirmed</option>
+                            <option value="shipped">Shipped</option>
+                            <option value="delivered">Delivered</option>
+                            <option value="cancelled">Cancelled</option>
+                          </select>
+                          <button onClick={() => handleOpenDrawer(order)} className="p-1.5 bg-slate-50 hover:bg-slate-100 text-slate-500 rounded-lg border border-slate-100"><Eye className="w-3.5 h-3.5" /></button>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              </>
             )}
           </div>
         </div>
@@ -501,7 +558,7 @@ export default function WebsiteOrdersPage() {
             className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity duration-300 animate-fadeIn"
           />
 
-          <div className="absolute inset-y-0 right-0 max-w-full flex pl-10">
+          <div className="absolute inset-y-0 right-0 max-w-full flex pl-0 sm:pl-10">
             <div className="w-screen max-w-2xl bg-white shadow-2xl flex flex-col h-full transform transition-all duration-300 border-l border-slate-150 animate-slideLeft">
               {/* Drawer Header */}
               <div className="px-6 py-5 bg-slate-900 text-white flex items-center justify-between shadow-md">
@@ -518,7 +575,7 @@ export default function WebsiteOrdersPage() {
               </div>
 
               {/* Drawer Scrollable Content */}
-              <div className="flex-1 overflow-y-auto px-6 py-6 space-y-7">
+              <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-4 sm:py-6 space-y-5 sm:space-y-7">
                 {/* Visual Status Indicator Banner */}
                 <div className={`p-4 rounded-2xl border flex items-center justify-between shadow-sm ${
                   statusColors[selectedOrder.status]?.bg || "bg-slate-50 border-slate-200"

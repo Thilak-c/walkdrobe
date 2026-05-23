@@ -196,12 +196,12 @@ export default function WebsiteAddProduct() {
             </div>
           </div>
 
-          <form onSubmit={handleSubmit} className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <form onSubmit={handleSubmit} className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
             {/* Left Column: Form Details */}
             <div className="lg:col-span-2 space-y-6">
               
               {/* Card 1: Basic Specifications */}
-              <div className="bg-white rounded-3xl border border-slate-200/60 p-6 shadow-sm space-y-4">
+              <div className="bg-white rounded-3xl border border-slate-200/60 p-4 sm:p-6 shadow-sm space-y-4">
                 <h3 className="font-bold text-slate-800 text-sm flex items-center gap-2 border-b border-slate-50 pb-3">
                   <Package className="w-4.5 h-4.5 text-slate-400" /> Basic Specifications
                 </h3>
@@ -273,7 +273,7 @@ export default function WebsiteAddProduct() {
               </div>
 
               {/* Card 2: Size Grid & Inventory Stock */}
-              <div className="bg-white rounded-3xl border border-slate-200/60 p-6 shadow-sm space-y-4">
+              <div className="bg-white rounded-3xl border border-slate-200/60 p-4 sm:p-6 shadow-sm space-y-4">
                 <div className="flex items-center justify-between border-b border-slate-50 pb-3">
                   <h3 className="font-bold text-slate-800 text-sm flex items-center gap-2">
                     <Layers className="w-4.5 h-4.5 text-slate-400" /> Size Grid & Inventory Stock
@@ -296,7 +296,7 @@ export default function WebsiteAddProduct() {
                           key={s}
                           type="button"
                           onClick={() => toggleSize(s)}
-                          className={`w-12 h-12 rounded-2xl text-xs font-bold transition-all border flex items-center justify-center cursor-pointer ${
+                          className={`w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl text-xs font-bold transition-all border flex items-center justify-center cursor-pointer ${
                             isActive
                               ? "bg-slate-900 border-slate-900 text-white shadow-md shadow-slate-100 scale-105"
                               : "bg-white border-slate-200 text-slate-500 hover:border-slate-300 hover:bg-slate-50"
@@ -309,7 +309,7 @@ export default function WebsiteAddProduct() {
                   </div>
 
                   {form.sizes.length > 0 && (
-                    <div className="grid grid-cols-3 sm:grid-cols-6 gap-2.5 pt-2 animate-fadeIn">
+                    <div className="grid grid-cols-3 gap-2 sm:gap-2.5 pt-2 animate-fadeIn">
                       {form.sizes
                         .sort((a, b) => +a - +b)
                         .map((s) => (
@@ -341,7 +341,7 @@ export default function WebsiteAddProduct() {
             <div className="space-y-6">
               
               {/* Card 3: Pricing Analytics */}
-              <div className="bg-white rounded-3xl border border-slate-200/60 p-6 shadow-sm space-y-4">
+              <div className="bg-white rounded-3xl border border-slate-200/60 p-4 sm:p-6 shadow-sm space-y-4">
                 <h3 className="font-bold text-slate-800 text-sm flex items-center gap-2 border-b border-slate-50 pb-3">
                   <DollarSign className="w-4.5 h-4.5 text-slate-400" /> Pricing & Financials
                 </h3>
@@ -401,7 +401,7 @@ export default function WebsiteAddProduct() {
               </div>
 
               {/* Card 4: Catalog Photos */}
-              <div className="bg-white rounded-3xl border border-slate-200/60 p-6 shadow-sm space-y-4">
+              <div className="bg-white rounded-3xl border border-slate-200/60 p-4 sm:p-6 shadow-sm space-y-4">
                 <h3 className="font-bold text-slate-800 text-sm flex items-center gap-2 border-b border-slate-50 pb-3">
                   <ImageIcon className="w-4.5 h-4.5 text-slate-400" /> Product Photos
                 </h3>

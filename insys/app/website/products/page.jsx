@@ -28,6 +28,7 @@ import {
 } from "lucide-react";
 import toast from "react-hot-toast";
 import Link from "next/link";
+import Dropdown from "@/components/Dropdown";
 import { motion, AnimatePresence } from "framer-motion";
 
 const SIZES = ["41", "42", "43", "44", "45", "46"];
@@ -37,6 +38,7 @@ const CATEGORIES = ["All", "Sneakers", "Sports"];
 export default function WebsiteProducts() {
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState("all");
+  const [sortBy, setSortBy] = useState("name_asc");
   const [editing, setEditing] = useState(null);
   const [editForm, setEditForm] = useState({});
   const [loadingProduct, setLoadingProduct] = useState(false);
@@ -57,6 +59,31 @@ export default function WebsiteProducts() {
   if (filter === "in") filtered = filtered.filter((p) => (p.currentStock || p.totalAvailable || 0) > 10);
   if (filter === "low") filtered = filtered.filter((p) => (p.currentStock || p.totalAvailable || 0) > 0 && (p.currentStock || p.totalAvailable || 0) <= 10);
   if (filter === "out") filtered = filtered.filter((p) => (p.currentStock || p.totalAvailable || 0) === 0);
+
+  // Apply sorting options
+  filtered = [...filtered].sort((a, b) => {
+    if (sortBy === "name_asc") {
+      return (a.name || "").localeCompare(b.name || "");
+    }
+    if (sortBy === "name_desc") {
+      return (b.name || "").localeCompare(a.name || "");
+    }
+    if (sortBy === "price_desc") {
+      return (b.price || 0) - (a.price || 0);
+    }
+    if (sortBy === "price_asc") {
+      return (a.price || 0) - (b.price || 0);
+    }
+    const stockA = a.currentStock || a.totalAvailable || 0;
+    const stockB = b.currentStock || b.totalAvailable || 0;
+    if (sortBy === "stock_desc") {
+      return stockB - stockA;
+    }
+    if (sortBy === "stock_asc") {
+      return stockA - stockB;
+    }
+    return 0;
+  });
 
   // Fetch full details only when editing
   const handleEdit = async (p) => {
@@ -208,7 +235,7 @@ export default function WebsiteProducts() {
 
           {/* Quick Metrics Cards */}
           {!loading && products && (
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6 sm:mb-8">
               <StatCard
                 label="Active Catalog"
                 value={products.length}
@@ -240,19 +267,35 @@ export default function WebsiteProducts() {
           )}
 
           {/* Search & Tabs Row */}
-          <div className="bg-white rounded-3xl border border-slate-200/60 p-5 shadow-sm mb-6 flex flex-col md:flex-row items-center gap-4 justify-between">
-            <div className="relative w-full md:w-96">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 w-4.5 h-4.5" />
-              <input
-                type="text"
-                placeholder="Search by name, SKU, or type..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="w-full pl-11 pr-4 py-2.5 bg-slate-50/50 hover:bg-slate-50 focus:bg-white border border-slate-200 hover:border-slate-300 focus:border-slate-800 rounded-2xl text-sm focus:outline-none transition-all"
+          <div className="bg-white rounded-3xl border border-slate-200/60 p-3 sm:p-5 shadow-sm mb-4 sm:mb-6 flex flex-col xl:flex-row items-center gap-3 sm:gap-4 justify-between">
+            <div className="flex flex-col sm:flex-row gap-3 w-full xl:w-auto xl:flex-1">
+              <div className="relative flex-1">
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 w-4.5 h-4.5" />
+                <input
+                  type="text"
+                  placeholder="Search by name, SKU, or type..."
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="w-full pl-11 pr-4 py-2.5 bg-slate-50/50 hover:bg-slate-50 focus:bg-white border border-slate-200 hover:border-slate-355 focus:border-slate-800 rounded-2xl text-sm focus:outline-none transition-all"
+                />
+              </div>
+              <Dropdown
+                value={sortBy}
+                onChange={setSortBy}
+                align="full"
+                className="w-full sm:w-56 shrink-0"
+                options={[
+                  { value: "name_asc", label: "Alphabetical: A to Z" },
+                  { value: "name_desc", label: "Alphabetical: Z to A" },
+                  { value: "price_desc", label: "Price: High to Low" },
+                  { value: "price_asc", label: "Price: Low to High" },
+                  { value: "stock_desc", label: "Stock: High to Low" },
+                  { value: "stock_asc", label: "Stock: Low to High" }
+                ]}
               />
             </div>
 
-            <div className="flex items-center gap-2 overflow-x-auto w-full md:w-auto pb-2 md:pb-0 scrollbar-none">
+            <div className="flex items-center gap-2 overflow-x-auto w-full xl:w-auto pb-2 xl:pb-0 scrollbar-none justify-start xl:justify-end shrink-0">
               {[
                 { id: "all", label: "All Items" },
                 { id: "in", label: "Healthy Stock" },
@@ -296,7 +339,8 @@ export default function WebsiteProducts() {
                 </Link>
               </div>
             ) : (
-              <div className="overflow-x-auto">
+              <>
+              <div className="hidden md:block overflow-x-auto">
                 <table className="w-full text-left border-collapse">
                   <thead>
                     <tr className="bg-slate-50 border-b border-slate-100 text-slate-400 font-semibold text-[11px] uppercase tracking-wider">
@@ -401,6 +445,53 @@ export default function WebsiteProducts() {
                   </tbody>
                 </table>
               </div>
+
+              {/* Mobile Product Cards */}
+              <div className="md:hidden divide-y divide-slate-100">
+                {filtered.map((p) => {
+                  const stockVal = p.currentStock || p.totalAvailable || 0;
+                  const isOutOfStock = stockVal === 0;
+                  const isLowStock = stockVal > 0 && stockVal <= 10;
+                  return (
+                    <div key={p._id} className="p-3.5 flex items-start gap-3">
+                      <div className="w-12 h-12 bg-slate-100 rounded-xl overflow-hidden border flex-shrink-0 flex items-center justify-center">
+                        {p.mainImage ? (
+                          <img src={p.mainImage} className="w-full h-full object-cover" />
+                        ) : (
+                          <Package className="w-5 h-5 text-slate-300" />
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0">
+                            <p className="font-bold text-slate-800 text-[13px] truncate cursor-pointer" onClick={() => handleEdit(p)}>{p.name}</p>
+                            <div className="flex items-center gap-1.5 mt-0.5">
+                              <span className="font-mono text-[10px] font-bold text-slate-400">{p.itemId}</span>
+                              {p.category && <span className="text-[10px] text-slate-400">· {p.category}</span>}
+                            </div>
+                          </div>
+                          <span className="font-extrabold text-slate-800 text-sm whitespace-nowrap">₹{p.price?.toLocaleString("en-IN")}</span>
+                        </div>
+                        <div className="flex items-center justify-between mt-2">
+                          <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-[9px] font-bold ${
+                            isOutOfStock ? "bg-rose-50 border-rose-200 text-rose-700"
+                            : isLowStock ? "bg-amber-50 border-amber-200 text-amber-700"
+                            : "bg-emerald-50 border-emerald-200 text-emerald-700"
+                          }`}>
+                            <span className={`w-1 h-1 rounded-full ${isOutOfStock ? "bg-rose-500" : isLowStock ? "bg-amber-500" : "bg-emerald-500"}`} />
+                            {isOutOfStock ? "Depleted" : isLowStock ? "Low" : "In Stock"} · {stockVal}
+                          </span>
+                          <div className="flex items-center gap-1">
+                            <button onClick={() => handleEdit(p)} disabled={loadingProduct} className="p-1.5 bg-slate-50 hover:bg-slate-100 text-slate-500 rounded-lg border border-slate-100 cursor-pointer disabled:opacity-50"><Edit2 className="w-3 h-3" /></button>
+                            <button onClick={() => handleDelete(p)} className="p-1.5 bg-rose-50 hover:bg-rose-100 text-rose-500 rounded-lg border border-rose-100 cursor-pointer"><Trash2 className="w-3 h-3" /></button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              </>
             )}
           </div>
         </div>
@@ -409,7 +500,7 @@ export default function WebsiteProducts() {
       {/* Product Editor Modal */}
       <AnimatePresence>
         {editing && (
-          <div className="fixed inset-0 z-50 overflow-hidden flex items-center justify-center p-4">
+          <div className="fixed inset-0 z-50 overflow-hidden flex items-center justify-center p-2 sm:p-4">
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -422,7 +513,7 @@ export default function WebsiteProducts() {
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-white rounded-3xl shadow-2xl max-w-2xl w-full border border-slate-100 overflow-hidden z-10 flex flex-col max-h-[90vh]"
+              className="bg-white rounded-2xl sm:rounded-3xl shadow-2xl max-w-2xl w-full border border-slate-100 overflow-hidden z-10 flex flex-col max-h-[95vh] sm:max-h-[90vh]"
             >
               <div className="px-6 py-5 bg-slate-900 text-white flex items-center justify-between shadow-md">
                 <div>
@@ -437,7 +528,7 @@ export default function WebsiteProducts() {
                 </button>
               </div>
 
-              <div className="flex-1 overflow-y-auto p-6 space-y-6">
+              <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 sm:space-y-6">
                 
                 {/* Form Group: Specs */}
                 <div className="bg-slate-50/70 border border-slate-100 p-5 rounded-2xl shadow-sm space-y-4">

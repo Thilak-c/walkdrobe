@@ -40,6 +40,7 @@ export default function BillingPage() {
     const [paymentMethod, setPaymentMethod] = useState("cash");
     const [discount, setDiscount] = useState(10);
     const [selectedProduct, setSelectedProduct] = useState(null); 
+    const [posTab, setPosTab] = useState("catalog"); // "catalog" or "checkout"
     const printRef = useRef(null);
 
     const products = useQuery(api.offStore.getProductsForBilling, {});
@@ -421,18 +422,49 @@ export default function BillingPage() {
                 <div className="max-w-7xl mx-auto pt-12 lg:pt-0">
                     
                     {/* Header */}
-                    <div className="mb-8">
+                    <div className="mb-6 sm:mb-8">
                         <div className="flex items-center gap-2 mb-1">
                             <Store size={14} className="text-emerald-600 animate-pulse" />
                             <p className="text-emerald-600 text-[10px] font-extrabold uppercase tracking-widest">Offline Store Operations</p>
                         </div>
-                        <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight font-poppins">Point of Sale</h1>
-                        <p className="text-slate-500 text-sm mt-1">Register storefront invoices, print thermal sheets, and adjust stock quantities.</p>
+                        <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight font-poppins">Point of Sale</h1>
+                        <p className="text-slate-500 text-xs sm:text-sm mt-0.5 sm:mt-1">Register storefront invoices, print thermal sheets, and adjust stock quantities.</p>
                     </div>
 
-                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    {/* Mobile View Tab Switcher */}
+                    <div className="flex lg:hidden bg-slate-100 p-1.5 rounded-2xl mb-5 gap-1.5 border border-slate-200/50">
+                        <button
+                            type="button"
+                            onClick={() => setPosTab("catalog")}
+                            className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all text-center cursor-pointer ${
+                                posTab === "catalog"
+                                    ? "bg-white text-slate-900 shadow-sm border border-slate-200/20"
+                                    : "text-slate-500 hover:text-slate-800"
+                            }`}
+                        >
+                            Catalog Shelf
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setPosTab("checkout")}
+                            className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all text-center flex items-center justify-center gap-1.5 cursor-pointer ${
+                                posTab === "checkout"
+                                    ? "bg-white text-slate-900 shadow-sm border border-slate-200/20"
+                                    : "text-slate-500 hover:text-slate-800"
+                            }`}
+                        >
+                            <span>Checkout & Invoice</span>
+                            {cart.length > 0 && (
+                                <span className="bg-slate-900 text-white text-[9px] px-1.5 py-0.5 rounded-full font-mono font-extrabold animate-pulse">
+                                    {cart.length}
+                                </span>
+                            )}
+                        </button>
+                    </div>
+
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 sm:gap-6">
                         {/* Left Column: POS Search */}
-                        <div className="lg:col-span-2 space-y-6">
+                        <div className={`lg:col-span-2 space-y-5 sm:space-y-6 ${posTab === "catalog" ? "block" : "hidden lg:block"}`}>
                             
                             {/* Search Controls */}
                             <div className="bg-white rounded-3xl border border-slate-200/60 p-5 shadow-sm space-y-4">
@@ -528,7 +560,7 @@ export default function BillingPage() {
                         </div>
 
                         {/* Right Column: Checkout Sidebar */}
-                        <div className="space-y-6">
+                        <div className={`space-y-5 sm:space-y-6 ${posTab === "checkout" ? "block" : "hidden lg:block"}`}>
                             
                             {/* Customer Specs */}
                             <div className="bg-white rounded-3xl border border-slate-200/60 p-5 shadow-sm space-y-4">

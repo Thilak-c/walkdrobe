@@ -33,15 +33,15 @@ export default function Dashboard() {
     { name: "Out of Stock", value: stats.outOfStock || 0, color: "#f43f5e" },
   ].filter(d => d.value > 0) : [];
 
-  const categoryData = stats?.categoryBreakdown 
+  const categoryData = stats?.categoryBreakdown
     ? Object.entries(stats.categoryBreakdown)
-        .map(([name, data]) => ({
-          name: name.length > 12 ? name.slice(0, 12) + "..." : name,
-          stock: data.stock,
-          products: data.count,
-        }))
-        .sort((a, b) => b.stock - a.stock)
-        .slice(0, 6)
+      .map(([name, data]) => ({
+        name: name.length > 12 ? name.slice(0, 12) + "..." : name,
+        stock: data.stock,
+        products: data.count,
+      }))
+      .sort((a, b) => b.stock - a.stock)
+      .slice(0, 6)
     : [];
 
   const isLoading = stats === undefined;
@@ -49,52 +49,14 @@ export default function Dashboard() {
   return (
     <div className="flex min-h-screen bg-slate-50/50">
       <Sidebar />
-      
+
       <main className="flex-1 p-4 lg:p-8 overflow-x-hidden">
         <div className="max-w-7xl mx-auto pt-12 lg:pt-0">
-          
-          {/* Header Banner */}
-          <motion.div 
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="bg-slate-900 rounded-[32px] p-6 lg:p-8 text-white relative overflow-hidden shadow-xl shadow-slate-900/10 border border-slate-850 mb-8"
-          >
-            <div className="absolute right-0 top-0 w-96 h-96 bg-emerald-500/10 rounded-full blur-3xl -mr-20 -mt-20 pointer-events-none" />
-            <div className="absolute left-1/3 bottom-0 w-80 h-80 bg-blue-500/5 rounded-full blur-3xl -ml-20 pointer-events-none" />
-            
-            <div className="relative z-10 flex flex-col md:flex-row md:items-center md:justify-between gap-6">
-              <div>
-                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] font-extrabold uppercase tracking-wider mb-3">
-                  <Sparkles size={11} className="animate-spin-slow" />
-                  <span>Patna Retail Storefront Active</span>
-                </div>
-                <h1 className="text-3xl font-extrabold tracking-tight font-poppins">Offline Shop Hub</h1>
-                <p className="text-slate-400 text-sm mt-1 max-w-xl">
-                  Real-time offline boutique inventory dashboard. Track physical stocks, check stock warnings, and print SKU barcode tags.
-                </p>
-              </div>
 
-              <div className="flex items-center gap-3 shrink-0">
-                <Link
-                  href="/billing"
-                  className="px-5 py-3.5 bg-white hover:bg-slate-50 text-slate-900 rounded-2xl text-xs font-bold shadow-md transition-all flex items-center gap-1.5 cursor-pointer"
-                >
-                  <ShoppingBag size={14} className="text-slate-900" />
-                  <span>Create Invoice</span>
-                </Link>
-                <Link
-                  href="/add-product"
-                  className="px-5 py-3.5 bg-slate-800 hover:bg-slate-700 text-white rounded-2xl text-xs font-bold border border-slate-700 transition-all flex items-center gap-1.5 cursor-pointer"
-                >
-                  <Plus size={14} />
-                  <span>Add Product</span>
-                </Link>
-              </div>
-            </div>
-          </motion.div>
+
 
           {/* Stats Grid */}
-          <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4 mb-6 sm:mb-8">
             <StatBox
               title="Physical Catalog"
               value={isLoading ? "—" : stats?.totalProducts || 0}
@@ -129,39 +91,39 @@ export default function Dashboard() {
               icon={IndianRupee}
               color="slate"
               subtitle="Valuation at Cost Price"
-              className="col-span-2 lg:col-span-1"
+              className="col-span-2 sm:col-span-3 lg:col-span-1"
             />
           </div>
 
           {/* Charts Row */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 mb-6 sm:mb-8">
             {/* Stock Status Pie Chart */}
-            <div className="bg-white rounded-3xl p-6 border border-slate-200/60 shadow-sm flex flex-col justify-between">
-              <div className="flex items-center justify-between mb-6">
+            <div className="bg-white rounded-2xl sm:rounded-3xl p-4 sm:p-6 border border-slate-200/60 shadow-sm flex flex-col justify-between">
+              <div className="flex items-center justify-between mb-4 sm:mb-6">
                 <div>
-                  <h3 className="text-base font-extrabold text-slate-800 tracking-tight font-poppins">Inventory Distribution</h3>
-                  <p className="text-[10px] text-slate-400 font-medium">Boutique items divided by physical health status</p>
+                  <h3 className="text-sm sm:text-base font-extrabold text-slate-800 tracking-tight font-poppins">Inventory Distribution</h3>
+                  <p className="text-[9px] sm:text-[10px] text-slate-400 font-medium">Boutique items divided by physical health status</p>
                 </div>
-                <div className="p-2 bg-slate-50 border border-slate-100 rounded-xl text-slate-500">
-                  <TrendingUp size={16} />
+                <div className="p-1.5 sm:p-2 bg-slate-50 border border-slate-100 rounded-xl text-slate-500">
+                  <TrendingUp size={14} className="sm:w-4 sm:h-4" />
                 </div>
               </div>
-              
+
               {isLoading ? (
-                <div className="h-64 flex items-center justify-center">
-                  <RefreshCw className="w-6 h-6 text-blue-500 animate-spin" />
+                <div className="h-48 sm:h-64 flex items-center justify-center">
+                  <RefreshCw className="w-5 h-5 text-blue-500 animate-spin" />
                 </div>
               ) : pieData.length > 0 ? (
                 <div className="flex-1 flex flex-col justify-center">
-                  <div className="h-52">
+                  <div className="h-44 sm:h-52">
                     <ResponsiveContainer width="100%" height="100%">
                       <PieChart>
                         <Pie
                           data={pieData}
                           cx="50%"
                           cy="50%"
-                          innerRadius={60}
-                          outerRadius={85}
+                          innerRadius={50}
+                          outerRadius={75}
                           paddingAngle={4}
                           dataKey="value"
                         >
@@ -169,14 +131,14 @@ export default function Dashboard() {
                             <Cell key={index} fill={entry.color} stroke="#fff" strokeWidth={2} />
                           ))}
                         </Pie>
-                        <Tooltip 
-                          contentStyle={{ 
-                            background: '#0f172a', 
-                            border: 'none', 
-                            borderRadius: '16px',
+                        <Tooltip
+                          contentStyle={{
+                            background: '#0f172a',
+                            border: 'none',
+                            borderRadius: '12px',
                             color: '#fff',
-                            padding: '10px 14px',
-                            fontSize: '11px',
+                            padding: '8px 12px',
+                            fontSize: '10px',
                             fontWeight: 'bold',
                             boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)'
                           }}
@@ -184,62 +146,62 @@ export default function Dashboard() {
                       </PieChart>
                     </ResponsiveContainer>
                   </div>
-                  <div className="flex justify-center flex-wrap gap-5 mt-4">
+                  <div className="flex justify-center flex-wrap gap-x-4 gap-y-2 mt-2">
                     {pieData.map((item) => (
-                      <div key={item.name} className="flex items-center gap-2">
-                        <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: item.color }} />
-                        <span className="text-xs font-bold text-slate-500">{item.name}</span>
-                        <span className="text-xs font-extrabold text-slate-800">({item.value})</span>
+                      <div key={item.name} className="flex items-center gap-1.5">
+                        <div className="w-2 h-2 rounded-full" style={{ backgroundColor: item.color }} />
+                        <span className="text-[10px] sm:text-xs font-bold text-slate-500">{item.name}</span>
+                        <span className="text-[10px] sm:text-xs font-extrabold text-slate-800">({item.value})</span>
                       </div>
                     ))}
                   </div>
                 </div>
               ) : (
-                <div className="h-64 flex items-center justify-center text-slate-400 text-xs">
+                <div className="h-48 sm:h-64 flex items-center justify-center text-slate-400 text-xs">
                   No stock data configured yet.
                 </div>
               )}
             </div>
 
             {/* Category Bar Chart */}
-            <div className="bg-white rounded-3xl p-6 border border-slate-200/60 shadow-sm flex flex-col justify-between">
-              <div className="flex items-center justify-between mb-6">
+            <div className="bg-white rounded-2xl sm:rounded-3xl p-4 sm:p-6 border border-slate-200/60 shadow-sm flex flex-col justify-between">
+              <div className="flex items-center justify-between mb-4 sm:mb-6">
                 <div>
-                  <h3 className="text-base font-extrabold text-slate-800 tracking-tight font-poppins">Inventory by Category</h3>
-                  <p className="text-[10px] text-slate-400 font-medium">Top active categories and pairs breakdown</p>
+                  <h3 className="text-sm sm:text-base font-extrabold text-slate-800 tracking-tight font-poppins">Inventory by Category</h3>
+                  <p className="text-[9px] sm:text-[10px] text-slate-400 font-medium">Top active categories and pairs breakdown</p>
                 </div>
-                <div className="p-2 bg-slate-50 border border-slate-100 rounded-xl text-slate-500">
-                  <Layers size={16} />
+                <div className="p-1.5 sm:p-2 bg-slate-50 border border-slate-100 rounded-xl text-slate-500">
+                  <Layers size={14} className="sm:w-4 sm:h-4" />
                 </div>
               </div>
-              
+
               {isLoading ? (
-                <div className="h-64 flex items-center justify-center">
-                  <RefreshCw className="w-6 h-6 text-blue-500 animate-spin" />
+                <div className="h-48 sm:h-64 flex items-center justify-center">
+                  <RefreshCw className="w-5 h-5 text-blue-500 animate-spin" />
                 </div>
               ) : categoryData.length > 0 ? (
-                <div className="h-64">
+                <div className="h-48 sm:h-64">
                   <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={categoryData} layout="vertical" margin={{ left: -10, right: 10 }}>
-                      <XAxis type="number" tick={{ fontSize: 10, fill: '#94a3b8', fontWeight: 'bold' }} axisLine={false} tickLine={false} />
-                      <YAxis type="category" dataKey="name" tick={{ fontSize: 10, fill: '#475569', fontWeight: 'bold' }} axisLine={false} tickLine={false} width={80} />
-                      <Tooltip 
-                        contentStyle={{ 
-                          background: '#0f172a', 
-                          border: 'none', 
-                          borderRadius: '16px',
+                    <BarChart data={categoryData} layout="vertical" margin={{ left: -15, right: 5 }}>
+                      <XAxis type="number" tick={{ fontSize: 9, fill: '#94a3b8', fontWeight: 'bold' }} axisLine={false} tickLine={false} />
+                      <YAxis type="category" dataKey="name" tick={{ fontSize: 9, fill: '#475569', fontWeight: 'bold' }} axisLine={false} tickLine={false} width={75} />
+                      <Tooltip
+                        contentStyle={{
+                          background: '#0f172a',
+                          border: 'none',
+                          borderRadius: '12px',
                           color: '#fff',
-                          padding: '10px 14px',
-                          fontSize: '11px',
+                          padding: '8px 12px',
+                          fontSize: '10px',
                           boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)'
                         }}
                       />
-                      <Bar dataKey="stock" fill="#0f172a" radius={[0, 6, 6, 0]} barSize={12} />
+                      <Bar dataKey="stock" fill="#0f172a" radius={[0, 4, 4, 0]} barSize={10} />
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
               ) : (
-                <div className="h-64 flex items-center justify-center text-slate-400 text-xs">
+                <div className="h-48 sm:h-64 flex items-center justify-center text-slate-400 text-xs">
                   No products registered in store categories.
                 </div>
               )}
@@ -247,57 +209,56 @@ export default function Dashboard() {
           </div>
 
           {/* Low Stock Alerts */}
-          <div className="bg-white rounded-3xl p-6 border border-slate-200/60 shadow-sm">
-            <div className="flex items-center justify-between mb-6">
+          <div className="bg-white rounded-2xl sm:rounded-3xl p-4 sm:p-6 border border-slate-200/60 shadow-sm">
+            <div className="flex items-center justify-between mb-4 sm:mb-6">
               <div>
-                <h3 className="text-base font-extrabold text-slate-800 tracking-tight font-poppins">Depleted & Low Stocks</h3>
-                <p className="text-[10px] text-slate-400 font-medium">{lowStock?.length || 0} items currently need immediate supply</p>
+                <h3 className="text-sm sm:text-base font-extrabold text-slate-800 tracking-tight font-poppins">Depleted & Low Stocks</h3>
+                <p className="text-[9px] sm:text-[10px] text-slate-400 font-medium">{lowStock?.length || 0} items currently need immediate supply</p>
               </div>
-              <Link 
+              <Link
                 href="/products?stockFilter=low_stock"
-                className="flex items-center gap-1.5 text-xs font-bold text-slate-500 hover:text-slate-900 transition-colors"
+                className="flex items-center gap-1 text-[11px] sm:text-xs font-bold text-slate-500 hover:text-slate-900 transition-colors"
               >
-                <span>Manage Alerts</span> <ArrowRight size={14} />
+                <span>Manage Alerts</span> <ArrowRight size={13} />
               </Link>
             </div>
-            
+
             {isLoading ? (
-              <div className="space-y-3">
+              <div className="space-y-2.5">
                 {[...Array(3)].map((_, i) => (
-                  <div key={i} className="h-16 bg-slate-50 rounded-2xl animate-pulse" />
+                  <div key={i} className="h-14 bg-slate-50 rounded-xl sm:rounded-2xl animate-pulse" />
                 ))}
               </div>
             ) : lowStock?.length > 0 ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                 {lowStock.slice(0, 6).map((product, idx) => {
                   const isOut = product.currentStock === 0;
                   return (
-                    <div 
-                      key={product._id} 
-                      className="flex items-center justify-between p-4 bg-slate-50/50 hover:bg-slate-50 border border-slate-100 rounded-2xl transition-all group"
+                    <div
+                      key={product._id}
+                      className="flex items-center justify-between p-3 sm:p-4 bg-slate-50/50 hover:bg-slate-50 border border-slate-100 rounded-xl sm:rounded-2xl transition-all group"
                     >
-                      <div className="flex items-center gap-3.5">
-                        <div className="w-12 h-12 bg-white rounded-xl overflow-hidden shrink-0 border border-slate-150 shadow-sm flex items-center justify-center">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-white rounded-lg overflow-hidden shrink-0 border border-slate-150 shadow-xs flex items-center justify-center">
                           {product.mainImage ? (
                             <img src={product.mainImage} className="w-full h-full object-cover" />
                           ) : (
-                            <Package className="w-5 h-5 text-slate-350" />
+                            <Package className="w-4.5 h-4.5 text-slate-350" />
                           )}
                         </div>
                         <div>
-                          <p className="font-bold text-slate-800 text-xs tracking-tight group-hover:underline cursor-pointer">
+                          <p className="font-bold text-slate-800 text-xs tracking-tight group-hover:underline cursor-pointer truncate max-w-[140px] sm:max-w-none">
                             {product.name}
                           </p>
-                          <span className="text-[9px] font-bold text-slate-400 font-mono block mt-0.5">{product.itemId}</span>
+                          <span className="text-[8px] sm:text-[9px] font-bold text-slate-400 font-mono block mt-0.5">{product.itemId}</span>
                         </div>
                       </div>
-                      
-                      <div className="text-right">
-                        <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full border text-[9px] font-bold shadow-xs ${
-                          isOut
+
+                      <div className="text-right shrink-0">
+                        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-[8px] sm:text-[9px] font-bold shadow-xs ${isOut
                             ? "bg-rose-50 border-rose-100 text-rose-600"
                             : "bg-amber-50 border-amber-100 text-amber-600"
-                        }`}>
+                          }`}>
                           <span className={`w-1 h-1 rounded-full ${isOut ? "bg-rose-500" : "bg-amber-500"}`} />
                           <span>{isOut ? "Sold Out" : `${product.currentStock} left`}</span>
                         </span>
@@ -307,12 +268,12 @@ export default function Dashboard() {
                 })}
               </div>
             ) : (
-              <div className="py-12 text-center border border-dashed border-slate-200 rounded-3xl">
-                <div className="w-14 h-14 bg-emerald-50 border border-emerald-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                  <CheckCircle2 className="w-6 h-6 text-emerald-500" />
+              <div className="py-8 sm:py-12 text-center border border-dashed border-slate-200 rounded-2xl sm:rounded-3xl">
+                <div className="w-12 h-12 bg-emerald-50 border border-emerald-100 rounded-xl sm:rounded-2xl flex items-center justify-center mx-auto mb-3">
+                  <CheckCircle2 className="w-5.5 h-5.5 text-emerald-500" />
                 </div>
-                <h4 className="text-sm font-extrabold text-slate-800">All Stocked Up!</h4>
-                <p className="text-slate-400 text-xs mt-1">No boutique products fall below threshold safety stocks.</p>
+                <h4 className="text-xs sm:text-sm font-extrabold text-slate-800">All Stocked Up!</h4>
+                <p className="text-slate-400 text-[10px] sm:text-xs mt-0.5">No boutique products fall below threshold safety stocks.</p>
               </div>
             )}
           </div>
@@ -334,15 +295,15 @@ function StatBox({ title, value, icon: Icon, color, subtitle, className = "" }) 
   const design = themes[color] || themes.slate;
 
   return (
-    <div className={`bg-white rounded-3xl border border-slate-200/60 p-5 shadow-sm hover:shadow-md transition-all duration-300 relative overflow-hidden group ${className}`}>
-      <div className={`w-9 h-9 rounded-2xl flex items-center justify-center mb-3 shadow-xs border ${design}`}>
-        <Icon size={16} />
+    <div className={`bg-white rounded-2xl sm:rounded-3xl border border-slate-200/60 p-4 sm:p-5 shadow-sm hover:shadow-md transition-all duration-300 relative overflow-hidden group ${className}`}>
+      <div className={`w-8 h-8 sm:w-9 sm:h-9 rounded-xl sm:rounded-2xl flex items-center justify-center mb-2.5 sm:mb-3 shadow-xs border ${design}`}>
+        <Icon size={14} className="sm:w-4 sm:h-4" />
       </div>
-      <p className="text-xl font-extrabold text-slate-800 tracking-tight mt-1 group-hover:scale-[1.01] transition-transform duration-200">
+      <p className="text-lg sm:text-xl font-extrabold text-slate-800 tracking-tight mt-0.5 sm:mt-1 group-hover:scale-[1.01] transition-transform duration-200">
         {value}
       </p>
-      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mt-1">{title}</p>
-      <span className="text-[9px] text-slate-400 font-medium block mt-0.5">{subtitle}</span>
+      <p className="text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-wider block mt-1">{title}</p>
+      <span className="text-[8px] sm:text-[9px] text-slate-400 font-medium block mt-0.5">{subtitle}</span>
     </div>
   );
 }

@@ -70,7 +70,7 @@ export default function WebsiteDashboard() {
           </div>
 
           {/* Premium Glassmorphic Stats Grid */}
-          <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
+          <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4 mb-6 sm:mb-8">
             <StatCard
               label="Catalog Products"
               value={stats?.totalProducts || 0}
@@ -112,7 +112,7 @@ export default function WebsiteDashboard() {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             
             {/* Column 1: Low Stock Alerts */}
-            <div className="lg:col-span-2 bg-white rounded-3xl border border-slate-200/60 p-6 shadow-sm flex flex-col justify-between">
+            <div className="lg:col-span-2 bg-white rounded-3xl border border-slate-200/60 p-4 sm:p-6 shadow-sm flex flex-col justify-between">
               <div>
                 <div className="flex items-center justify-between mb-6 pb-3 border-b border-slate-50">
                   <div>
@@ -183,7 +183,7 @@ export default function WebsiteDashboard() {
             </div>
 
             {/* Column 2: Category Breakdown */}
-            <div className="bg-white rounded-3xl border border-slate-200/60 p-6 shadow-sm">
+            <div className="bg-white rounded-3xl border border-slate-200/60 p-4 sm:p-6 shadow-sm">
               <div className="flex items-center gap-2 mb-6 pb-3 border-b border-slate-50">
                 <div className="p-2 bg-blue-50 border border-blue-100 rounded-xl text-blue-500">
                   <BarChart3 size={15} />
@@ -232,7 +232,7 @@ export default function WebsiteDashboard() {
           </div>
 
           {/* Bottom Section: Recent Movements */}
-          <div className="mt-6 bg-white rounded-3xl border border-slate-200/60 p-6 shadow-sm">
+          <div className="mt-4 sm:mt-6 bg-white rounded-3xl border border-slate-200/60 p-4 sm:p-6 shadow-sm">
             <div className="flex items-center gap-2 mb-6 pb-3 border-b border-slate-50">
               <div className="p-2 bg-slate-100 rounded-xl text-slate-500">
                 <Layers size={15} />
