@@ -92,14 +92,14 @@ export default function SidebarDrawer({ open, onClose, width = "w-4/5 max-w-sm" 
       {/* Overlay */}
       {open && (
         <div
-          className="fixed inset-0 bg-black/50 z-[9998] transition-opacity"
+          className="fixed inset-0 bg-black/50 z-9998 transition-opacity"
           onClick={onClose}
         />
       )}
 
       {/* Sidebar */}
       <div
-        className={`fixed top-0 left-0 h-full ${width} text-[13px/] bg-white z-[9999] transition-transform duration-300 overflow-y-auto ${open ? "translate-x-0" : "-translate-x-full"
+        className={`fixed top-0 left-0 h-full ${width} text-[13px/] bg-white z-9999 transition-transform duration-300 overflow-y-auto ${open ? "translate-x-0" : "-translate-x-full"
           }`}
       >
         {/* Header with Logo and Close */}
@@ -123,6 +123,13 @@ export default function SidebarDrawer({ open, onClose, width = "w-4/5 max-w-sm" 
           <Link href="/" onClick={onClose}>
             <div className="px-4 py-2.5 hover:bg-gray-50 transition-colors cursor-pointer">
               <span className="text-sm font-normal text-gray-900">Home</span>
+            </div>
+          </Link>
+
+          {/* My Orders */}
+          <Link href="/orders" onClick={onClose}>
+            <div className="px-4 py-2.5 hover:bg-gray-50 transition-colors cursor-pointer">
+              <span className="text-sm font-normal text-gray-900">My Orders</span>
             </div>
           </Link>
 

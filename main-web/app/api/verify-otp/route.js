@@ -13,8 +13,10 @@ export async function POST(request) {
       );
     }
 
-    // Read persisted OTPs
-    const filePath = path.resolve(process.cwd(), 'main-web', 'uploads_files', 'otps.json');
+    // Read persisted OTPs using a robust path resolver
+    const cwd = process.cwd();
+    const basePath = cwd.endsWith('main-web') ? cwd : path.join(cwd, 'main-web');
+    const filePath = path.resolve(basePath, 'uploads_files', 'otps.json');
     let current = [];
     try {
       const raw = await fs.readFile(filePath, 'utf8');
@@ -23,7 +25,7 @@ export async function POST(request) {
       current = [];
     }
 
-    const storedData = current.find((o) => o.email === email);
+    const storedData = current.find((o) => o.email?.trim().toLowerCase() === email.trim().toLowerCase());
     if (!storedData) {
       return NextResponse.json({ success: false, message: 'No OTP found. Please request a new one.' }, { status: 400 });
     }

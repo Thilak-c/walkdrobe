@@ -10,7 +10,28 @@ export async function POST(request) {
 
     // Get first admin user from database
     const users = await convex.query(api.users.getAllUsers);
-    const adminUser = users?.find(u => u.role === "admin" || u.role === "super_admin");
+    let adminUser = users?.find(u => u.role === "admin" || u.role === "super_admin");
+
+    if (!adminUser) {
+      if (users && users.length > 0) {
+        // Fallback to first user in system
+        adminUser = users[0];
+      } else {
+        // System is completely fresh - auto-initialize a default system administrator
+        try {
+          const res = await convex.mutation(api.auth.createSuperAdmin, {
+            email: "admin@walkdrobe.in",
+            password: "adminPassword123!",
+            name: "System Admin"
+          });
+          if (res && res.userId) {
+            adminUser = { _id: res.userId };
+          }
+        } catch (createErr) {
+          console.error("Auto super-admin setup failed:", createErr);
+        }
+      }
+    }
 
     if (!adminUser) {
       return NextResponse.json(

@@ -113,7 +113,7 @@ export default function RootLayout({ children }) {
         <OrganizationStructuredData />
       </head>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} ${poppins.variable} ${inter.variable} ${anton.variable} antialiased font-anton`}
+        className={`${geistSans.variable} ${geistMono.variable} ${poppins.variable} ${inter.variable} ${anton.variable} antialiased font-poppins`}
       >
         <QueryProvider>
           <ConvexProvider client={convex}>

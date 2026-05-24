@@ -29,7 +29,8 @@ import {
   Check,
   CheckCircle2,
   Cpu,
-  SlidersHorizontal
+  SlidersHorizontal,
+  Truck
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { motion, AnimatePresence } from "framer-motion";
@@ -67,6 +68,7 @@ const websiteNavItems = [
   { href: "/website/dead-stock", label: "Dead Stock", icon: TrendingDown, description: "No sales products" },
   { href: "/website/history", label: "History", icon: History, description: "Stock movements" },
   { href: "/website/trash", label: "Trash", icon: Trash2, description: "Deleted products" },
+  { href: "/website/shiprocket", label: "Shiprocket", icon: Truck, description: "Logistics & packaging" },
   { href: "/website/settings", label: "Settings", icon: Settings, description: "Preferences" },
 ];
 
@@ -450,16 +452,7 @@ export default function Sidebar() {
       </aside>
 
       {/* Global Top Navbar Actions Toolbar */}
-      <div className="fixed top-4 right-4 lg:right-8 z-40 flex items-center gap-3 animate-fadeIn">
-        {/* Pulsating Connectivity Beacon */}
-        <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-white/70 backdrop-blur-md border border-slate-200/80 rounded-2xl shadow-sm text-[10px] font-bold text-slate-600">
-          <Cpu className="w-3.5 h-3.5 text-blue-500 animate-pulse" />
-          <span>SYS SYNC</span>
-          <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-ping" />
-        </div>
-
      
-      </div>
     </>
   );
 }

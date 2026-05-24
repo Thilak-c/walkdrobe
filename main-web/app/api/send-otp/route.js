@@ -39,9 +39,11 @@ export async function POST(request) {
       createdAt: Date.now(),
     };
 
-    // Persist OTPs to disk (simple DB substitute). File path: uploads_files/otps.json
+    // Persist OTPs to disk (simple DB substitute) using robust path resolution.
     try {
-      const filePath = path.resolve(process.cwd(), 'main-web', 'uploads_files', 'otps.json');
+      const cwd = process.cwd();
+      const basePath = cwd.endsWith('main-web') ? cwd : path.join(cwd, 'main-web');
+      const filePath = path.resolve(basePath, 'uploads_files', 'otps.json');
       let current = [];
       try {
         const raw = await fs.readFile(filePath, 'utf8');

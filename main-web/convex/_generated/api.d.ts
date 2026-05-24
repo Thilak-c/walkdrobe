@@ -28,6 +28,7 @@ import type * as reportGenerator from "../reportGenerator.js";
 import type * as reportTemplates from "../reportTemplates.js";
 import type * as reports from "../reports.js";
 import type * as reviews from "../reviews.js";
+import type * as shiprocketConfig from "../shiprocketConfig.js";
 import type * as users from "../users.js";
 import type * as utils_helpers from "../utils/helpers.js";
 import type * as views from "../views.js";
@@ -61,6 +62,7 @@ declare const fullApi: ApiFromModules<{
   reportTemplates: typeof reportTemplates;
   reports: typeof reports;
   reviews: typeof reviews;
+  shiprocketConfig: typeof shiprocketConfig;
   users: typeof users;
   "utils/helpers": typeof utils_helpers;
   views: typeof views;

@@ -78,8 +78,16 @@ export async function POST(request) {
       });
     }
 
+    // Fetch dynamic packaging configuration from Convex
+    let config = null;
+    try {
+      config = await queryConvex('shiprocketConfig:getConfig', {});
+    } catch (configError) {
+      console.log('Error fetching Shiprocket dynamic config:', configError.message);
+    }
+
     // Create Shiprocket order directly via API
-    const shiprocketOrderData = formatOrderForShiprocket(order);
+    const shiprocketOrderData = formatOrderForShiprocket(order, config);
     const result = await shiprocketAPI.createOrder(shiprocketOrderData);
 
     // Get actual delivery estimate from Shiprocket serviceability

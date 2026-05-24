@@ -25,8 +25,16 @@ export async function createShiprocketOrderForPayment(orderNumber) {
       };
     }
 
+    // Fetch dynamic packaging configuration from Convex
+    let config = null;
+    try {
+      config = await convex.query(api.shiprocketConfig.getConfig);
+    } catch (configError) {
+      console.error('Error fetching Shiprocket dynamic config:', configError);
+    }
+
     // Create Shiprocket order directly via API
-    const shiprocketOrderData = formatOrderForShiprocket(order);
+    const shiprocketOrderData = formatOrderForShiprocket(order, config);
     const result = await shiprocketAPI.createOrder(shiprocketOrderData);
 
     // Update order in database with Shiprocket details

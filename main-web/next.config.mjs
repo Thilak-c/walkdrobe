@@ -2,7 +2,6 @@
 const nextConfig = {
   allowedDevOrigins: ["local-origin.dev", "*.local-origin.dev"],
   // Optimize production build
-  swcMinify: true,
   compiler: {
     removeConsole: process.env.NODE_ENV === 'production',
   },

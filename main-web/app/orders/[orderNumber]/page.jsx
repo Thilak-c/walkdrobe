@@ -855,44 +855,66 @@ export default function OrderDetailsPage({ params }) {
         </div>
       </header>
 
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
+      <div className="max-w-6xl mx-auto px-3 sm:px-6 lg:px-8 py-3 sm:py-6">
         {/* Order Header */}
-        <div className="bg-white rounded-xl border border-gray-200 p-4 sm:p-6 mb-4 sm:mb-6">
-          <div className="flex flex-col space-y-4 sm:flex-row sm:items-start sm:justify-between sm:space-y-0">
-            <div className="space-y-3">
-              <div className="flex items-center space-x-3 mb-2">
-                <h2 className="text-xl sm:text-2xl font-bold text-gray-900">
+        <div className="bg-white rounded-2xl border border-gray-200/80 p-4 sm:p-6 mb-4 shadow-xs relative overflow-hidden">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div className="space-y-1.5">
+              <div className="flex items-center space-x-2">
+                <span className="text-[10px] sm:text-xs font-bold text-blue-600 tracking-wider uppercase">Order Receipt</span>
+              </div>
+              <div className="flex items-center space-x-2">
+                <h2 className="text-lg sm:text-2xl font-black text-gray-900 tracking-tight">
                   {order.orderNumber}
                 </h2>
-                <button onClick={copyOrderNumber} className="p-2 hover:bg-gray-100 rounded">
-                  <Copy className="w-4 h-4 text-gray-500" />
+                <button 
+                  onClick={copyOrderNumber} 
+                  className="p-1.5 hover:bg-slate-50 border border-slate-100 rounded-lg active:scale-95 transition-all"
+                  title="Copy Order Number"
+                >
+                  <Copy className="w-3.5 h-3.5 text-gray-400 hover:text-gray-700" />
                 </button>
               </div>
               
-              <div className="flex flex-col space-y-2 sm:flex-row sm:items-center sm:space-y-0 sm:space-x-4 mb-3">
-                <span className={'px-3 py-1 rounded-full text-sm font-medium w-fit ' + getStatusColor(order.status)}>
+              <div className="flex flex-wrap items-center gap-2 mt-1">
+                <span className={'px-2.5 py-0.5 rounded-full text-[10px] sm:text-xs font-bold border tracking-wider ' + getStatusColor(order.status)}>
                   {order.status.toUpperCase()}
                 </span>
-                <span className="text-gray-600 text-sm">
+                <span className="text-gray-400 text-[11px] sm:text-xs font-medium">
                   {formatDetailedDate(order.createdAt)}
                 </span>
               </div>
 
               {order.estimatedDeliveryDate && (
-                <div className="flex items-center space-x-2 text-blue-600">
-                  <Truck className="w-4 h-4" />
-                  <span className="text-sm">
+                <div className="flex items-center space-x-1.5 text-blue-600 bg-blue-50/50 border border-blue-100/50 px-2.5 py-1 rounded-xl w-fit mt-1.5">
+                  <Truck className="w-3.5 h-3.5" />
+                  <span className="text-[11px] sm:text-xs font-semibold">
                     Expected: {formatDate(order.estimatedDeliveryDate)}
                   </span>
                 </div>
               )}
             </div>
 
-            <div className="text-left sm:text-right">
-              <div className="text-2xl sm:text-3xl font-bold text-gray-900">
-                ₹{order.orderTotal.toFixed(2)}
-              </div>
-            </div>
+             <div className="border-t border-slate-100 sm:border-t-0 pt-3 sm:pt-0 flex justify-between items-center sm:block sm:text-right">
+               {order.paymentDetails?.paymentMethod === "cod" ? (
+                 <>
+                   <span className="text-xs font-bold uppercase tracking-wider text-slate-400 sm:block">Online Paid</span>
+                   <div className="text-xl sm:text-3xl font-black text-emerald-600 tracking-tight sm:mt-1">
+                     ₹{(order.paymentDetails.codCharge || 100.00).toFixed(2)}
+                   </div>
+                   <span className="text-[10px] font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-lg border border-amber-200 mt-1 block w-fit sm:ml-auto select-none">
+                     ₹{(order.paymentDetails.remainingCOD || (order.orderTotal - 100)).toFixed(2)} Due on Delivery
+                   </span>
+                 </>
+               ) : (
+                 <>
+                   <span className="text-xs font-bold uppercase tracking-wider text-slate-400 sm:block">Amount Paid</span>
+                   <div className="text-xl sm:text-3xl font-black text-gray-900 tracking-tight sm:mt-1">
+                     ₹{order.orderTotal.toFixed(2)}
+                   </div>
+                 </>
+               )}
+             </div>
           </div>
         </div>
 
@@ -900,13 +922,16 @@ export default function OrderDetailsPage({ params }) {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
           {/* Order Items */}
           <div className="lg:col-span-2">
-            <div className="bg-white rounded-xl border border-gray-200 p-4 sm:p-6">
-              <h3 className="text-lg font-bold mb-4">Order Items ({order.items.length})</h3>
-              <div className="space-y-4">
+            <div className="bg-white rounded-2xl border border-gray-200/80 p-4 sm:p-6">
+              <div className="flex items-center justify-between mb-4 border-b border-slate-50 pb-3">
+                <h3 className="text-sm sm:text-base font-bold text-slate-800 uppercase tracking-wider">Purchased Items</h3>
+                <span className="bg-slate-100 text-slate-700 px-2.5 py-0.5 rounded-lg text-xs font-bold">{order.items.length} Product{order.items.length !== 1 ? 's' : ''}</span>
+              </div>
+              <div className="space-y-3">
                 {order.items.map((item, idx) => (
-                  <div key={idx} className="flex flex-col space-y-3 sm:flex-row sm:items-center sm:space-y-0 sm:space-x-4 p-4 border rounded-lg">
-                    <div className="w-[100px] sm:w-20 sm:h-20 rounded-lg overflow-hidden flex-shrink-0">
-                      <im
+                  <div key={idx} className="flex items-center gap-3 sm:gap-4 p-2.5 sm:p-4 border border-slate-100 rounded-xl hover:shadow-xs transition-shadow">
+                    <div className="w-14 h-14 sm:w-20 sm:h-20 rounded-lg overflow-hidden flex-shrink-0 bg-slate-50 border border-slate-100">
+                      <img
                         src={item.image || "/placeholder.jpg"}
                         alt={item.name}
                         width={80}
@@ -914,31 +939,48 @@ export default function OrderDetailsPage({ params }) {
                         className="w-full h-full object-cover"
                       />
                     </div>
-                    <div className="flex-1 space-y-2">
-                      <h4 className="font-semibold text-gray-900">{item.name}</h4>
-                      <div className="text-sm text-gray-600 space-y-1">
-                        <p>Size: <span className="font-medium">{item.size}</span></p>
-                        <p>Quantity: <span className="font-medium">{item.quantity}</span></p>
-                        <p>Price: <span className="font-medium">₹{item.price}</span> each</p>
+                    <div className="flex-1 min-w-0">
+                      <h4 className="font-bold text-gray-900 text-xs sm:text-sm truncate">{item.name}</h4>
+                      <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 mt-1 text-[10px] sm:text-xs text-gray-500 font-medium">
+                        <span>Size: <span className="text-slate-800 font-bold">{item.size}</span></span>
+                        <span className="text-slate-300">•</span>
+                        <span>Qty: <span className="text-slate-800 font-bold">{item.quantity}</span></span>
+                        <span className="text-slate-300">•</span>
+                        <span>₹{item.price.toLocaleString("en-IN")}</span>
                       </div>
                     </div>
-                    <div className="text-left sm:text-right">
-                      <div className="text-lg font-bold text-gray-900">
+                    <div className="text-right shrink-0">
+                      <div className="text-xs sm:text-base font-extrabold text-slate-900">
                         ₹{(item.price * item.quantity).toFixed(2)}
                       </div>
                     </div>
                   </div>
                 ))}
                 
-                <div className="border-t pt-4 space-y-2 text-sm">
+                <div className="border-t border-slate-100 pt-3 mt-4 space-y-2 text-xs sm:text-sm text-slate-600">
                   <div className="flex justify-between">
                     <span>Subtotal:</span>
-                    <span>₹{order.items.reduce((sum, item) => sum + (item.price * item.quantity), 0).toFixed(2)}</span>
+                    <span className="font-semibold text-slate-700">₹{order.items.reduce((sum, item) => sum + (item.price * item.quantity), 0).toFixed(2)}</span>
                   </div>
-                  <div className="flex justify-between text-lg font-bold">
-                    <span>Total:</span>
+                  
+                  {order.paymentDetails?.paymentMethod === "cod" && order.paymentDetails?.codCharge > 0 && (
+                    <div className="flex justify-between text-amber-800 bg-amber-50/50 px-2.5 py-1 rounded-lg border border-amber-100/50 text-[10px] sm:text-xs font-semibold mt-1">
+                      <span>COD Reservation Fee (Paid Online):</span>
+                      <span className="font-bold">₹{order.paymentDetails.codCharge.toFixed(2)}</span>
+                    </div>
+                  )}
+
+                  <div className="flex justify-between text-base sm:text-lg font-black text-slate-900 pt-1 border-t border-slate-50">
+                    <span>Grand Total:</span>
                     <span>₹{order.orderTotal.toFixed(2)}</span>
                   </div>
+
+                  {order.paymentDetails?.paymentMethod === "cod" && order.paymentDetails?.remainingCOD > 0 && (
+                    <div className="flex justify-between text-emerald-800 bg-emerald-50/50 px-2.5 py-1.5 rounded-lg border border-emerald-100/50 text-[11px] sm:text-xs font-extrabold mt-1">
+                      <span>Remaining Cash on Delivery:</span>
+                      <span className="font-mono">₹{order.paymentDetails.remainingCOD.toFixed(2)}</span>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -953,16 +995,42 @@ export default function OrderDetailsPage({ params }) {
                 <span>Payment</span>
               </h3>
               <div className="space-y-2 text-sm">
-                <div className="flex items-center space-x-2 text-green-600 mb-3">
-                  <Check className="w-4 h-4" />
-                  <span className="font-semibold">Payment Successful</span>
-                </div>
+                {order.paymentDetails?.paymentMethod === "cod" ? (
+                  <div className="flex items-center space-x-2 text-amber-600 mb-3 bg-amber-50/50 p-2 rounded-lg border border-amber-100">
+                    <Check className="w-4 h-4 text-amber-500" />
+                    <span className="font-semibold text-xs">COD Reservation Confirmed</span>
+                  </div>
+                ) : (
+                  <div className="flex items-center space-x-2 text-green-600 mb-3">
+                    <Check className="w-4 h-4" />
+                    <span className="font-semibold">Payment Successful</span>
+                  </div>
+                )}
+
                 {order.paymentDetails ? (
                   <>
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Amount:</span>
-                      <span className="font-medium">₹{order.paymentDetails.amount?.toFixed(2) || order.orderTotal.toFixed(2)}</span>
-                    </div>
+                    {order.paymentDetails.paymentMethod === "cod" ? (
+                      <>
+                        <div className="flex justify-between">
+                          <span className="text-gray-600">Online Fee Paid:</span>
+                          <span className="font-medium text-emerald-600">₹{order.paymentDetails.codCharge?.toFixed(2) || "100.00"}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-gray-600">COD Balance Due:</span>
+                          <span className="font-medium text-amber-700">₹{order.paymentDetails.remainingCOD?.toFixed(2) || (order.orderTotal - 100).toFixed(2)}</span>
+                        </div>
+                        <div className="flex justify-between pt-1 border-t border-slate-50 font-bold">
+                          <span className="text-gray-800">Total Value:</span>
+                          <span className="font-bold text-gray-900">₹{order.orderTotal.toFixed(2)}</span>
+                        </div>
+                      </>
+                    ) : (
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Amount Paid:</span>
+                        <span className="font-medium">₹{order.paymentDetails.amount?.toFixed(2) || order.orderTotal.toFixed(2)}</span>
+                      </div>
+                    )}
+
                     {order.paymentDetails.currency && (
                       <div className="flex justify-between">
                         <span className="text-gray-600">Currency:</span>
@@ -971,29 +1039,23 @@ export default function OrderDetailsPage({ params }) {
                     )}
                     {order.paymentDetails.razorpayOrderId && (
                       <div className="flex justify-between">
-                        <span className="text-gray-600">Order ID:</span>
-                        <span className="font-medium text-xs font-mono">{order.paymentDetails.razorpayOrderId}</span>
-                      </div>
-                    )}
-                    {order.paymentDetails.razorpayPaymentId && (
-                      <div className="flex justify-between">
-                        <span className="text-gray-600">Payment ID:</span>
-                        <span className="font-medium text-xs font-mono">{order.paymentDetails.razorpayPaymentId}</span>
+                        <span className="text-gray-600">Razorpay Order ID:</span>
+                        <span className="font-medium text-xs font-mono select-all truncate max-w-[150px]">{order.paymentDetails.razorpayOrderId}</span>
                       </div>
                     )}
                     {order.paymentDetails.status && (
                       <div className="flex justify-between">
                         <span className="text-gray-600">Status:</span>
-                        <span className="font-medium capitalize">{order.paymentDetails.status}</span>
+                        <span className="font-medium capitalize text-xs bg-slate-50 border border-slate-200/60 rounded px-1.5 py-0.2">{order.paymentDetails.status}</span>
                       </div>
                     )}
                     <div className="flex justify-between">
                       <span className="text-gray-600">Method:</span>
-                      <span className="font-medium">Razorpay</span>
+                      <span className="font-medium capitalize">{order.paymentDetails.paymentMethod || "prepaid"}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-gray-600">Paid by:</span>
-                      <span className="font-medium">{order.shippingDetails?.fullName || 'Customer'}</span>
+                      <span className="text-gray-600">Payer Name:</span>
+                      <span className="font-medium">{order.shippingDetails?.fullName || "Customer"}</span>
                     </div>
                   </>
                 ) : (

@@ -648,3 +648,41 @@ export const getOrdersWithShiprocket = query({
     }));
   },
 });
+
+// Track order by order number OR phone number
+export const trackOrder = query({
+  args: {
+    orderNumber: v.optional(v.string()),
+    phone: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    if (!args.orderNumber && !args.phone) {
+      return null;
+    }
+
+    if (args.orderNumber) {
+      // Find exact order number
+      const order = await ctx.db
+        .query("orders")
+        .withIndex("by_order_number", (q) => q.eq("orderNumber", args.orderNumber))
+        .unique();
+      if (order) return order;
+    }
+
+    if (args.phone) {
+      // Clean phone number input
+      const cleanPhone = args.phone.replace(/\D/g, "");
+      if (cleanPhone.length >= 10) {
+        // Query recent orders and scan for phone match
+        const recentOrders = await ctx.db.query("orders").order("desc").take(150);
+        const match = recentOrders.find(o => {
+          const orderPhone = o.shippingDetails?.phone?.replace(/\D/g, "") || "";
+          return orderPhone.endsWith(cleanPhone) || cleanPhone.endsWith(orderPhone);
+        });
+        if (match) return match;
+      }
+    }
+
+    return null;
+  },
+});

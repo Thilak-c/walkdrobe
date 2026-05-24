@@ -213,7 +213,7 @@ function formatPhoneNumber(phone) {
 }
 
 // Helper function to format order data for Shiprocket
-export function formatOrderForShiprocket(order) {
+export function formatOrderForShiprocket(order, config = null) {
   const shippingDetails = order.shippingDetails;
   const items = order.items;
   
@@ -236,8 +236,14 @@ export function formatOrderForShiprocket(order) {
     hsn: 61091000, // HSN code for clothing
   }));
 
-  // Calculate total weight (estimate 0.5kg per item)
-  const totalWeight = items.reduce((total, item) => total + (item.quantity * 0.5), 0);
+  // Resolve config settings
+  const targetLength = config?.length || 15;
+  const targetBreadth = config?.breadth || 10;
+  const targetHeight = config?.height || 5;
+  const targetWeightVal = config?.weight || 0.5;
+
+  // Calculate total weight (estimate configured per-item weight)
+  const totalWeight = items.reduce((total, item) => total + (item.quantity * targetWeightVal), 0);
 
   // Format address
   const fullAddress = `${shippingDetails.flatNo || ''}, ${shippingDetails.area || ''}, ${shippingDetails.address}`.replace(/^,\s*/, '').replace(/,\s*,/g, ',');
@@ -267,11 +273,13 @@ export function formatOrderForShiprocket(order) {
     shippingPhone: formattedPhone,
     orderItems: orderItems,
     paymentMethod: order.paymentDetails.paymentMethod === 'cod' ? 'COD' : 'Prepaid',
-    subTotal: order.orderTotal,
-    length: 15,
-    breadth: 10,
-    height: 5,
-    weight: Math.max(totalWeight, 0.5), // Minimum 0.5kg
+    subTotal: order.paymentDetails.paymentMethod === 'cod'
+      ? (order.paymentDetails.remainingCOD || (order.orderTotal - (order.paymentDetails.codCharge || 100)))
+      : order.orderTotal,
+    length: targetLength,
+    breadth: targetBreadth,
+    height: targetHeight,
+    weight: Math.max(totalWeight, targetWeightVal),
   };
 }
 

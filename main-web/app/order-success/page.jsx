@@ -2,9 +2,26 @@
 import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
-import { Check, Home, ShoppingBag, Package, Calendar, MapPin } from "lucide-react";
+import { Check, Home, ShoppingBag, Package, Calendar, MapPin, CreditCard, Truck } from "lucide-react";
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
+
+const colors = ["#22c55e", "#3b82f6", "#ef4444", "#eab308", "#a855f7", "#ec4899", "#14b8a6"];
+const confettiCount = 70;
+const confettiParticles = Array.from({ length: confettiCount }).map((_, i) => {
+  const angle = Math.random() * Math.PI * 2;
+  const velocity = Math.random() * 220 + 100;
+  return {
+    id: i,
+    x: Math.cos(angle) * velocity,
+    y: Math.sin(angle) * velocity - 140, // Parabolas start with an upward thrust
+    scale: Math.random() * 0.65 + 0.35,
+    color: colors[Math.floor(Math.random() * colors.length)],
+    delay: Math.random() * 0.12,
+    rotate: Math.random() * 720,
+    duration: Math.random() * 1.6 + 1.4,
+  };
+});
 
 export default function OrderSuccessPage() {
   const router = useRouter();
@@ -57,36 +74,97 @@ export default function OrderSuccessPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-green-50 via-white to-green-50">
-      <div className="max-w-2xl mx-auto px-4 py-6">
+    <div className="min-h-screen bg-linear-to-br from-green-50/70 via-white to-green-50/70 py-10 relative overflow-hidden">
+      {/* Background celebration floaters */}
+      <div className="absolute top-10 left-10 w-24 h-24 bg-green-100/30 rounded-full blur-xl pointer-events-none" />
+      <div className="absolute bottom-10 right-10 w-32 h-32 bg-emerald-100/30 rounded-full blur-xl pointer-events-none" />
+
+      <div className="max-w-2xl mx-auto px-4 relative z-10">
         <motion.div
-          initial={{ opacity: 0, scale: 0.8 }}
+          initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
-          transition={{ type: "spring", stiffness: 100, damping: 20 }}
-          className="text-center space-y-4"
+          transition={{ type: "spring", stiffness: 90, damping: 18 }}
+          className="text-center space-y-6"
         >
-          {/* Success Icon */}
-          <motion.div
-            initial={{ scale: 0 }}
-            animate={{ scale: 1 }}
-            transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
-            className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto"
-          >
-            <Check className="w-8 h-8 text-green-600" />
-          </motion.div>
+          {/* Success Icon with Concentric Ripples and Confetti */}
+          <div className="relative w-36 h-36 flex items-center justify-center mx-auto">
+            {/* Concentric sonar pulses */}
+            {[1, 2, 3].map((index) => (
+              <motion.div
+                key={index}
+                initial={{ scale: 0.6, opacity: 0.7 }}
+                animate={{ scale: 1.9, opacity: 0 }}
+                transition={{
+                  delay: index * 0.35,
+                  duration: 2,
+                  repeat: Infinity,
+                  ease: "easeOut"
+                }}
+                className="absolute inset-0 rounded-full border border-green-200/40 bg-green-50/15 pointer-events-none"
+              />
+            ))}
+
+            {/* Checkmark bounce */}
+            <motion.div
+              initial={{ scale: 0, rotate: -60 }}
+              animate={{ scale: 1, rotate: 0 }}
+              transition={{ 
+                type: "spring", 
+                stiffness: 280, 
+                damping: 14,
+                delay: 0.15 
+              }}
+              className="w-18 h-18 bg-green-500 rounded-full flex items-center justify-center shadow-xl shadow-green-200 z-10 relative"
+            >
+              <Check className="w-9 h-9 text-white stroke-[3.5px]" />
+            </motion.div>
+
+            {/* Mathematically-driven Confetti shooting out */}
+            {confettiParticles.map((p) => (
+              <motion.div
+                key={p.id}
+                initial={{ x: 0, y: 0, scale: 0, opacity: 1, rotate: 0 }}
+                animate={{ 
+                  x: p.x, 
+                  y: [0, p.y, p.y + 160], // parabolic path
+                  scale: [0, p.scale, 0], // scale pop
+                  opacity: [1, 1, 0],     // fade out
+                  rotate: p.rotate
+                }}
+                transition={{ 
+                  delay: p.delay,
+                  duration: p.duration,
+                  ease: "easeOut"
+                }}
+                style={{ 
+                  backgroundColor: p.color,
+                  width: `${Math.random() * 8 + 5}px`,
+                  height: `${Math.random() * 12 + 6}px`,
+                  borderRadius: Math.random() > 0.45 ? "50%" : "2px"
+                }}
+                className="absolute w-2.5 h-2.5 z-0 pointer-events-none"
+              />
+            ))}
+          </div>
 
           {/* Success Message */}
           <div className="space-y-2">
-            <h1 className="text-xl font-bold text-gray-900">Payment Successful!</h1>
-            <p className="text-sm text-gray-600">
-              Your order has been placed successfully. You will receive a confirmation email shortly.
+            <h1 className="text-2xl font-black tracking-tight text-gray-900 font-sans">
+              {order?.paymentDetails?.paymentMethod === "cod" ? "Order Confirmed!" : "Payment Successful!"}
+            </h1>
+            <p className="text-xs sm:text-sm text-gray-500 max-w-md mx-auto leading-relaxed">
+              {order?.paymentDetails?.paymentMethod === "cod"
+                ? "Your Cash on Delivery order has been registered successfully. The reservation fee was collected online."
+                : "Your order has been placed successfully. You will receive a confirmation email shortly."}
             </p>
             {orderNumber && (
-              <p className="text-sm font-semibold text-green-600">
-                Order Number: {orderNumber}
-              </p>
+              <div className="inline-block bg-green-50 border border-green-150 rounded-full px-4 py-1 mt-1">
+                <p className="text-xs font-bold text-green-700">
+                  Order Number: {orderNumber}
+                </p>
+              </div>
             )}
-            <p className="text-xs text-gray-500">
+            <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider mt-3 block">
               Redirecting to home page in {countdown} seconds...
             </p>
           </div>
@@ -97,83 +175,140 @@ export default function OrderSuccessPage() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.4 }}
-              className="bg-white rounded-lg border border-gray-200 p-4 shadow-sm"
+              className="bg-white rounded-3xl border border-slate-100 p-4 sm:p-5 shadow-xs"
             >
-              <h2 className="text-base font-bold text-gray-900 mb-3">Order Details</h2>
+              <h2 className="text-xs font-black uppercase tracking-widest text-slate-800 mb-3.5 flex items-center gap-1.5">
+                <Package className="w-4 h-4 text-slate-700" />
+                Order Details
+              </h2>
               
-              <div className="space-y-2 text-left">
+              <div className="space-y-2.5 text-left text-xs text-slate-650">
                 {/* Order Info */}
-                <div className="flex items-center space-x-2 text-xs text-gray-600">
-                  <Package className="w-4 h-4" />
-                  <span>Order Status: <span className="font-semibold text-green-600 capitalize">{order.status}</span></span>
+                <div className="flex justify-between items-center py-1.5 border-b border-slate-100/80">
+                  <span className="text-slate-500 font-medium flex items-center gap-1.5">
+                    <Package className="w-3.5 h-3.5 text-slate-400" /> Status
+                  </span>
+                  <span className="font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full text-[10px] capitalize">
+                    {order.status}
+                  </span>
                 </div>
                 
-                <div className="flex items-center space-x-2 text-xs text-gray-600">
-                  <Calendar className="w-4 h-4" />
-                  <span>Order Date: <span className="font-semibold">{formatDate(order.createdAt)}</span></span>
+                <div className="flex justify-between items-center py-1.5 border-b border-slate-100/80">
+                  <span className="text-slate-500 font-medium flex items-center gap-1.5">
+                    <Calendar className="w-3.5 h-3.5 text-slate-400" /> Date
+                  </span>
+                  <span className="font-semibold text-slate-800">{formatDate(order.createdAt)}</span>
                 </div>
                 
-                <div className="flex items-center space-x-2 text-xs text-gray-600">
-                  <MapPin className="w-4 h-4" />
-                  <span>Delivery Address: <span className="font-semibold">{order.shippingDetails.address}, {order.shippingDetails.city}, {order.shippingDetails.state} - {order.shippingDetails.pincode}</span></span>
+                <div className="flex flex-col gap-1 py-1.5 border-b border-slate-100/80">
+                  <span className="text-slate-500 font-medium flex items-center gap-1.5">
+                    <MapPin className="w-3.5 h-3.5 text-slate-400" /> Delivery Address
+                  </span>
+                  <span className="font-semibold text-slate-800 leading-relaxed pl-5">
+                    {order.shippingDetails.address}, {order.shippingDetails.city}, {order.shippingDetails.state} - {order.shippingDetails.pincode}
+                  </span>
                 </div>
 
                 {/* Payment Info */}
                 {order.paymentDetails && (
-                  <div className="flex items-center space-x-2 text-xs text-gray-600">
-                    <Check className="w-4 h-4 text-green-500" />
-                    <span>Paid by: <span className="font-semibold">{order.paymentDetails.paidBy}</span> via <span className="font-semibold capitalize">{order.paymentDetails.paymentMethod}</span></span>
+                  <div className="flex flex-col gap-1 py-1.5 border-b border-slate-100/80">
+                    <span className="text-slate-500 font-medium flex items-center gap-1.5">
+                      <CreditCard className="w-3.5 h-3.5 text-slate-400" /> Payment Details
+                    </span>
+                    <span className="font-semibold text-slate-800 leading-relaxed pl-5">
+                      {order.paymentDetails.paymentMethod === "cod" ? (
+                        <>
+                          COD Upfront Fee: <span className="text-emerald-600 font-bold">₹{(order.paymentDetails.codCharge || 100).toFixed(2)}</span> paid online (Razorpay)
+                        </>
+                      ) : (
+                        <>
+                          Paid <span className="text-slate-800 font-bold">₹{order.orderTotal.toFixed(2)}</span> online via <span className="capitalize">{order.paymentDetails.paymentMethod}</span>
+                        </>
+                      )}
+                    </span>
                   </div>
                 )}
 
                 {/* Estimated Delivery */}
                 {order.estimatedDeliveryDate && (
-                  <div className="flex items-center space-x-2 text-xs text-gray-600">
-                    <Package className="w-4 h-4 text-blue-500" />
-                    <span>Expected Delivery: <span className="font-semibold text-blue-600">{formatDeliveryDate(order.estimatedDeliveryDate)}</span></span>
+                  <div className="flex justify-between items-center py-1.5 border-b border-slate-100/80">
+                    <span className="text-slate-500 font-medium flex items-center gap-1.5">
+                      <Truck className="w-3.5 h-3.5 text-slate-400" /> Expected Delivery
+                    </span>
+                    <span className="font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full text-[10px]">
+                      {formatDeliveryDate(order.estimatedDeliveryDate)}
+                    </span>
                   </div>
                 )}
                 
                 {/* Order Items */}
-                <div className="border-t border-gray-200 pt-3">
-                  <h3 className="font-semibold text-xs text-gray-900 mb-2">Order Items ({order.items.length})</h3>
-                  <div className="space-y-1">
-                                         {order.items.map((item, index) => (
-                       <div key={index} className="flex justify-between items-center text-xs">
-                         <span className="text-gray-600">{item.name} (Size: {item.size}) x {item.quantity}</span>
-                         <span className="font-medium">₹{(item.price * item.quantity).toFixed(2)}</span>
-                       </div>
-                     ))}
+                <div className="border-t border-slate-100 pt-3.5 mt-1">
+                  <h3 className="text-xs font-black uppercase tracking-widest text-slate-800 mb-3 flex items-center gap-1.5">
+                    Order Items ({order.items.length})
+                  </h3>
+                  <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+                    {order.items.map((item, index) => (
+                      <div key={index} className="flex items-center gap-3 p-2 rounded-xl border border-slate-100 bg-slate-50/50">
+                        {item.image && (
+                          <div className="w-9 h-9 rounded-lg overflow-hidden border border-slate-200/60 bg-white shrink-0">
+                            <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
+                          </div>
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <h4 className="text-xs font-semibold text-slate-800 truncate">{item.name}</h4>
+                          <p className="text-[10px] text-slate-500 font-medium">Size: {item.size} • Qty: {item.quantity}</p>
+                        </div>
+                        <div className="text-right shrink-0">
+                          <span className="text-xs font-bold text-slate-900 font-mono">
+                            ₹{(item.price * item.quantity).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                   
-                  <div className="border-t border-gray-200 pt-2 mt-2">
-                    <div className="flex justify-between font-bold text-sm">
-                      <span>Total Amount:</span>
-                      <span className="text-green-600">₹{order.orderTotal.toFixed(2)}</span>
+                  <div className="border-t border-slate-100 pt-3.5 mt-3.5 space-y-2 text-xs">
+                    {order.paymentDetails?.paymentMethod === "cod" && (
+                      <div className="bg-slate-50 border border-slate-100/80 rounded-xl p-2.5 space-y-1.5 mb-2.5">
+                        <div className="flex justify-between text-slate-600">
+                          <span>Online Reservation Fee Paid:</span>
+                          <span className="font-bold text-emerald-650 font-mono">₹{(order.paymentDetails.codCharge || 100).toFixed(2)}</span>
+                        </div>
+                        <div className="flex justify-between text-slate-700">
+                          <span>COD Balance Due at Doorstep:</span>
+                          <span className="font-extrabold text-amber-700 font-mono">₹{(order.paymentDetails.remainingCOD || (order.orderTotal - 100)).toFixed(2)}</span>
+                        </div>
+                      </div>
+                    )}
+                    <div className="flex justify-between font-bold text-sm text-slate-900 border-t border-slate-100/60 pt-2.5 mt-1">
+                      <span>Total Invoice Value:</span>
+                      <span className="text-slate-900 font-mono font-extrabold">
+                        ₹{order.orderTotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </span>
                     </div>
                   </div>
                 </div>
 
                 {/* Delivery Tracking */}
                 {order.deliveryDetails && order.deliveryDetails.length > 0 && (
-                  <div className="border-t border-gray-200 pt-3">
-                    <h3 className="font-semibold text-xs text-gray-900 mb-2 flex items-center space-x-2">
-                      <Package className="w-4 h-4" />
-                      <span>Delivery Tracking</span>
+                  <div className="border-t border-slate-100 pt-3.5 mt-1">
+                    <h3 className="text-xs font-black uppercase tracking-widest text-slate-800 mb-3 flex items-center gap-1.5">
+                      <Truck className="w-4 h-4 text-slate-700" />
+                      Delivery Tracking
                     </h3>
                     <div className="space-y-2">
                       {order.deliveryDetails
                         .sort((a, b) => b.timestamp - a.timestamp)
                         .map((detail, index) => (
                         <div key={index} className="flex items-start space-x-2 text-xs">
-                          <div className="w-1.5 h-1.5 bg-green-500 rounded-full mt-1.5 flex-shrink-0"></div>
+                          <div className="w-1.5 h-1.5 bg-green-500 rounded-full mt-1.5 shrink-0"></div>
                           <div className="flex-1">
-                            <p className="text-gray-900 font-medium capitalize">{detail.status.replace('_', ' ')}</p>
-                            <p className="text-gray-600">{detail.message}</p>
+                            <p className="text-gray-900 font-semibold capitalize">{detail.status.replace('_', ' ')}</p>
+                            <p className="text-gray-600 text-[11px]">{detail.message}</p>
                             {detail.location && (
                               <p className="text-gray-500 text-[10px]">Location: {detail.location}</p>
                             )}
-                            <p className="text-gray-400 text-[10px]">{formatDate(detail.timestamp)}</p>
+                            <p className="text-gray-400 text-[9px] font-mono mt-0.5">{formatDate(detail.timestamp)}</p>
                           </div>
                         </div>
                       ))}
@@ -185,7 +320,7 @@ export default function OrderSuccessPage() {
           )}
 
           {/* Action Buttons */}
-          <div className="flex flex-col sm:flex-row gap-2 pt-3">
+          <div className="flex flex-col sm:flex-row gap-2.5 pt-4">
             <button
               onClick={() => {
                 if (!hasNavigated) {
@@ -194,9 +329,9 @@ export default function OrderSuccessPage() {
                 }
               }}
               disabled={hasNavigated}
-              className="flex-1 px-4 py-2 bg-gray-900 text-white rounded-lg text-sm font-medium hover:bg-gray-800 disabled:bg-gray-600 transition-colors flex items-center justify-center space-x-2"
+              className="flex-1 px-4 py-2.5 bg-slate-900 text-white rounded-xl text-xs font-bold uppercase tracking-wider hover:bg-slate-800 disabled:bg-slate-600 transition-all flex items-center justify-center space-x-2 shadow-xs"
             >
-              <Home className="w-3 h-3" />
+              <Home className="w-3.5 h-3.5" />
               <span>Go Home</span>
             </button>
             
@@ -208,16 +343,16 @@ export default function OrderSuccessPage() {
                 }
               }}
               disabled={hasNavigated}
-              className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 disabled:bg-green-400 transition-colors flex items-center justify-center space-x-2"
+              className="flex-1 px-4 py-2.5 bg-emerald-600 text-white rounded-xl text-xs font-bold uppercase tracking-wider hover:bg-emerald-700 disabled:bg-emerald-400 transition-all flex items-center justify-center space-x-2 shadow-xs"
             >
-              <ShoppingBag className="w-3 h-3" />
+              <ShoppingBag className="w-3.5 h-3.5" />
               <span>View Orders</span>
             </button>
           </div>
 
           {/* Additional Info */}
-          <div className="pt-4 border-t border-gray-200">
-            <p className="text-[10px] text-gray-500">
+          <div className="pt-4 border-t border-slate-100">
+            <p className="text-[10px] text-slate-400 leading-normal font-medium">
               If you have any questions, please contact our support team.
             </p>
           </div>

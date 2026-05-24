@@ -1,5 +1,9 @@
 import { NextResponse } from 'next/server';
 import shiprocketAPI, { formatOrderForShiprocket } from '@/lib/shiprocket-api';
+import { ConvexHttpClient } from "convex/browser";
+import { api } from "@/convex/_generated/api";
+
+const convex = new ConvexHttpClient(process.env.CONVEX_SELF_HOSTED_URL || process.env.NEXT_PUBLIC_CONVEX_URL);
 
 export async function POST(request) {
   try {
@@ -12,8 +16,17 @@ export async function POST(request) {
       );
     }
 
-    // Format order data for Shiprocket
-    const shiprocketOrderData = formatOrderForShiprocket(order);
+    // Fetch dynamic packaging configuration from Convex
+    let config = null;
+    try {
+      config = await convex.query(api.shiprocketConfig.getConfig);
+    } catch (configError) {
+      console.error('Error fetching Shiprocket dynamic config:', configError);
+      // Fallback to defaults (formatOrderForShiprocket handles null config gracefully)
+    }
+
+    // Format order data for Shiprocket with custom configuration
+    const shiprocketOrderData = formatOrderForShiprocket(order, config);
 
     // Create order in Shiprocket
     const shiprocketResponse = await shiprocketAPI.createOrder(shiprocketOrderData);

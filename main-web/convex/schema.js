@@ -1096,4 +1096,13 @@ export default defineSchema({
     .index("by_order", ["orderNumber"])
     .index("by_used_at", ["usedAt"])
     .index("by_user_coupon", ["userId", "couponId"]),
+
+  // Shiprocket packaging configuration
+  shiprocketConfig: defineTable({
+    length: v.number(),
+    breadth: v.number(),
+    height: v.number(),
+    weight: v.number(),
+    updatedAt: v.number(),
+  }),
 });

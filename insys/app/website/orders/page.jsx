@@ -440,15 +440,34 @@ export default function WebsiteOrdersPage() {
                           </td>
 
                           <td className="px-6 py-4.5 text-right">
-                            <div className="font-extrabold text-slate-800 text-sm">
-                              ₹{order.orderTotal?.toLocaleString("en-IN")}
-                            </div>
-                            <div className="mt-0.5">
-                              <span className="inline-block text-[9px] font-bold uppercase tracking-wider bg-slate-100 text-slate-500 border border-slate-200 px-1.5 py-0.5 rounded-md">
-                                {order.paymentDetails?.paymentMethod || "cod"}
-                              </span>
-                            </div>
-                          </td>
+                             {order.paymentDetails?.paymentMethod === "cod" ? (
+                               <div className="space-y-0.5">
+                                 <div className="font-extrabold text-slate-850 text-sm">
+                                   ₹{order.orderTotal?.toLocaleString("en-IN")}
+                                 </div>
+                                 <div className="text-[10px] font-semibold text-emerald-600">
+                                   Paid: ₹{(order.paymentDetails?.codCharge || 100).toLocaleString("en-IN")}
+                                 </div>
+                                 <div className="text-[10px] font-bold text-amber-700">
+                                   Due: ₹{(order.paymentDetails?.remainingCOD || (order.orderTotal - 100)).toLocaleString("en-IN")}
+                                 </div>
+                                 <span className="inline-block text-[8px] font-black uppercase tracking-wider bg-amber-50 text-amber-700 border border-amber-200 px-1.5 py-0.5 rounded-md mt-0.5">
+                                   COD Split
+                                 </span>
+                               </div>
+                             ) : (
+                               <>
+                                 <div className="font-extrabold text-slate-800 text-sm">
+                                   ₹{order.orderTotal?.toLocaleString("en-IN")}
+                                 </div>
+                                 <div className="mt-0.5">
+                                   <span className="inline-block text-[9px] font-bold uppercase tracking-wider bg-emerald-50 text-emerald-700 border border-emerald-250 px-1.5 py-0.5 rounded-md">
+                                     {order.paymentDetails?.paymentMethod || "prepaid"}
+                                   </span>
+                                 </div>
+                               </>
+                             )}
+                           </td>
 
                           <td className="px-6 py-4.5 text-center">
                             <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full border text-xs font-semibold shadow-sm select-none justify-center min-w-[110px] bg-white">
@@ -516,9 +535,17 @@ export default function WebsiteOrdersPage() {
                           <p className="text-sm font-medium text-slate-700">{order.shippingDetails?.fullName}</p>
                           <p className="text-[10px] text-slate-400">{order.shippingDetails?.city}, {order.shippingDetails?.state}</p>
                         </div>
-                        <div className="text-right">
+                        <div className="text-right space-y-0.5">
                           <p className="font-extrabold text-slate-800 text-sm">₹{order.orderTotal?.toLocaleString("en-IN")}</p>
-                          <span className="text-[8px] font-bold uppercase tracking-wider bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded">{order.paymentDetails?.paymentMethod || "cod"}</span>
+                          {order.paymentDetails?.paymentMethod === "cod" ? (
+                            <div className="flex flex-col items-end gap-0.5">
+                              <span className="text-[9px] font-semibold text-emerald-600">Paid: ₹{(order.paymentDetails?.codCharge || 100).toLocaleString("en-IN")}</span>
+                              <span className="text-[9px] font-bold text-amber-700">Due: ₹{(order.paymentDetails?.remainingCOD || (order.orderTotal - 100)).toLocaleString("en-IN")}</span>
+                              <span className="text-[7px] font-black uppercase bg-amber-50 text-amber-700 px-1 rounded border border-amber-200">COD Split</span>
+                            </div>
+                          ) : (
+                            <span className="text-[8px] font-bold uppercase tracking-wider bg-emerald-50 text-emerald-700 px-1.5 py-0.5 rounded border border-emerald-200">{order.paymentDetails?.paymentMethod || "prepaid"}</span>
+                          )}
                         </div>
                       </div>
                       <div className="flex items-center justify-between pt-1">
@@ -646,9 +673,11 @@ export default function WebsiteOrdersPage() {
                       <div>
                         <span className="text-slate-400 block font-medium">Settlement Status</span>
                         <span className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider mt-0.5 ${
-                          selectedOrder.paymentDetails?.status === "completed"
+                          selectedOrder.paymentDetails?.status === "completed" || selectedOrder.paymentDetails?.status === "paid"
                             ? "bg-emerald-100 text-emerald-800"
-                            : "bg-amber-100 text-amber-800"
+                            : selectedOrder.paymentDetails?.status === "partial"
+                              ? "bg-blue-100 text-blue-800"
+                              : "bg-amber-100 text-amber-800"
                         }`}>
                           {selectedOrder.paymentDetails?.status || "pending"}
                         </span>
@@ -657,10 +686,27 @@ export default function WebsiteOrdersPage() {
                         <span className="text-slate-400 block font-medium">Gateway Payment Method</span>
                         <span className="font-semibold text-slate-800 uppercase text-xs">{selectedOrder.paymentDetails?.paymentMethod || "cod"}</span>
                       </div>
-                      <div>
-                        <span className="text-slate-400 block font-medium">Order Total Paid</span>
-                        <span className="font-extrabold text-slate-900 text-base">₹{selectedOrder.orderTotal?.toLocaleString("en-IN")}</span>
-                      </div>
+                      {selectedOrder.paymentDetails?.paymentMethod === "cod" ? (
+                        <>
+                          <div>
+                            <span className="text-slate-400 block font-medium">Online Upfront Fee Paid</span>
+                            <span className="font-extrabold text-emerald-600 text-sm">₹{selectedOrder.paymentDetails?.codCharge?.toLocaleString("en-IN") || "100.00"}</span>
+                          </div>
+                          <div>
+                            <span className="text-slate-400 block font-medium">Cash Due on Delivery</span>
+                            <span className="font-extrabold text-amber-700 text-sm">₹{selectedOrder.paymentDetails?.remainingCOD?.toLocaleString("en-IN") || (selectedOrder.orderTotal - 100).toLocaleString("en-IN")}</span>
+                          </div>
+                          <div>
+                            <span className="text-slate-400 block font-medium">Grand Total Value</span>
+                            <span className="font-extrabold text-slate-900 text-sm">₹{selectedOrder.orderTotal?.toLocaleString("en-IN")}</span>
+                          </div>
+                        </>
+                      ) : (
+                        <div>
+                          <span className="text-slate-400 block font-medium">Order Total Paid</span>
+                          <span className="font-extrabold text-slate-900 text-base">₹{selectedOrder.orderTotal?.toLocaleString("en-IN")}</span>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
