@@ -17,6 +17,9 @@ import {
   Copy,
   ChevronRight,
   IndianRupee,
+  Activity,
+  Sparkles,
+  TrendingDown,
   Layers,
   CheckCircle2,
   AlertCircle,
@@ -33,11 +36,22 @@ import { motion, AnimatePresence } from "framer-motion";
 
 const SIZES = ["41", "42", "43", "44", "45", "46"];
 const COLORS = ["Black", "White", "Brown", "Navy", "Grey", "Red", "Blue", "Green", "Beige", "Tan", "Multi"];
-const CATEGORIES = ["All", "Sneakers", "Sports"];
+
+const MAIN_CATEGORIES = [
+  { value: "footwear", label: "Footwear" },
+  { value: "Accessories", label: "Accessories" }
+];
+
+const CATEGORY_MAP = {
+  footwear: ["Sneakers", "sports", "all"],
+  Accessories: ["watch", "belts", "lighter", "Glasses"]
+};
 
 export default function WebsiteProducts() {
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState("all");
+  const [activeTab, setActiveTab] = useState("all"); // "all", "sneakers", "sports", "accessories"
+  const [activeSubTab, setActiveSubTab] = useState("all"); // "all", "watch", "belts", "lighter", "glasses", "perfume", "belt", etc.
   const [sortBy, setSortBy] = useState("name_asc");
   const [editing, setEditing] = useState(null);
   const [editForm, setEditForm] = useState({});
@@ -49,6 +63,24 @@ export default function WebsiteProducts() {
   const updateProductFull = useMutation(api.products.updateProductFull);
   const deleteProduct = useMutation(api.products.deleteProduct);
 
+  const ACCESSORIES_LIST = ["watch", "belts", "lighter", "glasses", "perfume", "belt"];
+  
+  const isProductCategory = (p, catName) => {
+    const main = p.mainCategory?.toLowerCase() || "";
+    const sub = p.category?.toLowerCase() || "";
+    
+    if (catName === "sneakers") {
+      return sub === "sneakers";
+    }
+    if (catName === "sports") {
+      return sub === "sports";
+    }
+    if (catName === "accessories") {
+      return main === "accessories" || ACCESSORIES_LIST.includes(sub) || sub === "accessories";
+    }
+    return false;
+  };
+
   let filtered = products || [];
   if (search) {
     const s = search.toLowerCase();
@@ -56,6 +88,25 @@ export default function WebsiteProducts() {
       (p) => p.name.toLowerCase().includes(s) || p.itemId.toLowerCase().includes(s)
     );
   }
+
+  // Apply Category Tab Filtering
+  if (activeTab === "sneakers") {
+    filtered = filtered.filter(p => isProductCategory(p, "sneakers"));
+  } else if (activeTab === "sports") {
+    filtered = filtered.filter(p => isProductCategory(p, "sports"));
+  } else if (activeTab === "accessories") {
+    filtered = filtered.filter(p => isProductCategory(p, "accessories"));
+    if (activeSubTab !== "all") {
+      filtered = filtered.filter(p => {
+        const sub = p.category?.toLowerCase() || "";
+        if (activeSubTab === "belts") {
+          return sub === "belts" || sub === "belt";
+        }
+        return sub === activeSubTab;
+      });
+    }
+  }
+
   if (filter === "in") filtered = filtered.filter((p) => (p.currentStock || p.totalAvailable || 0) > 10);
   if (filter === "low") filtered = filtered.filter((p) => (p.currentStock || p.totalAvailable || 0) > 0 && (p.currentStock || p.totalAvailable || 0) <= 10);
   if (filter === "out") filtered = filtered.filter((p) => (p.currentStock || p.totalAvailable || 0) === 0);
@@ -98,6 +149,7 @@ export default function WebsiteProducts() {
       setEditing(fullProduct);
       setEditForm({
         name: fullProduct.name,
+        mainCategory: fullProduct.mainCategory || "footwear",
         category: fullProduct.category || "",
         description: fullProduct.description || "",
         mainImage: fullProduct.mainImage || "",
@@ -134,6 +186,7 @@ export default function WebsiteProducts() {
       await updateProductFull({
         id: editing._id,
         name: editForm.name,
+        mainCategory: editForm.mainCategory || "footwear",
         category: editForm.category || undefined,
         description: editForm.description || undefined,
         mainImage: editForm.mainImage || "/placeholder.png",
@@ -263,6 +316,163 @@ export default function WebsiteProducts() {
                 icon={X}
                 color="rose"
               />
+            </div>
+          )}
+
+          {/* Category Dashboard */}
+          {!loading && products && (
+            <div className="mb-6 sm:mb-8">
+              <h2 className="text-xs font-black uppercase text-slate-400 tracking-wider mb-3">Category Dashboard</h2>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
+                {/* All Items Card */}
+                <button
+                  type="button"
+                  onClick={() => { setActiveTab("all"); setActiveSubTab("all"); }}
+                  className={`text-left p-4 sm:p-5 rounded-2xl sm:rounded-3xl border transition-all duration-300 cursor-pointer flex flex-col justify-between relative overflow-hidden group ${
+                    activeTab === "all"
+                      ? "bg-slate-900 border-slate-900 text-white shadow-lg shadow-slate-900/10 scale-[1.02]"
+                      : "bg-white border-slate-200/60 hover:border-slate-350 text-slate-800"
+                  }`}
+                >
+                  <div className={`w-8 h-8 rounded-xl flex items-center justify-center mb-3 shadow-xs border ${
+                    activeTab === "all" ? "bg-white/10 border-white/10 text-white" : "bg-slate-50 border-slate-100 text-slate-500"
+                  }`}>
+                    <Layers size={14} />
+                  </div>
+                  <div>
+                    <p className={`text-lg sm:text-xl font-extrabold tracking-tight ${activeTab === "all" ? "text-white" : "text-slate-800"}`}>
+                      {products.length}
+                    </p>
+                    <p className={`text-[10px] font-bold uppercase tracking-wider block mt-1 ${activeTab === "all" ? "text-slate-300" : "text-slate-450"}`}>
+                      All Products
+                    </p>
+                  </div>
+                </button>
+
+                {/* Sneakers Card */}
+                <button
+                  type="button"
+                  onClick={() => { setActiveTab("sneakers"); setActiveSubTab("all"); }}
+                  className={`text-left p-4 sm:p-5 rounded-2xl sm:rounded-3xl border transition-all duration-300 cursor-pointer flex flex-col justify-between relative overflow-hidden group ${
+                    activeTab === "sneakers"
+                      ? "bg-slate-900 border-slate-900 text-white shadow-lg shadow-slate-900/10 scale-[1.02]"
+                      : "bg-white border-slate-200/60 hover:border-slate-350 text-slate-800"
+                  }`}
+                >
+                  <div className={`w-8 h-8 rounded-xl flex items-center justify-center mb-3 shadow-xs border ${
+                    activeTab === "sneakers" ? "bg-white/10 border-white/10 text-white" : "bg-blue-50 border-blue-100 text-blue-600"
+                  }`}>
+                    <Activity size={14} />
+                  </div>
+                  <div>
+                    <p className={`text-lg sm:text-xl font-extrabold tracking-tight ${activeTab === "sneakers" ? "text-white" : "text-slate-800"}`}>
+                      {products.filter(p => isProductCategory(p, "sneakers")).length}
+                    </p>
+                    <p className={`text-[10px] font-bold uppercase tracking-wider block mt-1 ${activeTab === "sneakers" ? "text-slate-300" : "text-slate-450"}`}>
+                      Sneakers
+                    </p>
+                  </div>
+                </button>
+
+                {/* Sports Card */}
+                <button
+                  type="button"
+                  onClick={() => { setActiveTab("sports"); setActiveSubTab("all"); }}
+                  className={`text-left p-4 sm:p-5 rounded-2xl sm:rounded-3xl border transition-all duration-300 cursor-pointer flex flex-col justify-between relative overflow-hidden group ${
+                    activeTab === "sports"
+                      ? "bg-slate-900 border-slate-900 text-white shadow-lg shadow-slate-900/10 scale-[1.02]"
+                      : "bg-white border-slate-200/60 hover:border-slate-350 text-slate-800"
+                  }`}
+                >
+                  <div className={`w-8 h-8 rounded-xl flex items-center justify-center mb-3 shadow-xs border ${
+                    activeTab === "sports" ? "bg-white/10 border-white/10 text-white" : "bg-emerald-50 border-emerald-100 text-emerald-600"
+                  }`}>
+                    <TrendingDown size={14} className="rotate-180" />
+                  </div>
+                  <div>
+                    <p className={`text-lg sm:text-xl font-extrabold tracking-tight ${activeTab === "sports" ? "text-white" : "text-slate-800"}`}>
+                      {products.filter(p => isProductCategory(p, "sports")).length}
+                    </p>
+                    <p className={`text-[10px] font-bold uppercase tracking-wider block mt-1 ${activeTab === "sports" ? "text-slate-300" : "text-slate-455"}`}>
+                      Sports
+                    </p>
+                  </div>
+                </button>
+
+                {/* Accessories Card */}
+                <button
+                  type="button"
+                  onClick={() => { setActiveTab("accessories"); setActiveSubTab("all"); }}
+                  className={`text-left p-4 sm:p-5 rounded-2xl sm:rounded-3xl border transition-all duration-300 cursor-pointer flex flex-col justify-between relative overflow-hidden group ${
+                    activeTab === "accessories"
+                      ? "bg-slate-900 border-slate-900 text-white shadow-lg shadow-slate-900/10 scale-[1.02]"
+                      : "bg-white border-slate-200/60 hover:border-slate-350 text-slate-800"
+                  }`}
+                >
+                  <div className={`w-8 h-8 rounded-xl flex items-center justify-center mb-3 shadow-xs border ${
+                    activeTab === "accessories" ? "bg-white/10 border-white/10 text-white" : "bg-purple-50 border-purple-100 text-purple-600"
+                  }`}>
+                    <Sparkles size={14} />
+                  </div>
+                  <div>
+                    <p className={`text-lg sm:text-xl font-extrabold tracking-tight ${activeTab === "accessories" ? "text-white" : "text-slate-800"}`}>
+                      {products.filter(p => isProductCategory(p, "accessories")).length}
+                    </p>
+                    <p className={`text-[10px] font-bold uppercase tracking-wider block mt-1 ${activeTab === "accessories" ? "text-slate-300" : "text-slate-455"}`}>
+                      Accessories
+                    </p>
+                  </div>
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Dynamic Information Banner & Subtabs */}
+          {!loading && products && (
+            <div className="mb-5 sm:mb-6 space-y-3 animate-fadeIn">
+              {/* Banner info */}
+              <div className="bg-slate-900/5 border border-slate-200/50 rounded-2xl p-4 flex items-center justify-between shadow-xs">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-2 h-2 rounded-full bg-slate-900 animate-pulse shrink-0" />
+                  <p className="text-xs font-semibold text-slate-600 font-poppins">
+                    💡 You have a total of <span className="font-extrabold text-slate-900">{filtered.length} items</span> in the <span className="font-extrabold uppercase text-slate-900">{activeTab === "all" ? "All Categories" : activeTab === "accessories" && activeSubTab !== "all" ? `Accessories (${activeSubTab})` : activeTab}</span> category.
+                  </p>
+                </div>
+                <div className="hidden sm:block text-[10px] font-bold text-slate-400 uppercase tracking-widest bg-slate-100 px-3 py-1.5 rounded-xl border border-slate-200/40">
+                  Convenient Dashboard
+                </div>
+              </div>
+
+              {/* Accessories Subtabs */}
+              {activeTab === "accessories" && (
+                <div className="bg-white rounded-2xl border border-slate-200/60 p-2.5 shadow-xs flex items-center gap-2 overflow-x-auto scrollbar-none">
+                  <span className="text-[10px] font-extrabold uppercase text-slate-400 tracking-wider shrink-0 px-2">Filter sub:</span>
+                  {[
+                    { id: "all", label: "All Accessories" },
+                    { id: "watch", label: "Watch" },
+                    { id: "belts", label: "Belts / Belt" },
+                    { id: "lighter", label: "Lighter" },
+                    { id: "glasses", label: "Glasses" },
+                    { id: "perfume", label: "Perfume" },
+                  ].map((subItem) => {
+                    const isActive = activeSubTab === subItem.id;
+                    return (
+                      <button
+                        key={subItem.id}
+                        type="button"
+                        onClick={() => setActiveSubTab(subItem.id)}
+                        className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all border cursor-pointer ${
+                          isActive
+                            ? "bg-slate-900 border-slate-900 text-white shadow-xs"
+                            : "bg-slate-50 hover:bg-slate-100 border-slate-200 text-slate-600"
+                        }`}
+                      >
+                        {subItem.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           )}
 
@@ -549,14 +759,29 @@ export default function WebsiteProducts() {
                     </div>
 
                     <div>
-                      <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">Category</label>
+                      <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">Main Category *</label>
+                      <select
+                        value={editForm.mainCategory || "footwear"}
+                        onChange={(e) => setEditForm({ ...editForm, mainCategory: e.target.value, category: "" })}
+                        className="w-full px-3 py-2.5 bg-white border border-slate-200 focus:border-slate-800 rounded-xl text-xs focus:outline-none font-bold"
+                        required
+                      >
+                        {MAIN_CATEGORIES.map((m) => (
+                          <option key={m.value} value={m.value}>{m.label}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">Category *</label>
                       <select
                         value={editForm.category}
                         onChange={(e) => setEditForm({ ...editForm, category: e.target.value })}
-                        className="w-full px-3 py-2.5 bg-white border border-slate-200 focus:border-slate-800 rounded-xl text-xs focus:outline-none"
+                        className="w-full px-3 py-2.5 bg-white border border-slate-200 focus:border-slate-800 rounded-xl text-xs focus:outline-none font-bold"
+                        required
                       >
                         <option value="">Select Category</option>
-                        {CATEGORIES.map((c) => (
+                        {(CATEGORY_MAP[editForm.mainCategory || "footwear"] || []).map((c) => (
                           <option key={c} value={c}>{c}</option>
                         ))}
                       </select>

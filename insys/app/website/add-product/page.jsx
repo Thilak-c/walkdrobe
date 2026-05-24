@@ -28,7 +28,16 @@ import Link from "next/link";
 
 const SIZES = ["41", "42", "43", "44", "45", "46"];
 const COLORS = ["Black", "White", "Brown", "Navy", "Grey", "Red", "Blue", "Green", "Beige", "Tan", "Multi"];
-const CATEGORIES = ["All", "Sneakers", "Sports"];
+
+const MAIN_CATEGORIES = [
+  { value: "footwear", label: "Footwear" },
+  { value: "Accessories", label: "Accessories" }
+];
+
+const CATEGORY_MAP = {
+  footwear: ["Sneakers", "sports", "all"],
+  Accessories: ["watch", "belts", "lighter", "Glasses"]
+};
 
 export default function WebsiteAddProduct() {
   const [loading, setLoading] = useState(false);
@@ -37,6 +46,7 @@ export default function WebsiteAddProduct() {
   const [form, setForm] = useState({
     sku: "",
     name: "",
+    mainCategory: "footwear",
     category: "",
     color: "",
     secondaryColor: "",
@@ -72,6 +82,7 @@ export default function WebsiteAddProduct() {
       await addProduct({
         itemId: form.sku,
         name: form.name,
+        mainCategory: form.mainCategory || undefined,
         category: form.category || undefined,
         description: form.description || undefined,
         price: parseFloat(form.sellingPrice),
@@ -96,6 +107,7 @@ export default function WebsiteAddProduct() {
     setForm({
       sku: "",
       name: "",
+      mainCategory: "footwear",
       category: "",
       color: "",
       secondaryColor: "",
@@ -232,14 +244,29 @@ export default function WebsiteAddProduct() {
                   </div>
 
                   <div>
-                    <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">Store Category</label>
+                    <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">Main Category *</label>
+                    <select
+                      value={form.mainCategory}
+                      onChange={(e) => setForm({ ...form, mainCategory: e.target.value, category: "" })}
+                      className="w-full px-3 py-2.5 bg-slate-50/50 hover:bg-slate-50 border border-slate-200 focus:border-slate-800 rounded-xl text-xs focus:outline-none font-bold"
+                      required
+                    >
+                      {MAIN_CATEGORIES.map((m) => (
+                        <option key={m.value} value={m.value}>{m.label}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">Store Category *</label>
                     <select
                       value={form.category}
                       onChange={(e) => setForm({ ...form, category: e.target.value })}
-                      className="w-full px-3 py-2.5 bg-slate-50/50 hover:bg-slate-50 border border-slate-200 focus:border-slate-800 rounded-xl text-xs focus:outline-none"
+                      className="w-full px-3 py-2.5 bg-slate-50/50 hover:bg-slate-50 border border-slate-200 focus:border-slate-800 rounded-xl text-xs focus:outline-none font-bold"
+                      required
                     >
                       <option value="">Select Category</option>
-                      {CATEGORIES.map((c) => (
+                      {(CATEGORY_MAP[form.mainCategory] || []).map((c) => (
                         <option key={c} value={c}>{c}</option>
                       ))}
                     </select>

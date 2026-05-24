@@ -19,7 +19,10 @@ import {
   Plus,
   SlidersHorizontal,
   ChevronRight,
-  TrendingDown
+  TrendingDown,
+  Activity,
+  Sparkles,
+  Layers
 } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
@@ -30,21 +33,57 @@ export default function ProductsPage() {
   
   const [search, setSearch] = useState("");
   const [stockFilter, setStockFilter] = useState("all");
-  const [category, setCategory] = useState("all");
+  const [activeTab, setActiveTab] = useState("all"); // "all", "sneakers", "sports", "accessories"
+  const [activeSubTab, setActiveSubTab] = useState("all"); // "all", "watch", "belts", "lighter", "glasses", "perfume", "belt", etc.
   const [sortBy, setSortBy] = useState("name");
+
+  const ACCESSORIES_LIST = ["watch", "belts", "lighter", "glasses", "perfume", "belt"];
+  
+  const isProductCategory = (p, catName) => {
+    const main = p.mainCategory?.toLowerCase() || "";
+    const sub = p.category?.toLowerCase() || "";
+    
+    if (catName === "sneakers") {
+      return sub === "sneakers";
+    }
+    if (catName === "sports") {
+      return sub === "sports";
+    }
+    if (catName === "accessories") {
+      return main === "accessories" || ACCESSORIES_LIST.includes(sub) || sub === "accessories";
+    }
+    return false;
+  };
 
   // Set category from URL on mount and when URL changes
   useEffect(() => {
     if (urlCategory) {
-      setCategory(urlCategory);
+      const cat = urlCategory.toLowerCase();
+      if (cat === "sneakers") {
+        setActiveTab("sneakers");
+        setActiveSubTab("all");
+      } else if (cat === "sports") {
+        setActiveTab("sports");
+        setActiveSubTab("all");
+      } else if (ACCESSORIES_LIST.includes(cat) || cat === "accessories") {
+        setActiveTab("accessories");
+        if (ACCESSORIES_LIST.includes(cat)) {
+          setActiveSubTab(cat);
+        } else {
+          setActiveSubTab("all");
+        }
+      } else {
+        setActiveTab("all");
+        setActiveSubTab("all");
+      }
     } else {
-      setCategory("all");
+      setActiveTab("all");
+      setActiveSubTab("all");
     }
   }, [urlCategory]);
 
   const products = useQuery(api.offStore.getProductsForList);
   const stats = useQuery(api.offStore.getStats) || {};
-  const categories = stats?.categories ? Object.keys(stats.categories) : [];
 
   // Filter and sort products
   const filteredProducts = (products || [])
@@ -55,9 +94,23 @@ export default function ProductsPage() {
           return false;
         }
       }
-      if (category !== "all" && p.category !== category) {
-        return false;
+      
+      // Main tab filter
+      if (activeTab === "sneakers" && !isProductCategory(p, "sneakers")) return false;
+      if (activeTab === "sports" && !isProductCategory(p, "sports")) return false;
+      if (activeTab === "accessories") {
+        if (!isProductCategory(p, "accessories")) return false;
+        // Subtab filter for accessories
+        if (activeSubTab !== "all") {
+          const sub = p.category?.toLowerCase() || "";
+          if (activeSubTab === "belts") {
+            if (sub !== "belts" && sub !== "belt") return false;
+          } else if (sub !== activeSubTab) {
+            return false;
+          }
+        }
       }
+
       const stock = p.totalStock ?? 0;
       if (stockFilter === "in_stock" && stock <= 10) return false;
       if (stockFilter === "low_stock" && (stock === 0 || stock > 10)) return false;
@@ -94,7 +147,11 @@ export default function ProductsPage() {
   };
 
   const isLoading = products === undefined;
-  const pageTitle = category !== "all" ? category : "All Products";
+  const pageTitle = activeTab !== "all" 
+    ? (activeTab === "accessories" && activeSubTab !== "all" 
+        ? `Accessories: ${activeSubTab.charAt(0).toUpperCase() + activeSubTab.slice(1)}` 
+        : activeTab.charAt(0).toUpperCase() + activeTab.slice(1)) 
+    : "All Products";
 
   return (
     <div className="flex min-h-screen bg-slate-50/50">
@@ -112,7 +169,7 @@ export default function ProductsPage() {
               </div>
               <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight font-poppins">{pageTitle}</h1>
               <p className="text-slate-500 text-xs sm:text-sm mt-0.5 sm:mt-1">
-                {filteredProducts?.length || 0} items registered {category !== "all" ? `in ${category}` : "in store inventory"}
+                {filteredProducts?.length || 0} items registered {activeTab !== "all" ? `in ${activeTab}` : "in store inventory"}
               </p>
             </div>
             <div className="grid grid-cols-3 sm:flex items-center gap-2 sm:gap-3 w-full md:w-auto">
@@ -178,6 +235,159 @@ export default function ProductsPage() {
             />
           </div>
 
+          {/* Category Dashboard */}
+          <div className="mb-6 sm:mb-8">
+            <h2 className="text-xs font-black uppercase text-slate-400 tracking-wider mb-3">Category Dashboard</h2>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
+              {/* All Items Card */}
+              <button
+                type="button"
+                onClick={() => { setActiveTab("all"); setActiveSubTab("all"); }}
+                className={`text-left p-4 sm:p-5 rounded-2xl sm:rounded-3xl border transition-all duration-300 cursor-pointer flex flex-col justify-between relative overflow-hidden group ${
+                  activeTab === "all"
+                    ? "bg-slate-900 border-slate-900 text-white shadow-lg shadow-slate-900/10 scale-[1.02]"
+                    : "bg-white border-slate-200/60 hover:border-slate-350 text-slate-800"
+                }`}
+              >
+                <div className={`w-8 h-8 rounded-xl flex items-center justify-center mb-3 shadow-xs border ${
+                  activeTab === "all" ? "bg-white/10 border-white/10 text-white" : "bg-slate-50 border-slate-100 text-slate-500"
+                }`}>
+                  <Layers size={14} />
+                </div>
+                <div>
+                  <p className={`text-lg sm:text-xl font-extrabold tracking-tight ${activeTab === "all" ? "text-white" : "text-slate-800"}`}>
+                    {products?.length || 0}
+                  </p>
+                  <p className={`text-[10px] font-bold uppercase tracking-wider block mt-1 ${activeTab === "all" ? "text-slate-300" : "text-slate-450"}`}>
+                    All Products
+                  </p>
+                </div>
+              </button>
+
+              {/* Sneakers Card */}
+              <button
+                type="button"
+                onClick={() => { setActiveTab("sneakers"); setActiveSubTab("all"); }}
+                className={`text-left p-4 sm:p-5 rounded-2xl sm:rounded-3xl border transition-all duration-300 cursor-pointer flex flex-col justify-between relative overflow-hidden group ${
+                  activeTab === "sneakers"
+                    ? "bg-slate-900 border-slate-900 text-white shadow-lg shadow-slate-900/10 scale-[1.02]"
+                    : "bg-white border-slate-200/60 hover:border-slate-350 text-slate-800"
+                }`}
+              >
+                <div className={`w-8 h-8 rounded-xl flex items-center justify-center mb-3 shadow-xs border ${
+                  activeTab === "sneakers" ? "bg-white/10 border-white/10 text-white" : "bg-blue-50 border-blue-100 text-blue-600"
+                }`}>
+                  <Activity size={14} />
+                </div>
+                <div>
+                  <p className={`text-lg sm:text-xl font-extrabold tracking-tight ${activeTab === "sneakers" ? "text-white" : "text-slate-800"}`}>
+                    {products?.filter(p => isProductCategory(p, "sneakers")).length || 0}
+                  </p>
+                  <p className={`text-[10px] font-bold uppercase tracking-wider block mt-1 ${activeTab === "sneakers" ? "text-slate-300" : "text-slate-450"}`}>
+                    Sneakers
+                  </p>
+                </div>
+              </button>
+
+              {/* Sports Card */}
+              <button
+                type="button"
+                onClick={() => { setActiveTab("sports"); setActiveSubTab("all"); }}
+                className={`text-left p-4 sm:p-5 rounded-2xl sm:rounded-3xl border transition-all duration-300 cursor-pointer flex flex-col justify-between relative overflow-hidden group ${
+                  activeTab === "sports"
+                    ? "bg-slate-900 border-slate-900 text-white shadow-lg shadow-slate-900/10 scale-[1.02]"
+                    : "bg-white border-slate-200/60 hover:border-slate-350 text-slate-800"
+                }`}
+              >
+                <div className={`w-8 h-8 rounded-xl flex items-center justify-center mb-3 shadow-xs border ${
+                  activeTab === "sports" ? "bg-white/10 border-white/10 text-white" : "bg-emerald-50 border-emerald-100 text-emerald-600"
+                }`}>
+                  <TrendingDown size={14} className="rotate-180" />
+                </div>
+                <div>
+                  <p className={`text-lg sm:text-xl font-extrabold tracking-tight ${activeTab === "sports" ? "text-white" : "text-slate-800"}`}>
+                    {products?.filter(p => isProductCategory(p, "sports")).length || 0}
+                  </p>
+                  <p className={`text-[10px] font-bold uppercase tracking-wider block mt-1 ${activeTab === "sports" ? "text-slate-300" : "text-slate-455"}`}>
+                    Sports
+                  </p>
+                </div>
+              </button>
+
+              {/* Accessories Card */}
+              <button
+                type="button"
+                onClick={() => { setActiveTab("accessories"); setActiveSubTab("all"); }}
+                className={`text-left p-4 sm:p-5 rounded-2xl sm:rounded-3xl border transition-all duration-300 cursor-pointer flex flex-col justify-between relative overflow-hidden group ${
+                  activeTab === "accessories"
+                    ? "bg-slate-900 border-slate-900 text-white shadow-lg shadow-slate-900/10 scale-[1.02]"
+                    : "bg-white border-slate-200/60 hover:border-slate-350 text-slate-800"
+                }`}
+              >
+                <div className={`w-8 h-8 rounded-xl flex items-center justify-center mb-3 shadow-xs border ${
+                  activeTab === "accessories" ? "bg-white/10 border-white/10 text-white" : "bg-purple-50 border-purple-100 text-purple-600"
+                }`}>
+                  <Sparkles size={14} />
+                </div>
+                <div>
+                  <p className={`text-lg sm:text-xl font-extrabold tracking-tight ${activeTab === "accessories" ? "text-white" : "text-slate-800"}`}>
+                    {products?.filter(p => isProductCategory(p, "accessories")).length || 0}
+                  </p>
+                  <p className={`text-[10px] font-bold uppercase tracking-wider block mt-1 ${activeTab === "accessories" ? "text-slate-300" : "text-slate-455"}`}>
+                    Accessories
+                  </p>
+                </div>
+              </button>
+            </div>
+          </div>
+
+          {/* Dynamic Information Banner & Subtabs */}
+          <div className="mb-5 sm:mb-6 space-y-3">
+            {/* Banner info */}
+            <div className="bg-slate-900/5 border border-slate-200/50 rounded-2xl p-4 flex items-center justify-between shadow-xs">
+              <div className="flex items-center gap-2.5">
+                <div className="w-2 h-2 rounded-full bg-slate-900 animate-pulse shrink-0" />
+                <p className="text-xs font-semibold text-slate-600 font-poppins">
+                  💡 You have a total of <span className="font-extrabold text-slate-900">{filteredProducts.length} items</span> in the <span className="font-extrabold uppercase text-slate-900">{activeTab === "all" ? "All Categories" : activeTab === "accessories" && activeSubTab !== "all" ? `Accessories (${activeSubTab})` : activeTab}</span> category.
+                </p>
+              </div>
+              <div className="hidden sm:block text-[10px] font-bold text-slate-400 uppercase tracking-widest bg-slate-100 px-3 py-1.5 rounded-xl border border-slate-200/40">
+                Convenient Dashboard
+              </div>
+            </div>
+
+            {/* Accessories Subtabs */}
+            {activeTab === "accessories" && (
+              <div className="bg-white rounded-2xl border border-slate-200/60 p-2.5 shadow-xs flex items-center gap-2 overflow-x-auto scrollbar-none animate-fadeIn">
+                <span className="text-[10px] font-extrabold uppercase text-slate-400 tracking-wider shrink-0 px-2">Filter sub:</span>
+                {[
+                  { id: "all", label: "All Accessories" },
+                  { id: "watch", label: "Watch" },
+                  { id: "belts", label: "Belts / Belt" },
+                  { id: "lighter", label: "Lighter" },
+                  { id: "glasses", label: "Glasses" },
+                  { id: "perfume", label: "Perfume" },
+                ].map((subItem) => {
+                  const isActive = activeSubTab === subItem.id;
+                  return (
+                    <button
+                      key={subItem.id}
+                      type="button"
+                      onClick={() => setActiveSubTab(subItem.id)}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all border cursor-pointer ${
+                        isActive
+                          ? "bg-slate-900 border-slate-900 text-white shadow-xs"
+                          : "bg-slate-50 hover:bg-slate-100 border-slate-200 text-slate-600"
+                      }`}
+                    >
+                      {subItem.label}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
           {/* Filters Row */}
           <div className="bg-white rounded-2xl sm:rounded-3xl border border-slate-200/60 p-4 sm:p-5 shadow-sm mb-5 sm:mb-6 flex flex-col lg:flex-row items-center gap-3 sm:gap-4 justify-between">
             <div className="relative w-full lg:flex-1">
@@ -191,7 +401,7 @@ export default function ProductsPage() {
               />
             </div>
 
-            <div className="grid grid-cols-3 gap-2 w-full lg:flex lg:w-auto lg:items-center lg:gap-3">
+            <div className="grid grid-cols-2 gap-2 w-full lg:flex lg:w-auto lg:items-center lg:gap-3">
               {/* Stock Filter */}
               <Dropdown
                 value={stockFilter}
@@ -203,18 +413,6 @@ export default function ProductsPage() {
                   { value: "in_stock", label: "In Stock" },
                   { value: "low_stock", label: "Low Stock" },
                   { value: "out_of_stock", label: "Out of Stock" }
-                ]}
-              />
-
-              {/* Category Filter */}
-              <Dropdown
-                value={category}
-                onChange={setCategory}
-                align="full"
-                className="w-full lg:min-w-[145px]"
-                options={[
-                  { value: "all", label: "All Categories" },
-                  ...categories.map(cat => ({ value: cat, label: cat }))
                 ]}
               />
 

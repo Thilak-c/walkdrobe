@@ -4,13 +4,27 @@ import { useEffect } from "react";
 
 export default function GlobalError({ error, reset }) {
   useEffect(() => {
+    // Automatically reload page on chunk load errors
+    const isChunkError = 
+      error?.name === 'ChunkLoadError' ||
+      error?.message?.includes("Failed to load chunk") ||
+      error?.message?.includes("ChunkLoadError") ||
+      error?.message?.includes("Loading chunk") ||
+      error?.message?.includes("CSS chunk");
+
+    if (isChunkError) {
+      console.warn("Chunk load error detected. Automatically reloading page to load latest assets...");
+      window.location.reload();
+      return;
+    }
+
     console.error("Global Error:", error);
   }, [error]);
 
   return (
     <html>
       <body>
-        <div className="min-h-screen bg-gradient-to-br from-red-50 to-orange-50 flex items-center justify-center p-4 md:p-6">
+        <div className="min-h-screen bg-linear-to-br from-red-50 to-orange-50 flex items-center justify-center p-4 md:p-6">
           <div className="max-w-md w-full bg-white rounded-xl md:rounded-2xl shadow-xl p-4 md:p-8 space-y-4 md:space-y-6 text-center">
             <div className="w-14 h-14 md:w-20 md:h-20 bg-red-100 rounded-full flex items-center justify-center mx-auto">
               <svg

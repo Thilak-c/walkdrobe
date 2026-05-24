@@ -30,7 +30,16 @@ import { useRouter } from "next/navigation";
 
 const SIZES = ["41", "42", "43", "44", "45", "46"];
 const COLORS = ["Black", "White", "Brown", "Navy", "Grey", "Red", "Blue", "Green", "Beige", "Tan", "Multi"];
-const CATEGORIES = ["All", "Sneakers", "Sports"];
+
+const MAIN_CATEGORIES = [
+  { value: "footwear", label: "Footwear" },
+  { value: "Accessories", label: "Accessories" }
+];
+
+const CATEGORY_MAP = {
+  footwear: ["Sneakers", "sports", "all"],
+  Accessories: ["watch", "belts", "lighter", "Glasses"]
+};
 
 export default function OfflineAddProduct() {
   const router = useRouter();
@@ -40,6 +49,7 @@ export default function OfflineAddProduct() {
   const [form, setForm] = useState({
     sku: "",
     name: "",
+    mainCategory: "footwear",
     category: "",
     color: "",
     secondaryColor: "",
@@ -75,6 +85,7 @@ export default function OfflineAddProduct() {
       await addProduct({
         itemId: form.sku,
         name: form.name,
+        mainCategory: form.mainCategory || undefined,
         category: form.category || undefined,
         description: form.description || undefined,
         price: parseFloat(form.sellingPrice),
@@ -102,6 +113,7 @@ export default function OfflineAddProduct() {
     setForm({
       sku: "",
       name: "",
+      mainCategory: "footwear",
       category: "",
       color: "",
       secondaryColor: "",
@@ -247,6 +259,19 @@ export default function OfflineAddProduct() {
                   />
                 </div>
 
+                {/* Main Category */}
+                <div>
+                  <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1.5">Main Category *</label>
+                  <Dropdown
+                    value={form.mainCategory}
+                    onChange={(val) => setForm({ ...form, mainCategory: val, category: "" })}
+                    placeholder="Select Main Category"
+                    align="full"
+                    className="w-full"
+                    options={MAIN_CATEGORIES}
+                  />
+                </div>
+
                 {/* Category */}
                 <div>
                   <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1.5">Category *</label>
@@ -256,7 +281,7 @@ export default function OfflineAddProduct() {
                     placeholder="Select Category"
                     align="full"
                     className="w-full"
-                    options={CATEGORIES.filter(c => c !== "All").map(c => ({ value: c, label: c }))}
+                    options={(CATEGORY_MAP[form.mainCategory] || []).map(c => ({ value: c, label: c }))}
                   />
                 </div>
 

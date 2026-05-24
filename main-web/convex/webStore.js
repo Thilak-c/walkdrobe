@@ -9,6 +9,7 @@ export const addProduct = mutation({
   args: {
     itemId: v.string(),
     name: v.string(),
+    mainCategory: v.optional(v.string()),
     category: v.optional(v.string()),
     description: v.optional(v.string()),
     mainImage: v.string(),
@@ -30,6 +31,7 @@ export const addProduct = mutation({
     const totalStock = Object.values(args.sizeStock).reduce((sum, qty) => sum + (qty || 0), 0);
 
     const id = await ctx.db.insert("products", {
+      mainCategory: args.mainCategory || "footwear",
       itemId: args.itemId,
       name: args.name,
       category: args.category || "",
@@ -134,6 +136,7 @@ export const updateProductFull = mutation({
   args: {
     id: v.id("products"),
     name: v.string(),
+    mainCategory: v.optional(v.string()),
     category: v.optional(v.string()),
     description: v.optional(v.string()),
     mainImage: v.string(),
@@ -153,6 +156,7 @@ export const updateProductFull = mutation({
     const oldStock = product.totalStock;
 
     await ctx.db.patch(id, {
+      mainCategory: args.mainCategory,
       name: args.name,
       category: args.category || "",
       description: args.description || "",

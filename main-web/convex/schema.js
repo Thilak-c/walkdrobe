@@ -120,6 +120,7 @@ export default defineSchema({
   // Existing products table (for main website - customer facing)
   // OPTIMIZED: Added indexes for category, itemId, inStock for faster queries
   products: defineTable({
+    mainCategory: v.optional(v.string()),
     buys: v.optional(v.float64()),
     inCart: v.optional(v.float64()),
     isHidden: v.optional(v.boolean()),
@@ -208,6 +209,7 @@ export default defineSchema({
 
   // ============ OFFLINE STORE PRODUCTS (off_products) ============
   off_products: defineTable({
+    mainCategory: v.optional(v.string()),
     itemId: v.string(),
     name: v.string(),
     category: v.optional(v.string()),

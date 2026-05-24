@@ -30,7 +30,16 @@ import { motion, AnimatePresence } from "framer-motion";
 
 const ALL_SIZES = ["41", "42", "43", "44", "45", "46"];
 const COLORS = ["Black", "White", "Brown", "Navy", "Grey", "Red", "Blue", "Green", "Beige", "Tan", "Multi"];
-const CATEGORIES = ["All", "Sneakers", "Sports"];
+
+const MAIN_CATEGORIES = [
+  { value: "footwear", label: "Footwear" },
+  { value: "Accessories", label: "Accessories" }
+];
+
+const CATEGORY_MAP = {
+  footwear: ["Sneakers", "sports", "all"],
+  Accessories: ["watch", "belts", "lighter", "Glasses"]
+};
 
 export default function ProductTable({ products }) {
   const [editingProductId, setEditingProductId] = useState(null);
@@ -65,6 +74,7 @@ export default function ProductTable({ products }) {
       await updateProduct({
         id: editingProductId,
         name: editForm.name,
+        mainCategory: editForm.mainCategory || "footwear",
         category: editForm.category,
         description: editForm.description,
         mainImage: editForm.mainImage || "/placeholder.png",
@@ -124,6 +134,7 @@ export default function ProductTable({ products }) {
     if (editingProduct && Object.keys(editForm).length === 0) {
       setEditForm({
         name: editingProduct.name || "",
+        mainCategory: editingProduct.mainCategory || "footwear",
         category: editingProduct.category || "",
         description: editingProduct.description || "",
         mainImage: editingProduct.mainImage || "",
@@ -577,6 +588,18 @@ export default function ProductTable({ products }) {
                         </div>
 
                         <div>
+                          <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">Main Category</label>
+                          <Dropdown
+                            value={editForm.mainCategory || "footwear"}
+                            onChange={(val) => setEditForm({ ...editForm, mainCategory: val, category: "" })}
+                            placeholder="Select Main Category"
+                            align="full"
+                            className="w-full"
+                            options={MAIN_CATEGORIES}
+                          />
+                        </div>
+
+                        <div>
                           <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">Category</label>
                           <Dropdown
                             value={editForm.category}
@@ -584,7 +607,7 @@ export default function ProductTable({ products }) {
                             placeholder="Select Category"
                             align="full"
                             className="w-full"
-                            options={CATEGORIES.map(c => ({ value: c, label: c }))}
+                            options={(CATEGORY_MAP[editForm.mainCategory || "footwear"] || []).map(c => ({ value: c, label: c }))}
                           />
                         </div>
 
