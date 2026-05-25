@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../../../main-web/convex/_generated/api";
 import Sidebar from "@/components/Sidebar";
@@ -35,7 +35,7 @@ import Dropdown from "@/components/Dropdown";
 import { motion, AnimatePresence } from "framer-motion";
 
 const SIZES = ["41", "42", "43", "44", "45", "46"];
-const COLORS = ["Black", "White", "Brown", "Navy", "Grey", "Red", "Blue", "Green", "Beige", "Tan", "Multi"];
+const COLORS = ["Black", "White", "Brown", "Navy", "Grey", "Red", "Blue", "Green", "Beige", "Tan", "Multi", "Orange", "Purple", "Silver", "Golden", "Rose Gold", "Copper"];
 
 const MAIN_CATEGORIES = [
   { value: "footwear", label: "Footwear" },
@@ -52,7 +52,13 @@ export default function WebsiteProducts() {
   const [filter, setFilter] = useState("all");
   const [activeTab, setActiveTab] = useState("all"); // "all", "sneakers", "sports", "accessories"
   const [activeSubTab, setActiveSubTab] = useState("all"); // "all", "watch", "belts", "lighter", "glasses", "perfume", "belt", etc.
-  const [sortBy, setSortBy] = useState("name_asc");
+  const [sortBy, setSortBy] = useState("sku_asc");
+  const [visibleCount, setVisibleCount] = useState(15);
+
+  // Reset visible count when filters or search change
+  useEffect(() => {
+    setVisibleCount(15);
+  }, [search, filter, activeTab, activeSubTab, sortBy]);
   const [editing, setEditing] = useState(null);
   const [editForm, setEditForm] = useState({});
   const [loadingProduct, setLoadingProduct] = useState(false);
@@ -83,10 +89,28 @@ export default function WebsiteProducts() {
 
   let filtered = products || [];
   if (search) {
-    const s = search.toLowerCase();
-    filtered = filtered.filter(
-      (p) => p.name.toLowerCase().includes(s) || p.itemId.toLowerCase().includes(s)
-    );
+    const s = search.trim().toLowerCase();
+    filtered = filtered.filter((p) => {
+      const matchesName = p.name?.toLowerCase().includes(s);
+      let matchesSku = false;
+      const itemId = p.itemId?.toLowerCase() || "";
+      if (itemId.includes(s)) {
+        const parts = itemId.split('-');
+        const suffix = parts[parts.length - 1];
+        if (suffix && suffix.includes(s)) {
+          matchesSku = true;
+        } else {
+          const parsedS = parseInt(s, 10);
+          const parsedSuffix = parseInt(suffix, 10);
+          if (!isNaN(parsedS) && !isNaN(parsedSuffix) && parsedS === parsedSuffix) {
+            matchesSku = true;
+          } else if (/[a-zA-Z\-]/.test(s)) {
+            matchesSku = true;
+          }
+        }
+      }
+      return matchesName || matchesSku;
+    });
   }
 
   // Apply Category Tab Filtering
@@ -113,6 +137,12 @@ export default function WebsiteProducts() {
 
   // Apply sorting options
   filtered = [...filtered].sort((a, b) => {
+    if (sortBy === "sku_asc") {
+      return (a.itemId || "").localeCompare(b.itemId || "", undefined, { numeric: true, sensitivity: "base" });
+    }
+    if (sortBy === "sku_desc") {
+      return (b.itemId || "").localeCompare(a.itemId || "", undefined, { numeric: true, sensitivity: "base" });
+    }
     if (sortBy === "name_asc") {
       return (a.name || "").localeCompare(b.name || "");
     }
@@ -135,6 +165,23 @@ export default function WebsiteProducts() {
     }
     return 0;
   });
+
+  useEffect(() => {
+    if (visibleCount >= filtered.length) return;
+    
+    const observer = new IntersectionObserver((entries) => {
+      if (entries[0].isIntersecting) {
+        setVisibleCount((prev) => Math.min(prev + 15, filtered.length));
+      }
+    }, { threshold: 0.1 });
+    
+    const target = document.getElementById("website-load-more-trigger");
+    if (target) observer.observe(target);
+    
+    return () => observer.disconnect();
+  }, [visibleCount, filtered.length]);
+
+  const visibleProducts = filtered.slice(0, visibleCount);
 
   // Fetch full details only when editing
   const handleEdit = async (p) => {
@@ -495,6 +542,8 @@ export default function WebsiteProducts() {
                 align="full"
                 className="w-full sm:w-56 shrink-0"
                 options={[
+                  { value: "sku_asc", label: "SKU / ID: Ascending" },
+                  { value: "sku_desc", label: "SKU / ID: Descending" },
                   { value: "name_asc", label: "Alphabetical: A to Z" },
                   { value: "name_desc", label: "Alphabetical: Z to A" },
                   { value: "price_desc", label: "Price: High to Low" },
@@ -564,7 +613,7 @@ export default function WebsiteProducts() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
-                    {filtered.map((p) => {
+                    {visibleProducts.map((p) => {
                       const stockVal = p.currentStock || p.totalAvailable || 0;
                       const isOutOfStock = stockVal === 0;
                       const isLowStock = stockVal > 0 && stockVal <= 10;
@@ -658,7 +707,7 @@ export default function WebsiteProducts() {
 
               {/* Mobile Product Cards */}
               <div className="md:hidden divide-y divide-slate-100">
-                {filtered.map((p) => {
+                {visibleProducts.map((p) => {
                   const stockVal = p.currentStock || p.totalAvailable || 0;
                   const isOutOfStock = stockVal === 0;
                   const isLowStock = stockVal > 0 && stockVal <= 10;
@@ -701,6 +750,11 @@ export default function WebsiteProducts() {
                   );
                 })}
               </div>
+              {visibleCount < filtered.length && (
+                <div id="website-load-more-trigger" className="h-14 flex items-center justify-center my-6">
+                  <div className="w-6 h-6 border-2 border-slate-900 border-t-transparent rounded-full animate-spin" />
+                </div>
+              )}
               </>
             )}
           </div>

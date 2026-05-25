@@ -19,20 +19,23 @@ export default function LoginPage() {
   const [storeType, setStoreType] = useState(null); // "website" or "offline"
 
   // Demo credentials (replace with actual auth)
-  const VALID_CREDENTIALS = {
-    adminId: "Walkdrobe",
-    password: "walkdrobe123"
-  };
+  const VALID_CREDENTIALS = [
+    { adminId: "Walkdrobe", password: "walkdrobe123" },
+    { adminId: "Thilak", password: "8008439762" }
+  ];
 
   const handleLogin = (e) => {
     e.preventDefault();
     setIsLoading(true);
 
     setTimeout(() => {
-      if (
-        credentials.adminId === VALID_CREDENTIALS.adminId &&
-        credentials.password === VALID_CREDENTIALS.password
-      ) {
+      const isValid = VALID_CREDENTIALS.some(
+        (cred) =>
+          cred.adminId.toLowerCase() === credentials.adminId.trim().toLowerCase() &&
+          cred.password === credentials.password
+      );
+
+      if (isValid) {
         setStep(2);
         toast.success("Login successful!");
       } else {

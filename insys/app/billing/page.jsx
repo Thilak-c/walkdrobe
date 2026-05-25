@@ -38,7 +38,7 @@ export default function BillingPage() {
     const [billNumber, setBillNumber] = useState("");
     const [logoBase64, setLogoBase64] = useState("");
     const [paymentMethod, setPaymentMethod] = useState("cash");
-    const [discount, setDiscount] = useState(10);
+    const [discount, setDiscount] = useState(0);
     const [selectedProduct, setSelectedProduct] = useState(null); 
     const [posTab, setPosTab] = useState("catalog"); // "catalog" or "checkout"
     const printRef = useRef(null);
@@ -209,28 +209,25 @@ export default function BillingPage() {
         if (!selectedProduct || !size) return;
         
         const stock = getSizeStock(selectedProduct, size);
+        const existing = cart.find(i => i._id === selectedProduct._id && i.size === size);
+        const currentQty = existing?.quantity ?? 0;
         
-        setCart(prev => {
-            const existing = prev.find(i => i._id === selectedProduct._id && i.size === size);
-            const currentQty = existing?.quantity ?? 0;
-            
-            if (currentQty >= stock) {
-                toast.error(`Only ${stock} available in size ${size}`);
-                return prev;
-            }
-            
-            if (existing) {
-                toast.success(`Updated ${selectedProduct.name} (Size ${size})`);
-                return prev.map(item =>
-                    item._id === selectedProduct._id && item.size === size
-                        ? { ...item, quantity: item.quantity + 1 }
-                        : item
-                );
-            }
-            
+        if (currentQty >= stock) {
+            toast.error(`Only ${stock} available in size ${size}`);
+            return;
+        }
+        
+        if (existing) {
+            toast.success(`Updated ${selectedProduct.name} (Size ${size})`);
+            setCart(prev => prev.map(item =>
+                item._id === selectedProduct._id && item.size === size
+                    ? { ...item, quantity: item.quantity + 1 }
+                    : item
+            ));
+        } else {
             toast.success(`Added ${selectedProduct.name} (Size ${size})`);
-            return [...prev, { ...selectedProduct, size, quantity: 1 }];
-        });
+            setCart(prev => [...prev, { ...selectedProduct, size, quantity: 1 }]);
+        }
         
         setSelectedProduct(null);
     };
@@ -238,19 +235,27 @@ export default function BillingPage() {
     const updateQuantity = (productId, size, delta) => {
         const product = products?.find(p => p._id === productId);
         const stock = getSizeStock(product, size);
+        const existing = cart.find(item => item._id === productId && item.size === size);
         
-        setCart(prev => prev.map(item => {
-            if (item._id === productId && item.size === size) {
-                const newQty = item.quantity + delta;
-                if (newQty <= 0) return null;
-                if (newQty > stock) {
-                    toast.error(`Only ${stock} available in size ${size}`);
-                    return item;
-                }
-                return { ...item, quantity: newQty };
-            }
-            return item;
-        }).filter(Boolean));
+        if (!existing) return;
+        
+        const newQty = existing.quantity + delta;
+        
+        if (newQty <= 0) {
+            setCart(prev => prev.filter(item => !(item._id === productId && item.size === size)));
+            return;
+        }
+        
+        if (newQty > stock) {
+            toast.error(`Only ${stock} available in size ${size}`);
+            return;
+        }
+        
+        setCart(prev => prev.map(item =>
+            item._id === productId && item.size === size
+                ? { ...item, quantity: newQty }
+                : item
+        ));
     };
 
     const removeFromCart = (productId, size) => {
@@ -418,25 +423,25 @@ export default function BillingPage() {
         <div className="flex min-h-screen bg-slate-50/50">
             <Sidebar />
 
-            <main className="flex-1 p-4 lg:p-8 overflow-x-hidden">
-                <div className="max-w-7xl mx-auto pt-12 lg:pt-0">
+            <main className="flex-1 p-3.5 sm:p-6 lg:p-8 overflow-x-hidden">
+                <div className="max-w-7xl mx-auto pt-10 lg:pt-0">
                     
                     {/* Header */}
-                    <div className="mb-6 sm:mb-8">
-                        <div className="flex items-center gap-2 mb-1">
-                            <Store size={14} className="text-emerald-600 animate-pulse" />
-                            <p className="text-emerald-600 text-[10px] font-extrabold uppercase tracking-widest">Offline Store Operations</p>
+                    <div className="mb-4 sm:mb-6">
+                        <div className="flex items-center gap-2 mb-0.5 sm:mb-1">
+                            <Store size={13} className="text-emerald-600 animate-pulse" />
+                            <p className="text-emerald-600 text-[9px] sm:text-[10px] font-extrabold uppercase tracking-widest">Offline Store Operations</p>
                         </div>
-                        <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight font-poppins">Point of Sale</h1>
-                        <p className="text-slate-500 text-xs sm:text-sm mt-0.5 sm:mt-1">Register storefront invoices, print thermal sheets, and adjust stock quantities.</p>
+                        <h1 className="text-xl sm:text-2xl lg:text-3xl font-extrabold text-slate-900 tracking-tight font-poppins">Point of Sale</h1>
+                        <p className="text-slate-500 text-[11px] sm:text-xs lg:text-sm mt-0.5">Register storefront invoices, print thermal sheets, and adjust stock quantities.</p>
                     </div>
 
                     {/* Mobile View Tab Switcher */}
-                    <div className="flex lg:hidden bg-slate-100 p-1.5 rounded-2xl mb-5 gap-1.5 border border-slate-200/50">
+                    <div className="flex lg:hidden bg-slate-100 p-1 rounded-xl mb-4 gap-1 border border-slate-200/50">
                         <button
                             type="button"
                             onClick={() => setPosTab("catalog")}
-                            className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all text-center cursor-pointer ${
+                            className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all text-center cursor-pointer ${
                                 posTab === "catalog"
                                     ? "bg-white text-slate-900 shadow-sm border border-slate-200/20"
                                     : "text-slate-500 hover:text-slate-800"
@@ -447,7 +452,7 @@ export default function BillingPage() {
                         <button
                             type="button"
                             onClick={() => setPosTab("checkout")}
-                            className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all text-center flex items-center justify-center gap-1.5 cursor-pointer ${
+                            className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all text-center flex items-center justify-center gap-1.5 cursor-pointer ${
                                 posTab === "checkout"
                                     ? "bg-white text-slate-900 shadow-sm border border-slate-200/20"
                                     : "text-slate-500 hover:text-slate-800"
@@ -462,57 +467,57 @@ export default function BillingPage() {
                         </button>
                     </div>
 
-                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 sm:gap-6">
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
                         {/* Left Column: POS Search */}
-                        <div className={`lg:col-span-2 space-y-5 sm:space-y-6 ${posTab === "catalog" ? "block" : "hidden lg:block"}`}>
+                        <div className={`lg:col-span-2 space-y-4 sm:space-y-6 ${posTab === "catalog" ? "block" : "hidden lg:block"}`}>
                             
                             {/* Search Controls */}
-                            <div className="bg-white rounded-3xl border border-slate-200/60 p-5 shadow-sm space-y-4">
-                                <div className="flex items-center gap-2.5 text-slate-800 font-extrabold text-xs mb-0.5">
-                                    <QrCode size={16} className="text-slate-500 animate-pulse" />
+                            <div className="bg-white rounded-2xl sm:rounded-3xl border border-slate-200/60 p-4 sm:p-5 shadow-sm space-y-3 sm:space-y-4">
+                                <div className="flex items-center gap-2 text-slate-800 font-extrabold text-[11px] sm:text-xs mb-0.5">
+                                    <QrCode size={14} className="text-slate-500 animate-pulse" />
                                     <span className="uppercase tracking-wider">Product Registration Gateway</span>
                                 </div>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
                                     {/* Barcode scan box */}
-                                    <div className="bg-slate-50/50 hover:bg-slate-50 border border-slate-200 rounded-2xl p-2 focus-within:border-slate-800 focus-within:ring-1 focus-within:ring-slate-800 transition-all flex items-center justify-between">
+                                    <div className="bg-slate-50/50 hover:bg-slate-50 border border-slate-200 rounded-xl sm:rounded-2xl p-1.5 sm:p-2 focus-within:border-slate-800 focus-within:ring-1 focus-within:ring-slate-800 transition-all flex items-center justify-between">
                                         <BarcodeInput onScan={handleBarcodeScan} />
                                     </div>
                                     
                                     {/* Text Search */}
                                     <div className="relative">
-                                        <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
+                                        <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 w-3.5 h-3.5" />
                                         <input
                                             type="text"
                                             value={searchQuery}
                                             onChange={(e) => setSearchQuery(e.target.value)}
                                             placeholder="Manual keyboard name search..."
-                                            className="w-full pl-11 pr-4 py-3.5 bg-slate-50/50 hover:bg-slate-50 focus:bg-white border border-slate-200 hover:border-slate-350 focus:border-slate-800 rounded-2xl text-xs font-bold focus:outline-none transition-all"
+                                            className="w-full pl-10 pr-3 py-2.5 sm:py-3.5 bg-slate-50/50 hover:bg-slate-50 focus:bg-white border border-slate-200 hover:border-slate-350 focus:border-slate-800 rounded-xl sm:rounded-2xl text-xs font-bold focus:outline-none transition-all"
                                         />
                                     </div>
                                 </div>
                             </div>
 
                             {/* Catalog Shelf Selection */}
-                            <div className="bg-white rounded-3xl border border-slate-200/60 p-6 shadow-sm space-y-4">
-                                <div className="flex items-center justify-between border-b border-slate-50 pb-3">
+                            <div className="bg-white rounded-2xl sm:rounded-3xl border border-slate-200/60 p-4 sm:p-6 shadow-sm space-y-4">
+                                <div className="flex items-center justify-between border-b border-slate-50 pb-2 sm:pb-3">
                                     <div>
-                                        <h3 className="text-sm font-extrabold text-slate-800 tracking-tight font-poppins">
+                                        <h3 className="text-xs sm:text-sm font-extrabold text-slate-800 tracking-tight font-poppins">
                                             {searchQuery ? `Search Results for "${searchQuery}"` : "Active Catalog Shelf"}
                                         </h3>
-                                        <p className="text-[10px] text-slate-400">Click a product card to allocate stock details</p>
+                                        <p className="text-[9px] sm:text-[10px] text-slate-400">Click a product card to allocate stock details</p>
                                     </div>
-                                    <span className="text-[10px] bg-slate-50 border rounded-xl px-2.5 py-1 text-slate-500 font-bold">
+                                    <span className="text-[9px] sm:text-[10px] bg-slate-50 border rounded-lg sm:rounded-xl px-2 sm:px-2.5 py-0.5 sm:py-1 text-slate-500 font-bold">
                                         Showing {filteredProducts.slice(0, 16).length} items
                                     </span>
                                 </div>
 
                                 {filteredProducts.length === 0 ? (
-                                    <div className="py-12 text-center">
-                                        <Package className="w-10 h-10 text-slate-300 mx-auto mb-3" />
+                                    <div className="py-10 text-center">
+                                        <Package className="w-8 h-8 text-slate-300 mx-auto mb-2" />
                                         <p className="text-slate-400 text-xs font-bold">No registered shoes match query criteria</p>
                                     </div>
                                 ) : (
-                                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 max-h-[440px] overflow-y-auto pr-1">
+                                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 max-h-[380px] sm:max-h-[440px] overflow-y-auto pr-1">
                                         {filteredProducts.slice(0, 16).map(product => {
                                             const totalStock = getTotalStock(product);
                                             const isOutOfStock = totalStock <= 0;
@@ -521,30 +526,30 @@ export default function BillingPage() {
                                                     key={product._id}
                                                     onClick={() => !isOutOfStock && openSizeSelector(product)}
                                                     disabled={isOutOfStock}
-                                                    className={`p-3 rounded-2xl text-left border flex flex-col justify-between h-48 transition-all duration-300 relative group cursor-pointer ${
+                                                    className={`p-2 sm:p-3 rounded-xl sm:rounded-2xl text-left border flex flex-col justify-between h-42 sm:h-48 transition-all duration-300 relative group cursor-pointer ${
                                                         isOutOfStock 
                                                             ? "bg-slate-50 border-slate-100 opacity-60 cursor-not-allowed" 
                                                             : "bg-white border-slate-200 hover:border-slate-350 hover:shadow-md hover:scale-[1.01]"
                                                     }`}
                                                 >
-                                                    <div className="w-full h-24 bg-slate-100 rounded-xl mb-2 overflow-hidden relative flex items-center justify-center border border-slate-150">
+                                                    <div className="w-full h-20 sm:h-24 bg-slate-100 rounded-lg sm:rounded-xl mb-1.5 sm:mb-2 overflow-hidden relative flex items-center justify-center border border-slate-150">
                                                         {product.mainImage ? (
                                                             <img src={product.mainImage} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
                                                         ) : (
-                                                            <ShoppingBag className="text-slate-300" size={20} />
+                                                            <ShoppingBag className="text-slate-300" size={16} />
                                                         )}
                                                         {isOutOfStock && (
                                                             <div className="absolute inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center">
-                                                                <span className="text-[8px] font-extrabold text-white bg-rose-500 px-2 py-0.5 rounded-md">DEPLETED</span>
+                                                                <span className="text-[8px] font-extrabold text-white bg-rose-500 px-1.5 py-0.5 rounded-md">DEPLETED</span>
                                                             </div>
                                                         )}
                                                     </div>
 
                                                     <div>
-                                                        <p className="text-[11px] font-bold text-slate-800 truncate block">{product.name}</p>
+                                                        <p className="text-[10px] sm:text-[11px] font-bold text-slate-800 truncate block leading-tight">{product.name}</p>
                                                         <span className="text-[8px] font-bold text-slate-400 font-mono block mt-0.5">{product.itemId}</span>
                                                         
-                                                        <div className="flex items-center justify-between mt-2 border-t border-slate-50 pt-1.5">
+                                                        <div className="flex items-center justify-between mt-1 sm:mt-2 border-t border-slate-50 pt-1 sm:pt-1.5">
                                                             <span className="text-xs font-extrabold text-slate-900">₹{product.price}</span>
                                                             <span className={`text-[8px] font-bold ${totalStock <= 5 ? "text-rose-500" : "text-slate-400"}`}>
                                                                 {totalStock} left
@@ -560,44 +565,44 @@ export default function BillingPage() {
                         </div>
 
                         {/* Right Column: Checkout Sidebar */}
-                        <div className={`space-y-5 sm:space-y-6 ${posTab === "checkout" ? "block" : "hidden lg:block"}`}>
+                        <div className={`space-y-4 sm:space-y-6 ${posTab === "checkout" ? "block" : "hidden lg:block"}`}>
                             
                             {/* Customer Specs */}
-                            <div className="bg-white rounded-3xl border border-slate-200/60 p-5 shadow-sm space-y-4">
-                                <h3 className="text-xs font-extrabold text-slate-800 tracking-wider uppercase block border-b border-slate-50 pb-2">Customer Specifications *</h3>
-                                <div className="space-y-3">
+                            <div className="bg-white rounded-2xl sm:rounded-3xl border border-slate-200/60 p-4 sm:p-5 shadow-sm space-y-3.5 sm:space-y-4">
+                                <h3 className="text-[10px] sm:text-xs font-extrabold text-slate-800 tracking-wider uppercase block border-b border-slate-50 pb-2">Customer Specifications *</h3>
+                                <div className="space-y-2.5 sm:space-y-3">
                                     <div className="relative">
-                                        <User className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
+                                        <User className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={12} />
                                         <input
                                             type="text"
                                             value={customerInfo.name}
                                             onChange={(e) => setCustomerInfo({ ...customerInfo, name: e.target.value })}
                                             placeholder="Customer full name..."
-                                            className="w-full pl-10 pr-4 py-2.5 bg-slate-50/50 hover:bg-slate-50 focus:bg-white border border-slate-200 hover:border-slate-350 focus:border-slate-800 rounded-xl text-xs font-bold focus:outline-none transition-all"
+                                            className="w-full pl-9 pr-3 py-2 sm:py-2.5 bg-slate-50/50 hover:bg-slate-50 focus:bg-white border border-slate-200 hover:border-slate-350 focus:border-slate-800 rounded-lg sm:rounded-xl text-xs font-bold focus:outline-none transition-all"
                                         />
                                     </div>
                                     <div className="relative">
-                                        <Phone className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
+                                        <Phone className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={12} />
                                         <input
                                             type="tel"
                                             value={customerInfo.phone}
                                             onChange={(e) => setCustomerInfo({ ...customerInfo, phone: e.target.value })}
                                             placeholder="Mobile phone number..."
-                                            className="w-full pl-10 pr-4 py-2.5 bg-slate-50/50 hover:bg-slate-50 focus:bg-white border border-slate-200 hover:border-slate-350 focus:border-slate-800 rounded-xl text-xs font-bold focus:outline-none transition-all"
+                                            className="w-full pl-9 pr-3 py-2 sm:py-2.5 bg-slate-50/50 hover:bg-slate-50 focus:bg-white border border-slate-200 hover:border-slate-350 focus:border-slate-800 rounded-lg sm:rounded-xl text-xs font-bold focus:outline-none transition-all"
                                         />
                                     </div>
                                 </div>
                             </div>
 
                             {/* Terms of Payment */}
-                            <div className="bg-white rounded-3xl border border-slate-200/60 p-5 shadow-sm space-y-4">
-                                <h3 className="text-xs font-extrabold text-slate-800 tracking-wider uppercase block border-b border-slate-50 pb-2">Payment Terms</h3>
-                                <div className="grid grid-cols-3 gap-2">
+                            <div className="bg-white rounded-2xl sm:rounded-3xl border border-slate-200/60 p-4 sm:p-5 shadow-sm space-y-3 sm:space-y-4">
+                                <h3 className="text-[10px] sm:text-xs font-extrabold text-slate-800 tracking-wider uppercase block border-b border-slate-50 pb-2">Payment Terms</h3>
+                                <div className="grid grid-cols-3 gap-1.5 sm:gap-2">
                                     {["cash", "card", "upi"].map((method) => (
                                         <button
                                             key={method}
                                             onClick={() => setPaymentMethod(method)}
-                                            className={`py-2 rounded-xl text-xs font-extrabold transition-all border capitalize cursor-pointer ${
+                                            className={`py-1.5 sm:py-2 rounded-lg sm:rounded-xl text-xs font-extrabold transition-all border capitalize cursor-pointer ${
                                                 paymentMethod === method
                                                     ? "bg-slate-900 border-slate-900 text-white shadow-sm"
                                                     : "bg-slate-50 hover:bg-slate-100 border-slate-200 text-slate-600"
@@ -610,14 +615,14 @@ export default function BillingPage() {
                             </div>
 
                             {/* Discount Allocations */}
-                            <div className="bg-white rounded-3xl border border-slate-200/60 p-5 shadow-sm space-y-4">
-                                <h3 className="text-xs font-extrabold text-slate-800 tracking-wider uppercase block border-b border-slate-50 pb-2">In-Store Discounts</h3>
-                                <div className="flex gap-2">
+                            <div className="bg-white rounded-2xl sm:rounded-3xl border border-slate-200/60 p-4 sm:p-5 shadow-sm space-y-3 sm:space-y-4">
+                                <h3 className="text-[10px] sm:text-xs font-extrabold text-slate-800 tracking-wider uppercase block border-b border-slate-50 pb-2">In-Store Discounts</h3>
+                                <div className="flex gap-1.5 sm:gap-2">
                                     {[{ value: 10, label: "10% VIP" }].map((d) => (
                                         <button
                                             key={d.value}
                                             onClick={() => setDiscount(d.value)}
-                                            className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all border cursor-pointer ${
+                                            className={`flex-1 py-1.5 sm:py-2 rounded-lg sm:rounded-xl text-xs font-bold transition-all border cursor-pointer ${
                                                 discount === d.value
                                                     ? "bg-emerald-600 border-emerald-600 text-white shadow-sm"
                                                     : "bg-slate-50 hover:bg-slate-100 border-slate-200 text-slate-600"
@@ -638,7 +643,7 @@ export default function BillingPage() {
                                                 toast.error("Invalid discount percentage");
                                             }
                                         }}
-                                        className={`px-4 py-2 rounded-xl text-xs font-bold transition-all border cursor-pointer ${
+                                        className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg sm:rounded-xl text-xs font-bold transition-all border cursor-pointer ${
                                             discount !== 10
                                                 ? "bg-emerald-600 border-emerald-600 text-white shadow-sm"
                                                 : "bg-slate-50 hover:bg-slate-100 border-slate-200 text-slate-600"
@@ -650,51 +655,51 @@ export default function BillingPage() {
                             </div>
 
                             {/* Invoice Cart Section */}
-                            <div className="bg-white rounded-3xl border border-slate-200/60 p-5 shadow-sm space-y-4">
+                            <div className="bg-white rounded-2xl sm:rounded-3xl border border-slate-200/60 p-4 sm:p-5 shadow-sm space-y-3 sm:space-y-4">
                                 <div className="flex items-center justify-between border-b border-slate-50 pb-2">
-                                    <h3 className="text-xs font-extrabold text-slate-800 tracking-wider uppercase block">Cart Allocation</h3>
-                                    <span className="text-[10px] text-slate-400 font-bold">{cart.length} items allocated</span>
+                                    <h3 className="text-[10px] sm:text-xs font-extrabold text-slate-800 tracking-wider uppercase block">Cart Allocation</h3>
+                                    <span className="text-[9px] sm:text-[10px] text-slate-400 font-bold">{cart.length} items allocated</span>
                                 </div>
 
                                 {cart.length === 0 ? (
-                                    <div className="py-10 text-center">
-                                        <ShoppingBag size={24} className="mx-auto mb-2 text-slate-300 opacity-70" />
+                                    <div className="py-8 sm:py-10 text-center">
+                                        <ShoppingBag size={20} className="mx-auto mb-2 text-slate-300 opacity-70" />
                                         <p className="text-slate-400 text-xs font-bold">Cart is empty</p>
                                     </div>
                                 ) : (
-                                    <div className="space-y-2.5 max-h-[220px] overflow-y-auto pr-1">
+                                    <div className="space-y-2 max-h-[190px] sm:max-h-[220px] overflow-y-auto pr-1">
                                         {cart.map((item, idx) => (
-                                            <div key={`${item._id}-${item.size}-${idx}`} className="flex items-center gap-3 p-2 bg-slate-50 rounded-2xl border border-slate-100">
-                                                <div className="w-10 h-10 bg-white rounded-lg overflow-hidden shrink-0 border shadow-xs">
+                                            <div key={`${item._id}-${item.size}-${idx}`} className="flex items-center gap-2.5 sm:gap-3 p-1.5 sm:p-2 bg-slate-50 rounded-xl sm:rounded-2xl border border-slate-100">
+                                                <div className="w-9 h-9 sm:w-10 sm:h-10 bg-white rounded-lg overflow-hidden shrink-0 border shadow-xs flex items-center justify-center">
                                                     {item.mainImage ? (
                                                         <img src={item.mainImage} className="w-full h-full object-cover" />
                                                     ) : (
-                                                        <ShoppingBag className="text-slate-300 m-auto" size={16} />
+                                                        <ShoppingBag className="text-slate-300" size={14} />
                                                     )}
                                                 </div>
                                                 <div className="flex-1 min-w-0">
-                                                    <p className="text-[11px] font-bold text-slate-800 truncate">{item.name}</p>
-                                                    <p className="text-[9px] font-bold text-slate-400 mt-0.5">Size {item.size} • ₹{item.price}</p>
+                                                    <p className="text-[10px] sm:text-[11px] font-bold text-slate-800 truncate leading-tight">{item.name}</p>
+                                                    <p className="text-[8px] sm:text-[9px] font-bold text-slate-400 mt-0.5">Size {item.size} • ₹{item.price}</p>
                                                 </div>
-                                                <div className="flex items-center gap-1 shrink-0">
+                                                <div className="flex items-center gap-0.5 sm:gap-1 shrink-0">
                                                     <button
                                                         onClick={() => updateQuantity(item._id, item.size, -1)}
-                                                        className="p-1 hover:bg-slate-200 rounded-lg text-slate-500 cursor-pointer"
+                                                        className="p-1 hover:bg-slate-200 rounded-md text-slate-500 cursor-pointer"
                                                     >
-                                                        <Minus size={12} />
+                                                        <Minus size={10} />
                                                     </button>
-                                                    <span className="w-5 text-center text-xs font-extrabold text-slate-800">{item.quantity}</span>
+                                                    <span className="w-4 text-center text-[11px] sm:text-xs font-extrabold text-slate-800">{item.quantity}</span>
                                                     <button
                                                         onClick={() => updateQuantity(item._id, item.size, 1)}
-                                                        className="p-1 hover:bg-slate-200 rounded-lg text-slate-500 cursor-pointer"
+                                                        className="p-1 hover:bg-slate-200 rounded-md text-slate-500 cursor-pointer"
                                                     >
-                                                        <Plus size={12} />
+                                                        <Plus size={10} />
                                                     </button>
                                                     <button
                                                         onClick={() => removeFromCart(item._id, item.size)}
-                                                        className="p-1.5 hover:bg-rose-50 text-rose-500 hover:text-rose-600 rounded-lg ml-1 cursor-pointer"
+                                                        className="p-1 hover:bg-rose-50 text-rose-500 hover:text-rose-600 rounded-md ml-0.5 cursor-pointer"
                                                     >
-                                                        <Trash2 size={12} />
+                                                        <Trash2 size={10} />
                                                     </button>
                                                 </div>
                                             </div>
@@ -704,7 +709,7 @@ export default function BillingPage() {
 
                                 {/* Calculations */}
                                 {cart.length > 0 && (
-                                    <div className="pt-4 border-t border-slate-100 space-y-2.5 text-xs font-semibold">
+                                    <div className="pt-3 sm:pt-4 border-t border-slate-100 space-y-2 text-xs font-semibold">
                                         <div className="flex justify-between text-slate-500">
                                             <span>Subtotal</span>
                                             <span>₹{subtotal.toFixed(0)}</span>
@@ -720,7 +725,7 @@ export default function BillingPage() {
                                             <span>₹{tax.toFixed(0)}</span>
                                         </div>
                                         
-                                        <div className="flex justify-between text-lg font-extrabold pt-3 border-t border-slate-100 text-slate-900">
+                                        <div className="flex justify-between text-base sm:text-lg font-extrabold pt-2 sm:pt-3 border-t border-slate-100 text-slate-900">
                                             <span>Total Price</span>
                                             <span>₹{total.toFixed(0)}</span>
                                         </div>
@@ -732,9 +737,9 @@ export default function BillingPage() {
                             <button
                                 onClick={handlePrint}
                                 disabled={cart.length === 0}
-                                className="w-full flex items-center justify-center gap-2 px-6 py-4 bg-slate-900 hover:bg-slate-800 text-white rounded-2xl text-xs font-bold shadow-md shadow-slate-900/10 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                                className="w-full flex items-center justify-center gap-2 px-5 py-3 sm:px-6 sm:py-4 bg-slate-900 hover:bg-slate-800 text-white rounded-xl sm:rounded-2xl text-xs font-bold shadow-md shadow-slate-900/10 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                             >
-                                <Printer size={15} />
+                                <Printer size={14} />
                                 <span>Generate & Print Bill</span>
                             </button>
                         </div>

@@ -29,7 +29,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 const SIZES = ["41", "42", "43", "44", "45", "46"];
-const COLORS = ["Black", "White", "Brown", "Navy", "Grey", "Red", "Blue", "Green", "Beige", "Tan", "Multi"];
+const COLORS = ["Black", "White", "Brown", "Navy", "Grey", "Red", "Blue", "Green", "Beige", "Tan", "Multi", "Orange", "Purple", "Silver", "Golden", "Rose Gold", "Copper"];
 
 const MAIN_CATEGORIES = [
   { value: "footwear", label: "Footwear" },
@@ -77,8 +77,30 @@ export default function OfflineAddProduct() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!form.sku || !form.name || !form.sellingPrice) return toast.error("Please fill in all required fields.");
-    if (form.sizes.length === 0) return toast.error("Please configure stock for at least one size.");
+    
+    // Complete form validations
+    if (!form.sku.trim()) return toast.error("Please enter a unique SKU ID / Item Code.");
+    if (!form.name.trim()) return toast.error("Please enter the product Name.");
+    if (!form.mainCategory) return toast.error("Please select a Main Category.");
+    if (!form.category) return toast.error("Please select a specific Category.");
+    if (!form.color) return toast.error("Please select a Primary Color.");
+    if (!form.description.trim()) return toast.error("Please write a Product Description.");
+    if (!form.mainImage) return toast.error("Please upload a Cover Picture.");
+    if (form.sizes.length === 0) return toast.error("Please select at least one available shoe size.");
+    
+    // Validate that all selected sizes have a valid stock count > 0
+    for (const size of form.sizes) {
+        const qty = form.sizeStock[size];
+        if (qty === undefined || qty === null || isNaN(qty) || qty <= 0) {
+            return toast.error(`Please enter a valid stock quantity (> 0) for UK Size ${size}.`);
+        }
+    }
+    
+    if (!form.costPrice || parseFloat(form.costPrice) <= 0) return toast.error("Please enter a valid Purchase Cost Price greater than 0.");
+    if (!form.sellingPrice || parseFloat(form.sellingPrice) <= 0) return toast.error("Please enter a valid Store Selling Price greater than 0.");
+    if (parseFloat(form.sellingPrice) < parseFloat(form.costPrice)) {
+        return toast.error("Selling Price cannot be less than Purchase Cost Price.");
+    }
 
     setLoading(true);
     try {

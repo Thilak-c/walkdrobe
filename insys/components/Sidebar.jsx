@@ -46,6 +46,7 @@ const footwearCategories = [
 const offlineNavItems = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard, description: "Overview & stats" },
   { href: "/billing", label: "Billing", icon: Receipt, description: "Create & print bills" },
+  { href: "/bills", label: "Bills History", icon: Receipt, description: "Search & view receipts" },
   { href: "/add-product", label: "Add Product", icon: PlusCircle, description: "New inventory item" },
   { href: "/products", label: "All Products", icon: Package, description: "Manage inventory" },
   { href: "/import", label: "Import", icon: Upload, description: "Bulk import products" },

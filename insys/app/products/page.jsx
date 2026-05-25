@@ -35,7 +35,13 @@ export default function ProductsPage() {
   const [stockFilter, setStockFilter] = useState("all");
   const [activeTab, setActiveTab] = useState("all"); // "all", "sneakers", "sports", "accessories"
   const [activeSubTab, setActiveSubTab] = useState("all"); // "all", "watch", "belts", "lighter", "glasses", "perfume", "belt", etc.
-  const [sortBy, setSortBy] = useState("name");
+  const [sortBy, setSortBy] = useState("sku");
+  const [visibleCount, setVisibleCount] = useState(15);
+
+  // Reset visible count when filters or search change
+  useEffect(() => {
+    setVisibleCount(15);
+  }, [search, stockFilter, activeTab, activeSubTab, sortBy]);
 
   const ACCESSORIES_LIST = ["watch", "belts", "lighter", "glasses", "perfume", "belt"];
   
@@ -89,8 +95,26 @@ export default function ProductsPage() {
   const filteredProducts = (products || [])
     .filter(p => {
       if (search) {
-        const s = search.toLowerCase();
-        if (!p.name?.toLowerCase().includes(s) && !p.itemId?.toLowerCase().includes(s)) {
+        const s = search.trim().toLowerCase();
+        const matchesName = p.name?.toLowerCase().includes(s);
+        let matchesSku = false;
+        const itemId = p.itemId?.toLowerCase() || "";
+        if (itemId.includes(s)) {
+          const parts = itemId.split('-');
+          const suffix = parts[parts.length - 1];
+          if (suffix && suffix.includes(s)) {
+            matchesSku = true;
+          } else {
+            const parsedS = parseInt(s, 10);
+            const parsedSuffix = parseInt(suffix, 10);
+            if (!isNaN(parsedS) && !isNaN(parsedSuffix) && parsedS === parsedSuffix) {
+              matchesSku = true;
+            } else if (/[a-zA-Z\-]/.test(s)) {
+              matchesSku = true;
+            }
+          }
+        }
+        if (!matchesName && !matchesSku) {
           return false;
         }
       }
@@ -118,11 +142,29 @@ export default function ProductsPage() {
       return true;
     })
     .sort((a, b) => {
+      if (sortBy === "sku") return (a.itemId || "").localeCompare(b.itemId || "", undefined, { numeric: true, sensitivity: "base" });
       if (sortBy === "name") return (a.name || "").localeCompare(b.name || "");
       if (sortBy === "stock") return (b.totalStock ?? 0) - (a.totalStock ?? 0);
       if (sortBy === "price") return (b.price ?? 0) - (a.price ?? 0);
       return 0;
     });
+
+  useEffect(() => {
+    if (visibleCount >= filteredProducts.length) return;
+    
+    const observer = new IntersectionObserver((entries) => {
+      if (entries[0].isIntersecting) {
+        setVisibleCount((prev) => Math.min(prev + 15, filteredProducts.length));
+      }
+    }, { threshold: 0.1 });
+    
+    const target = document.getElementById("load-more-trigger");
+    if (target) observer.observe(target);
+    
+    return () => observer.disconnect();
+  }, [visibleCount, filteredProducts.length]);
+
+  const visibleProducts = filteredProducts.slice(0, visibleCount);
 
   const exportCSV = () => {
     if (!filteredProducts?.length) return;
@@ -423,6 +465,7 @@ export default function ProductsPage() {
                 align="full"
                 className="w-full lg:min-w-[145px]"
                 options={[
+                  { value: "sku", label: "Sort: SKU / ID" },
                   { value: "name", label: "Sort: Name" },
                   { value: "stock", label: "Sort: Stock" },
                   { value: "price", label: "Sort: Price" }
@@ -435,7 +478,14 @@ export default function ProductsPage() {
           {isLoading ? (
             <ProductTableSkeleton />
           ) : (
-            <ProductTable products={filteredProducts} />
+            <>
+              <ProductTable products={visibleProducts} />
+              {visibleCount < filteredProducts.length && (
+                <div id="load-more-trigger" className="h-14 flex items-center justify-center my-6">
+                  <div className="w-6 h-6 border-2 border-slate-900 border-t-transparent rounded-full animate-spin" />
+                </div>
+              )}
+            </>
           )}
 
         </div>
