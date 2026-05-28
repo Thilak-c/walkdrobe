@@ -5,25 +5,15 @@ import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 
 export default function CategoriesSection() {
-  const products = useQuery(api.products.getProductsForCards, { limit: 20 }) || [];  // Reduced from 100 to 20
-  
+  const dbCategories = useQuery(api.products.getCategoryStats);
   const categoryNames = ["All", "Sneakers", "Sports"];
-  const categories = categoryNames.map(name => {
-    const categoryProducts = products.filter(p => 
-      (p.category || "").toLowerCase() === name.toLowerCase()
-    );
-    return {
-      name,
-      image: categoryProducts[0]?.mainImage || null,
-      count: categoryProducts.length
-    };
-  }).filter(cat => cat.count > 0);
 
-  const displayCategories = categories.length > 0 ? categories : categoryNames.map(name => ({
+  const displayCategories = dbCategories || categoryNames.map(name => ({
     name,
     image: null,
     count: 0
   }));
+
 
   return (
     <section className="py-12 md:py-20 bg-white">

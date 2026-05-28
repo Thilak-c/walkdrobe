@@ -70,13 +70,26 @@ export async function runBackup() {
       process.stdout.write(`⏳ Fetching table: ${tableName.padEnd(22)}... `);
       
       try {
-        // Query data from Convex using direct string path
-        const records = await convexClient.query(BACKUP_QUERY_PATH, { tableName });
-        
-        if (!records) {
-          console.log("❌ Failed (Returned null)");
-          results.push({ table: tableName, success: false, count: 0, size: "0 B", error: "Returned null" });
-          continue;
+        // Query data from Convex using pagination to handle large datasets
+        const records = [];
+        let cursor = null;
+        let isDone = false;
+        const numItems = 2000;
+
+        while (!isDone) {
+          const result = await convexClient.query(BACKUP_QUERY_PATH, {
+            tableName,
+            cursor,
+            numItems,
+          });
+
+          if (!result || !Array.isArray(result.page)) {
+            throw new Error("Returned invalid format or null");
+          }
+
+          records.push(...result.page);
+          cursor = result.continueCursor;
+          isDone = result.isDone;
         }
 
         const count = records.length;

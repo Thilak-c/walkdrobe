@@ -3251,4 +3251,36 @@ export const migrateMainCategoryToFootwear = mutation({
   },
 });
 
+// Get stats (counts and representative images) for homepage categories
+export const getCategoryStats = query({
+  args: {},
+  handler: async (ctx) => {
+    const products = await ctx.db
+      .query("products")
+      .filter((q) =>
+        q.and(
+          q.neq(q.field("isDeleted"), true),
+          q.neq(q.field("isHidden"), true),
+          q.eq(q.field("inStock"), true)
+        )
+      )
+      .collect();
+
+    const categoryNames = ["All", "Sneakers", "Sports"];
+    
+    return categoryNames.map(name => {
+      const categoryProducts = name === "All" 
+        ? products 
+        : products.filter(p => (p.category || "").toLowerCase() === name.toLowerCase());
+      
+      return {
+        name,
+        image: categoryProducts[0]?.mainImage || null,
+        count: categoryProducts.length
+      };
+    }).filter(cat => cat.count > 0);
+  },
+});
+
+
 
