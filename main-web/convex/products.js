@@ -9,6 +9,11 @@ export const insert = mutation(async ({ db }, product) => {
   await db.insert("products", {
     buys: 0,
     inCart: 0,
+    views: 0,
+    referrerViews: {},
+    searchQueryViews: {},
+    viewTypeViews: {},
+    wishlistCount: 0,
     isHidden: false,
     ...product
   });
@@ -795,6 +800,12 @@ export const getProductAnalytics = query({
         orderCount: productOrders.length,
         averageOrderValue: productOrders.length > 0 ? totalSales / productOrders.length : 0,
         timeRange,
+        views: product.views || 0,
+        inCart: product.inCart || 0,
+        wishlistCount: product.wishlistCount || 0,
+        cartConversionRate: product.views ? ((product.inCart || 0) / product.views) * 100 : 0,
+        purchaseConversionRate: product.views ? ((product.buys || 0) / product.views) * 100 : 0,
+        wishlistConversionRate: product.views ? ((product.wishlistCount || 0) / product.views) * 100 : 0,
       };
     } else {
       // Get overall analytics

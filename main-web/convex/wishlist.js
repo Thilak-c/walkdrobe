@@ -34,6 +34,17 @@ export const addToWishlist = mutation({
       };
     }
 
+    // Increment wishlistCount on the product document
+    const product = await ctx.db
+      .query("products")
+      .withIndex("by_itemId", (q) => q.eq("itemId", args.productId))
+      .first();
+    if (product) {
+      await ctx.db.patch(product._id, {
+        wishlistCount: (product.wishlistCount || 0) + 1,
+      });
+    }
+
     // Create new wishlist item
     const wishlistItemId = await ctx.db.insert("wishlist", {
       userId: args.userId,
@@ -78,6 +89,17 @@ export const removeFromWishlist = mutation({
       };
     }
 
+    // Decrement wishlistCount on product document
+    const product = await ctx.db
+      .query("products")
+      .withIndex("by_itemId", (q) => q.eq("itemId", args.productId))
+      .first();
+    if (product) {
+      await ctx.db.patch(product._id, {
+        wishlistCount: Math.max(0, (product.wishlistCount || 0) - 1),
+      });
+    }
+
     await ctx.db.patch(existingItem._id, {
       isActive: false,
     });
@@ -107,11 +129,23 @@ export const toggleWishlist = mutation({
       .filter(q => q.eq(q.field("isActive"), true))
       .unique();
 
+    const product = await ctx.db
+      .query("products")
+      .withIndex("by_itemId", (q) => q.eq("itemId", args.productId))
+      .first();
+
     if (existingItem) {
       // Remove from wishlist
       await ctx.db.patch(existingItem._id, {
         isActive: false,
       });
+
+      if (product) {
+        await ctx.db.patch(product._id, {
+          wishlistCount: Math.max(0, (product.wishlistCount || 0) - 1),
+        });
+      }
+
       return { 
         success: true, 
         message: "Item removed from wishlist", 
@@ -130,6 +164,13 @@ export const toggleWishlist = mutation({
         addedAt: nowIso(),
         isActive: true,
       });
+
+      if (product) {
+        await ctx.db.patch(product._id, {
+          wishlistCount: (product.wishlistCount || 0) + 1,
+        });
+      }
+
       return { 
         success: true, 
         message: "Item added to wishlist", 
@@ -213,8 +254,17 @@ export const clearWishlist = mutation({
       .filter(q => q.eq(q.field("isActive"), true))
       .collect();
 
-    // Soft delete all items
+    // Soft delete all items and decrement wishlistCount
     for (const item of wishlistItems) {
+      const product = await ctx.db
+        .query("products")
+        .withIndex("by_itemId", (q) => q.eq("itemId", item.productId))
+        .first();
+      if (product) {
+        await ctx.db.patch(product._id, {
+          wishlistCount: Math.max(0, (product.wishlistCount || 0) - 1),
+        });
+      }
       await ctx.db.patch(item._id, {
         isActive: false,
       });
@@ -225,4 +275,4 @@ export const clearWishlist = mutation({
       message: `Cleared ${wishlistItems.length} items from wishlist` 
     };
   },
-}); 
+});

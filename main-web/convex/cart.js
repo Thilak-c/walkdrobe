@@ -27,6 +27,17 @@ export const addToCart = mutation({
       .filter(q => q.eq(q.field("isActive"), true))
       .unique();
 
+    // Increment inCart on the product document
+    const product = await ctx.db
+      .query("products")
+      .withIndex("by_itemId", (q) => q.eq("itemId", args.productId))
+      .first();
+    if (product) {
+      await ctx.db.patch(product._id, {
+        inCart: (product.inCart || 0) + args.quantity,
+      });
+    }
+
     if (existingItem) {
       // Update existing item quantity
       const newQuantity = existingItem.quantity + args.quantity;
@@ -70,6 +81,19 @@ export const removeFromCart = mutation({
     cartItemId: v.id("cart"),
   },
   handler: async (ctx, args) => {
+    const item = await ctx.db.get(args.cartItemId);
+    if (item && item.isActive) {
+      const product = await ctx.db
+        .query("products")
+        .withIndex("by_itemId", (q) => q.eq("itemId", item.productId))
+        .first();
+      if (product) {
+        await ctx.db.patch(product._id, {
+          inCart: Math.max(0, (product.inCart || 0) - item.quantity),
+        });
+      }
+    }
+
     await ctx.db.patch(args.cartItemId, {
       isActive: false,
       updatedAt: nowIso(),
@@ -85,6 +109,24 @@ export const updateCartQuantity = mutation({
     quantity: v.number(),
   },
   handler: async (ctx, args) => {
+    const item = await ctx.db.get(args.cartItemId);
+    if (!item || !item.isActive) {
+      throw new Error("Cart item not found or inactive");
+    }
+
+    const difference = args.quantity - item.quantity;
+    if (difference !== 0) {
+      const product = await ctx.db
+        .query("products")
+        .withIndex("by_itemId", (q) => q.eq("itemId", item.productId))
+        .first();
+      if (product) {
+        await ctx.db.patch(product._id, {
+          inCart: Math.max(0, (product.inCart || 0) + difference),
+        });
+      }
+    }
+
     if (args.quantity <= 0) {
       // Remove item if quantity is 0 or negative
       await ctx.db.patch(args.cartItemId, {
@@ -149,8 +191,17 @@ export const clearCart = mutation({
       .filter(q => q.eq(q.field("isActive"), true))
       .collect();
 
-    // Soft delete all items
+    // Soft delete all items and decrement products inCart
     for (const item of cartItems) {
+      const product = await ctx.db
+        .query("products")
+        .withIndex("by_itemId", (q) => q.eq("itemId", item.productId))
+        .first();
+      if (product) {
+        await ctx.db.patch(product._id, {
+          inCart: Math.max(0, (product.inCart || 0) - item.quantity),
+        });
+      }
       await ctx.db.patch(item._id, {
         isActive: false,
         updatedAt: nowIso(),
@@ -185,4 +236,4 @@ export const getCartSummary = query({
       itemCount: cartItems.length,
     };
   },
-}); 
+});

@@ -1,7 +1,7 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 
-// Add a new view record
+// Add a new view record - increment product views and source counts directly to avoid DB bloat
 export const addView = mutation({
   args: {
     productId: v.string(),
@@ -17,31 +17,60 @@ export const addView = mutation({
   },
   handler: async (ctx, args) => {
     try {
-      // Create the view record
-      const viewId = await ctx.db.insert("views", {
-        productId: args.productId,
-        userId: args.userId,
-        ipAddress: args.ipAddress,
-        userAgent: args.userAgent,
-        referrer: args.referrer,
-        viewedAt: args.viewedAt,
-        sessionId: args.sessionId,
-        viewType: args.viewType || "product_page",
-        searchQuery: args.searchQuery,
-        category: args.category,
-        isDeleted: false,
-      });
+      // Find the product by its itemId using the index
+      const product = await ctx.db
+        .query("products")
+        .withIndex("by_itemId", (q) => q.eq("itemId", args.productId))
+        .first();
 
+      if (product) {
+        // Increment total views
+        const newViews = (product.views || 0) + 1;
 
+        // Referrer tracking
+        let referrerKey = "direct";
+        if (args.referrer) {
+          try {
+            const url = new URL(args.referrer);
+            referrerKey = url.hostname.replace("www.", "") || "direct";
+          } catch (e) {
+            referrerKey = args.referrer.substring(0, 50) || "direct";
+          }
+        }
+        // Sanitize keys to not contain dots (which aren't allowed in Convex/MongoDB keys)
+        const sanitizedReferrerKey = referrerKey.replace(/\./g, "_");
+        const referrerViews = { ...(product.referrerViews || {}) };
+        referrerViews[sanitizedReferrerKey] = (referrerViews[sanitizedReferrerKey] || 0) + 1;
 
-      return { success: true, viewId };
+        // Search query tracking
+        const searchQueryViews = { ...(product.searchQueryViews || {}) };
+        if (args.searchQuery) {
+          const sanitizedQuery = args.searchQuery.replace(/\./g, "_");
+          searchQueryViews[sanitizedQuery] = (searchQueryViews[sanitizedQuery] || 0) + 1;
+        }
+
+        // View Type tracking
+        const viewTypeViews = { ...(product.viewTypeViews || {}) };
+        const viewTypeKey = (args.viewType || "product_page").replace(/\./g, "_");
+        viewTypeViews[viewTypeKey] = (viewTypeViews[viewTypeKey] || 0) + 1;
+
+        await ctx.db.patch(product._id, {
+          views: newViews,
+          referrerViews,
+          searchQueryViews,
+          viewTypeViews,
+        });
+      }
+
+      return { success: true };
     } catch (error) {
+      console.error("Failed to record view:", error);
       throw new Error("Failed to record view");
     }
   },
 });
 
-// Get views for a specific product
+// Get views for a specific product (legacy database lookup)
 export const getProductViews = query({
   args: {
     productId: v.string(),
@@ -70,44 +99,22 @@ export const getProductViewStats = query({
   },
   handler: async (ctx, args) => {
     try {
-      const views = await ctx.db
-        .query("views")
-        .withIndex("by_product", (q) => q.eq("productId", args.productId))
-        .filter((q) => q.eq(q.field("isDeleted"), false))
-        .collect();
+      const product = await ctx.db
+        .query("products")
+        .withIndex("by_itemId", (q) => q.eq("itemId", args.productId))
+        .first();
 
-      const totalViews = views.length;
-      const uniqueUsers = new Set(views.map(v => v.userId).filter(Boolean)).size;
-      const uniqueSessions = new Set(views.map(v => v.sessionId).filter(Boolean)).size;
-
-      // Get views by view type
-      const viewTypes = views.reduce((acc, view) => {
-        const type = view.viewType || "unknown";
-        acc[type] = (acc[type] || 0) + 1;
-        return acc;
-      }, {});
-
-      // Get views by category
-      const categoryViews = views.reduce((acc, view) => {
-        const category = view.category || "unknown";
-        acc[category] = (acc[category] || 0) + 1;
-        return acc;
-      }, {});
-
-      // Get recent views (last 7 days)
-      const sevenDaysAgo = new Date();
-      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-      const recentViews = views.filter(view =>
-        new Date(view.viewedAt) > sevenDaysAgo
-      ).length;
+      const totalViews = product ? (product.views || 0) : 0;
 
       return {
         totalViews,
-        uniqueUsers,
-        uniqueSessions,
-        recentViews,
-        viewTypes,
-        categoryViews,
+        uniqueUsers: 0,
+        uniqueSessions: 0,
+        recentViews: totalViews,
+        viewTypes: product?.viewTypeViews || {},
+        categoryViews: product?.category ? { [product.category]: totalViews } : {},
+        referrerViews: product?.referrerViews || {},
+        searchQueryViews: product?.searchQueryViews || {},
       };
     } catch (error) {
       return {
@@ -117,12 +124,14 @@ export const getProductViewStats = query({
         recentViews: 0,
         viewTypes: {},
         categoryViews: {},
+        referrerViews: {},
+        searchQueryViews: {},
       };
     }
   },
 });
 
-// Get most viewed products - SIMPLIFIED VERSION
+// Get most viewed products
 export const getMostViewedProducts = query({
   args: {
     limit: v.optional(v.number()),
@@ -130,7 +139,6 @@ export const getMostViewedProducts = query({
   },
   handler: async (ctx, args) => {
     try {
-      // Just get products from the category - skip views for now
       let productsQuery = ctx.db
         .query("products")
         .filter((q) => q.neq(q.field("isDeleted"), true))
@@ -140,18 +148,20 @@ export const getMostViewedProducts = query({
         productsQuery = productsQuery.filter((q) => q.eq(q.field("category"), args.category));
       }
 
-      const products = await productsQuery
-        .order("desc")
-        .take(args.limit || 8);
+      const products = await productsQuery.collect();
 
-      // Return products with simple structure
-      return products.map((product) => ({
+      // Sort products by views desc (fallback to 0)
+      const sortedProducts = products
+        .sort((a, b) => (b.views || 0) - (a.views || 0))
+        .slice(0, args.limit || 8);
+
+      return sortedProducts.map((product) => ({
         itemId: product.itemId,
         name: product.name,
         mainImage: product.mainImage,
         price: product.price,
         category: product.category,
-        viewCount: product.buys || 0, // Use buys as proxy for popularity
+        viewCount: product.views || 0,
         uniqueUsers: 0,
         uniqueSessions: 0,
       }));
@@ -163,7 +173,6 @@ export const getMostViewedProducts = query({
 });
 
 // Get global trending products (all categories)
-// OPTIMIZED: Added pagination, batch product fetch, and limit
 export const getGlobalTrendingProducts = query({
   args: {
     limit: v.optional(v.number()),
@@ -172,80 +181,39 @@ export const getGlobalTrendingProducts = query({
   handler: async (ctx, args) => {
     try {
       const limit = args.limit || 10;
-      const daysBack = args.daysBack || 7;
       
-      // OPTIMIZED: Only get recent views (last N days) with limit
-      const cutoffDate = new Date();
-      cutoffDate.setDate(cutoffDate.getDate() - daysBack);
-      const cutoffDateStr = cutoffDate.toISOString();
-      
-      // OPTIMIZED: Use take() instead of collect()
-      const views = await ctx.db
-        .query("views")
-        .withIndex("by_viewed_at")
+      const products = await ctx.db
+        .query("products")
         .filter((q) => 
           q.and(
-            q.eq(q.field("isDeleted"), false),
-            q.gte(q.field("viewedAt"), cutoffDateStr)
+            q.neq(q.field("isDeleted"), true),
+            q.neq(q.field("isHidden"), true)
           )
         )
-        .take(5000); // Cap at 5000 recent views
+        .collect();
 
-      // Group by productId and count views
-      const productViewCounts = {};
-      views.forEach(view => {
-        const productId = view.productId;
-        if (!productViewCounts[productId]) {
-          productViewCounts[productId] = {
-            productId,
-            viewCount: 0,
-            uniqueUsers: new Set(),
-            uniqueSessions: new Set(),
-            lastViewed: view.viewedAt,
-            category: view.category,
-          };
-        }
-        productViewCounts[productId].viewCount++;
-        if (view.userId) productViewCounts[productId].uniqueUsers.add(view.userId);
-        if (view.sessionId) productViewCounts[productId].uniqueSessions.add(view.sessionId);
-      });
-
-      // Convert to array and sort by view count
-      const sortedProducts = Object.values(productViewCounts)
-        .map(item => ({
-          ...item,
-          uniqueUsers: item.uniqueUsers.size,
-          uniqueSessions: item.uniqueSessions.size,
-        }))
-        .sort((a, b) => b.viewCount - a.viewCount)
+      const sortedProducts = products
+        .sort((a, b) => (b.views || 0) - (a.views || 0))
         .slice(0, limit);
 
-      // OPTIMIZED: Batch fetch product details using index
-      const productsWithDetails = [];
-      for (const item of sortedProducts) {
-        const product = await ctx.db
-          .query("products")
-          .withIndex("by_itemId", (q) => q.eq("itemId", item.productId))
-          .filter((q) => q.neq(q.field("isDeleted"), true))
-          .first();
-
-        productsWithDetails.push({
-          ...item,
-          productName: product?.name || 'Unknown Product',
-          productImage: product?.mainImage || '/placeholder-product.jpg',
-          price: product?.price || 0,
-          category: product?.category || item.category,
-        });
-      }
-
-      return productsWithDetails;
+      return sortedProducts.map((p) => ({
+        productId: p.itemId,
+        productName: p.name,
+        productImage: p.mainImage || '/placeholder-product.jpg',
+        price: p.price,
+        category: p.category,
+        viewCount: p.views || 0,
+        uniqueUsers: 0,
+        uniqueSessions: 0,
+        lastViewed: p.updatedAt || "",
+      }));
     } catch (error) {
       return [];
     }
   },
 });
 
-// Get user's view history
+// Get user's view history (legacy support)
 export const getUserViewHistory = query({
   args: {
     userId: v.id("users"),
@@ -267,7 +235,7 @@ export const getUserViewHistory = query({
   },
 });
 
-// Get views by category
+// Get views by category (legacy support)
 export const getViewsByCategory = query({
   args: {
     category: v.string(),
@@ -290,7 +258,6 @@ export const getViewsByCategory = query({
 });
 
 // Get analytics data for admin dashboard
-// OPTIMIZED: Added date-based filtering with index and pagination
 export const getViewAnalytics = query({
   args: {
     startDate: v.optional(v.string()),
@@ -300,85 +267,28 @@ export const getViewAnalytics = query({
   handler: async (ctx, args) => {
     try {
       const limit = args.limit || 10000;
-      
-      // OPTIMIZED: Use take() with limit instead of collect()
-      let views = await ctx.db
-        .query("views")
-        .withIndex("by_viewed_at")
-        .filter((q) => q.eq(q.field("isDeleted"), false))
+      const products = await ctx.db
+        .query("products")
+        .filter((q) => q.neq(q.field("isDeleted"), true))
         .take(limit);
 
-      // Filter by date range if provided
-      if (args.startDate) {
-        views = views.filter(view =>
-          new Date(view.viewedAt) >= new Date(args.startDate)
-        );
-      }
-      if (args.endDate) {
-        views = views.filter(view =>
-          new Date(view.viewedAt) <= new Date(args.endDate)
-        );
-      }
+      const totalViews = products.reduce((sum, p) => sum + (p.views || 0), 0);
+      const uniqueProducts = products.filter(p => (p.views || 0) > 0).length;
 
-      // Calculate analytics
-      const totalViews = views.length;
-      const uniqueUsers = new Set(views.map(v => v.userId).filter(Boolean)).size;
-      const uniqueSessions = new Set(views.map(v => v.sessionId).filter(Boolean)).size;
-      const uniqueProducts = new Set(views.map(v => v.productId)).size;
-
-      // Views by day (last 30 days)
-      const thirtyDaysAgo = new Date();
-      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-      const dailyViews = {};
-
-      for (let i = 0; i < 30; i++) {
-        const date = new Date(thirtyDaysAgo);
-        date.setDate(date.getDate() + i);
-        const dateStr = date.toISOString().split('T')[0];
-        dailyViews[dateStr] = 0;
-      }
-
-      views.forEach(view => {
-        const viewDate = new Date(view.viewedAt).toISOString().split('T')[0];
-        if (dailyViews.hasOwnProperty(viewDate)) {
-          dailyViews[viewDate]++;
-        }
-      });
-
-      // Top products by views
-      const productViewCounts = {};
-      views.forEach(view => {
-        productViewCounts[view.productId] = (productViewCounts[view.productId] || 0) + 1;
-      });
-
-      const topProducts = Object.entries(productViewCounts)
-        .map(([productId, count]) => ({ productId, viewCount: count }))
+      const topProducts = products
+        .map(p => ({ productId: p.itemId, viewCount: p.views || 0 }))
         .sort((a, b) => b.viewCount - a.viewCount)
         .slice(0, 10);
 
-      // Views by view type
-      const viewTypeCounts = {};
-      views.forEach(view => {
-        const type = view.viewType || "unknown";
-        viewTypeCounts[type] = (viewTypeCounts[type] || 0) + 1;
-      });
-
-      // Views by category
-      const categoryCounts = {};
-      views.forEach(view => {
-        const category = view.category || "unknown";
-        categoryCounts[category] = (categoryCounts[category] || 0) + 1;
-      });
-
       return {
         totalViews,
-        uniqueUsers,
-        uniqueSessions,
+        uniqueUsers: 0,
+        uniqueSessions: 0,
         uniqueProducts,
-        dailyViews,
+        dailyViews: {},
         topProducts,
-        viewTypeCounts,
-        categoryCounts,
+        viewTypeCounts: {},
+        categoryCounts: {},
       };
     } catch (error) {
       return {
@@ -395,7 +305,7 @@ export const getViewAnalytics = query({
   },
 });
 
-// Soft delete a view (for data retention)
+// Soft delete a view (legacy support)
 export const deleteView = mutation({
   args: {
     viewId: v.id("views"),
@@ -418,22 +328,21 @@ export const deleteView = mutation({
   },
 });
 
-// Get view count for a specific product (lightweight)
+// Get view count for a specific product
 export const getProductViewCount = query({
   args: {
     productId: v.string(),
   },
   handler: async (ctx, args) => {
     try {
-      const views = await ctx.db
-        .query("views")
-        .withIndex("by_product", (q) => q.eq("productId", args.productId))
-        .filter((q) => q.eq(q.field("isDeleted"), false))
-        .collect();
+      const product = await ctx.db
+        .query("products")
+        .withIndex("by_itemId", (q) => q.eq("itemId", args.productId))
+        .first();
 
       return {
-        totalViews: views.length,
-        uniqueUsers: new Set(views.map(v => v.userId).filter(Boolean)).size,
+        totalViews: product ? (product.views || 0) : 0,
+        uniqueUsers: 0,
       };
     } catch (error) {
       return { totalViews: 0, uniqueUsers: 0 };
