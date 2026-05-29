@@ -70,7 +70,9 @@ export const sendOrderNotificationEmail = action({
       console.log('API response:', result);
 
       // Log the notification
-      const adminEmails = ["yashodanandkumar15@gmail.com", "maskeyishere@gmail.com"];
+      const adminEmails = process.env.ADMIN_EMAILS
+        ? process.env.ADMIN_EMAILS.split(',').map(email => email.trim())
+        : ["walkdrobe07@gmail.com", "thilak8797@gmail.com", "ankitkumar799591@gmail.com"];
       for (const adminEmail of adminEmails) {
         await ctx.runMutation(api.emailNotifications.logOrderNotification, {
           orderNumber: orderData.orderNumber,
@@ -84,7 +86,9 @@ export const sendOrderNotificationEmail = action({
       return result;
     } catch (error) {
       // Log the failed notification for all admins
-      const adminEmails = ["yashodanandkumar15@gmail.com", "maskeyishere@gmail.com"];
+      const adminEmails = process.env.ADMIN_EMAILS
+        ? process.env.ADMIN_EMAILS.split(',').map(email => email.trim())
+        : ["walkdrobe07@gmail.com", "thilak8797@gmail.com", "ankitkumar799591@gmail.com"];
       for (const adminEmail of adminEmails) {
         await ctx.runMutation(api.emailNotifications.logOrderNotification, {
           orderNumber: orderData.orderNumber,

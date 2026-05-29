@@ -53,12 +53,13 @@ export async function POST(request) {
     }
 
     // Admin emails to notify
-    const adminEmails = [
-      "walkdrobe07@gmail.com",
-      'yashodanandkumar15@gmail.com',
-      'thilak8797@gmail.com',
-      'maskeyishere@gmail.com'
-    ];
+    const adminEmails = process.env.ADMIN_EMAILS
+      ? process.env.ADMIN_EMAILS.split(',').map(email => email.trim())
+      : [
+          "walkdrobe07@gmail.com",
+          'thilak8797@gmail.com',
+          'ankitkumar799591@gmail.com'
+        ];
 
     // Format order items for email
     const itemsHtml = finalItems.map(item => `
