@@ -19,17 +19,7 @@ const heroImages = [
 ];
 
 export default function Home() {
-  const [scrolled, setScrolled] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-
-  // Track scroll for navbar visibility
-  useEffect(() => {
-    const handleScroll = () => {
-      setScrolled(window.scrollY > 100);
-    };
-    window.addEventListener("scroll", handleScroll);
-    return () => window.removeEventListener("scroll", handleScroll);
-  }, []);
 
   // Preload all hero images before showing content
   useEffect(() => {
@@ -134,22 +124,10 @@ export default function Home() {
         <NavbarMobile />
       </div>
 
-      {/* Desktop: Minimal hero nav (Sneakers | Sports only) - hidden on scroll */}
-
-      {/* Desktop: Full navbar - visible on scroll with animation */}
-      <AnimatePresence>
-        {scrolled && (
-          <motion.div
-            initial={{ y: -100, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            exit={{ y: -100, opacity: 0 }}
-            transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
-            className="hidden xl:block"
-          >
-            <Navbar />
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {/* Desktop: Full navbar */}
+      <div className="hidden xl:block">
+        <Navbar />
+      </div>
 
       <HeroSection />
       <CategoriesSection />

@@ -424,8 +424,8 @@ export default function CheckoutPage() {
       const deliveryFee = subtotal >= 999 ? 0 : 50;
       const protectPromiseFee = directPurchaseItem.quantity * 9;
       
-      // COD charge: ₹100 per item (must be paid online)
-      const codCharge = selectedPaymentMethod === "cod" ? directPurchaseItem.quantity * 100 : 0;
+      // COD charge: ₹100 flat per order (must be paid online)
+      const codCharge = selectedPaymentMethod === "cod" ? 100 : 0;
       
       // Coupon discount (only for prepaid orders)
       let couponDiscount = 0;
@@ -446,8 +446,8 @@ export default function CheckoutPage() {
       
       const deliveryFee = effectiveCartTotals.totalPrice >= 999 ? 0 : 50;
       
-      // COD charge: ₹100 per item (must be paid online)
-      const codCharge = selectedPaymentMethod === "cod" ? effectiveCartTotals.totalItems * 100 : 0;
+      // COD charge: ₹100 flat per order (must be paid online)
+      const codCharge = selectedPaymentMethod === "cod" ? 100 : 0;
       
       // Coupon discount (only for prepaid orders)
       let couponDiscount = 0;
@@ -1366,7 +1366,7 @@ export default function CheckoutPage() {
                   <div className="flex justify-between items-center text-[11px]">
                     <div className="flex items-center gap-1">
                       <span className="text-slate-500">COD Charge</span>
-                      <span className="text-[9px] text-gray-400">(₹100/item)</span>
+                      <span className="text-[9px] text-gray-400">(Flat Fee)</span>
                     </div>
                     <span className="font-semibold text-slate-800">₹{codCharge}</span>
                   </div>

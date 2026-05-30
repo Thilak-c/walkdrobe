@@ -28,7 +28,7 @@ export default function CategoriesSection() {
           <h2 className="text-2xl md:text-4xl font-bold text-gray-900">Shop by Category</h2>
         </motion.div>
 
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-6">
+        <div className="grid grid-cols-2 md:grid-cols-3 max-w-6xl mx-auto gap-3 md:gap-6">
           {displayCategories.map((cat, idx) => (
             <motion.div
               key={cat.name}
@@ -60,6 +60,28 @@ export default function CategoriesSection() {
               </Link>
             </motion.div>
           ))}
+
+          {/* Fun Video Card in the 4th empty grid slot */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ delay: displayCategories.length * 0.05 }}
+            className="md:hidden"
+          >
+            <div className="group relative aspect-[4/5] md:aspect-[3/4] rounded-xl md:rounded-2xl overflow-hidden ">
+              <video
+                src="/n0-data.mp4"
+                autoPlay
+                muted
+                loop
+                playsInline
+                className="w-full h-full object-cover transition-all duration-700"
+              />
+              <div className="absolute inset-0 pointer-events-none" />
+             
+            </div>
+          </motion.div>
         </div>
       </div>
     </section>

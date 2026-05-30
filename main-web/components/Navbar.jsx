@@ -1,5 +1,6 @@
 "use client";
 import { useState, useRef, useEffect } from "react";
+import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
@@ -68,6 +69,20 @@ export default function Navbar() {
   const [searchOpen, setSearchOpen] = useState(false);
   const searchRef = useRef(null);
 
+  const pathname = usePathname();
+  const isHome = pathname === "/";
+  const [scrolled, setScrolled] = useState(false);
+
+  useEffect(() => {
+    if (!isHome) return;
+    const handleScroll = () => {
+      setScrolled(window.scrollY > 50);
+    };
+    handleScroll();
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, [isHome]);
+
   // Auth
   const [token, setToken] = useState(null);
   useEffect(() => {
@@ -86,8 +101,26 @@ export default function Navbar() {
     }
   };
 
+  const navClass = isHome
+    ? `fixed top-0 left-0 right-0 z-50 transition-all duration-500 ease-in-out hidden md:block ${
+        scrolled 
+          ? "bg-white border-b border-gray-100 shadow-sm" 
+          : "bg-transparent border-transparent"
+      }`
+    : "fixed top-0 left-0 right-0 z-50 bg-white border-b border-gray-100 hidden md:block";
+
+  const linkColorClass = isHome && !scrolled
+    ? "text-white/80 hover:text-white"
+    : "text-gray-600 hover:text-black";
+
+  const iconBtnClass = isHome && !scrolled
+    ? "p-2 hover:bg-white/10 rounded-lg transition-colors text-white/80 hover:text-white"
+    : "p-2 hover:bg-gray-50 rounded-lg transition-colors text-gray-600 hover:text-black";
+
+  const iconClass = "w-5 h-5 transition-colors duration-300";
+
   return (
-    <nav className="fixed top-0 left-0 right-0 z-50 bg-white border-b border-gray-100 hidden md:block">
+    <nav className={navClass}>
       {/* Promo Bar */}
       <PromoBar />
       
@@ -104,6 +137,13 @@ export default function Navbar() {
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.5, delay: 0.2 }}
+            className={`transition-all duration-500 ease-in-out ${
+              isHome
+                ? scrolled
+                  ? "opacity-100 pointer-events-auto scale-100"
+                  : "opacity-0 pointer-events-none scale-95"
+                : "opacity-100 pointer-events-auto scale-100"
+            }`}
           >
             <Link href="/" className="shrink-0">
               <img src="/logo.png" alt="Walkdrobe" className="h-6" />
@@ -117,13 +157,13 @@ export default function Navbar() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.3 }}
           >
-            <Link href="/shop?ct=all" className="text-sm text-gray-600 hover:text-black transition-colors">
+            <Link href="/shop?ct=all" className={`text-sm transition-colors duration-300 ${linkColorClass}`}>
               All
             </Link>
-            <Link href="/shop?ct=sneakers" className="text-sm text-gray-600 hover:text-black transition-colors">
+            <Link href="/shop?ct=sneakers" className={`text-sm transition-colors duration-300 ${linkColorClass}`}>
               Sneakers
             </Link>
-            <Link href="/shop?ct=sports" className="text-sm text-gray-600 hover:text-black transition-colors">
+            <Link href="/shop?ct=sports" className={`text-sm transition-colors duration-300 ${linkColorClass}`}>
               Sports
             </Link>
           </motion.div>
@@ -154,12 +194,18 @@ export default function Navbar() {
                       autoFocus
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
-                      className="w-40 px-3 py-1.5 text-sm border border-gray-200 rounded-lg outline-none focus:border-gray-400"
+                      className={`w-40 px-3 py-1.5 text-sm border rounded-lg outline-none transition-all duration-300 ${
+                        isHome && !scrolled
+                          ? "bg-black/20 border-white/20 text-white placeholder-white/50 focus:border-white/40"
+                          : "bg-white border-gray-200 text-black placeholder-gray-400 focus:border-gray-400"
+                      }`}
                     />
                     <button
                       type="button"
                       onClick={() => { setSearchOpen(false); setSearchTerm(""); }}
-                      className="ml-2 p-1.5 hover:bg-gray-100 rounded-lg"
+                      className={`ml-2 p-1.5 rounded-lg transition-colors ${
+                        isHome && !scrolled ? "hover:bg-white/10 text-white" : "hover:bg-gray-100 text-gray-600"
+                      }`}
                     >
                       <X className="w-4 h-4" />
                     </button>
@@ -171,9 +217,9 @@ export default function Navbar() {
                     animate={{ scale: 1, opacity: 1 }}
                     exit={{ scale: 0.8, opacity: 0 }}
                     onClick={() => setSearchOpen(true)}
-                    className="p-2 hover:bg-gray-50 rounded-lg transition-colors"
+                    className={iconBtnClass}
                   >
-                    <Search className="w-5 h-5 text-gray-600" />
+                    <Search className={iconClass} />
                   </motion.button>
                 )}
               </AnimatePresence>
@@ -188,15 +234,15 @@ export default function Navbar() {
 
             {/* User */}
             <Link href={me ? "/account" : "/login"}>
-              <button className="p-2 hover:bg-gray-50 rounded-lg transition-colors">
-                <User className="w-5 h-5 text-gray-600" />
+              <button className={iconBtnClass}>
+                <User className={iconClass} />
               </button>
             </Link>
 
             {/* Wishlist */}
             <Link href="/wishlist">
-              <button className="relative p-2 hover:bg-gray-50 rounded-lg transition-colors">
-                <Heart className="w-5 h-5 text-gray-600" />
+              <button className={`relative ${iconBtnClass}`}>
+                <Heart className={iconClass} />
                 {wishlistSummary?.itemCount > 0 && (
                   <span className="absolute -top-1 -right-1 w-4 h-4 bg-black text-white text-[10px] rounded-full flex items-center justify-center font-bold">
                     {wishlistSummary.itemCount > 9 ? "9+" : wishlistSummary.itemCount}
@@ -207,8 +253,8 @@ export default function Navbar() {
 
             {/* Cart */}
             <Link href="/cart">
-              <button className="relative p-2 hover:bg-gray-50 rounded-lg transition-colors">
-                <ShoppingBag className="w-5 h-5 text-gray-600" />
+              <button className={`relative ${iconBtnClass}`}>
+                <ShoppingBag className={iconClass} />
                 {me && cartSummary?.totalItems > 0 && (
                   <span className="absolute -top-1 -right-1 w-4 h-4 bg-black text-white text-[10px] rounded-full flex items-center justify-center font-bold">
                     {cartSummary.totalItems > 9 ? "9+" : cartSummary.totalItems}
@@ -228,6 +274,20 @@ export function NavbarMobile() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
 
+  const pathname = usePathname();
+  const isHome = pathname === "/";
+  const [scrolled, setScrolled] = useState(false);
+
+  useEffect(() => {
+    if (!isHome) return;
+    const handleScroll = () => {
+      setScrolled(window.scrollY > 50);
+    };
+    handleScroll();
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, [isHome]);
+
   // Auth
   const [token, setToken] = useState(null);
   useEffect(() => {
@@ -238,10 +298,22 @@ export function NavbarMobile() {
   const me = useQuery(api.users.meByToken, token ? { token } : "skip");
   const cartSummary = useQuery(api.cart.getCartSummary, me ? { userId: me._id } : "skip");
 
+  const navClass = isHome
+    ? `fixed top-0 left-0 right-0 z-40 transition-all duration-500 ease-in-out md:hidden ${
+        scrolled 
+          ? "bg-white border-b border-gray-100 shadow-sm" 
+          : "bg-transparent border-transparent"
+      }`
+    : "fixed top-0 left-0 right-0 z-40 bg-white border-b border-gray-100 md:hidden";
+
+  const iconBtnClass = isHome && !scrolled
+    ? "p-2 hover:bg-white/10 rounded-full transition-colors text-white hover:text-white/80"
+    : "p-2 hover:bg-gray-100 rounded-full transition-colors text-gray-800 hover:text-black";
+
   return (
     <>
       {/* Top Bar */}
-      <nav className="fixed top-0 left-0 right-0 z-40 bg-white backdrop-blur-md md:hidden">
+      <nav className={navClass}>
         {/* Promo Bar */}
         <PromoBar />
         
@@ -249,13 +321,22 @@ export function NavbarMobile() {
           {/* Menu */}
           <button
             onClick={() => setSidebarOpen(true)}
-            className="p-2 hover:bg-gray-100 rounded-full"
+            className={iconBtnClass}
           >
             <Menu className="w-5 h-5" />
           </button>
 
           {/* Logo */}
-          <Link href="/" className="absolute left-1/2 -translate-x-1/2">
+          <Link 
+            href="/" 
+            className={`absolute left-1/2 -translate-x-1/2 transition-all duration-500 ease-in-out ${
+              isHome
+                ? scrolled
+                  ? "opacity-100 pointer-events-auto scale-100"
+                  : "opacity-0 pointer-events-none scale-95"
+                : "opacity-100 pointer-events-auto scale-100"
+            }`}
+          >
             <img src="/logo.png" alt="Walkdrobe" className="h-5" />
           </Link>
 
@@ -263,13 +344,13 @@ export function NavbarMobile() {
           <div className="flex items-center gap-1">
             <button
               onClick={() => setShowSearch(true)}
-              className="p-2 hover:bg-gray-100 rounded-full"
+              className={iconBtnClass}
             >
               <Search className="w-5 h-5" />
             </button>
 
             <Link href="/cart">
-              <button className="relative p-2 hover:bg-gray-100 rounded-full">
+              <button className={`relative ${iconBtnClass}`}>
                 <ShoppingBag className="w-5 h-5" />
                 {me && cartSummary?.totalItems > 0 && (
                   <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-black text-white text-[10px] rounded-full flex items-center justify-center font-bold">

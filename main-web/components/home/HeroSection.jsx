@@ -68,7 +68,7 @@ export default function HeroSection() {
         
         <div className="absolute inset-0 bg-gradient-to-r from-black/60 via-black/30 to-transparent" />
       </div>
-removerem
+
       {/* Content */}
       <div className="relative z-10 h-full">
         <div className="max-w-7xl mx-auto px-4 md:px-6 w-full h-full flex items-center">
