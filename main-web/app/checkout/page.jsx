@@ -424,8 +424,8 @@ export default function CheckoutPage() {
       const deliveryFee = subtotal >= 999 ? 0 : 50;
       const protectPromiseFee = directPurchaseItem.quantity * 9;
       
-      // COD charge: ₹100 flat per order (must be paid online)
-      const codCharge = selectedPaymentMethod === "cod" ? 100 : 0;
+      // COD charge: ₹100 flat per order (must be paid online) - Removed extra charge
+      const codCharge = 0;
       
       // Coupon discount (only for prepaid orders)
       let couponDiscount = 0;
@@ -446,8 +446,8 @@ export default function CheckoutPage() {
       
       const deliveryFee = effectiveCartTotals.totalPrice >= 999 ? 0 : 50;
       
-      // COD charge: ₹100 flat per order (must be paid online)
-      const codCharge = selectedPaymentMethod === "cod" ? 100 : 0;
+      // COD charge: ₹100 flat per order (must be paid online) - Removed extra charge
+      const codCharge = 0;
       
       // Coupon discount (only for prepaid orders)
       let couponDiscount = 0;
@@ -467,6 +467,7 @@ export default function CheckoutPage() {
   };
 
   const { subtotal, deliveryFee, protectPromiseFee, codCharge, couponDiscount, finalTotal } = (isDirectPurchase ? getOrderTotals() : (effectiveCartItems.length === 0 ? { subtotal: 0, deliveryFee: 0, protectPromiseFee: 0, codCharge: 0, couponDiscount: 0, finalTotal: 0 } : getOrderTotals()));
+  const codAdvance = selectedPaymentMethod === "cod" ? 100 : 0;
   const hybridDiscount = Math.round(finalTotal * 0.05);
   const hybridFinalTotal = finalTotal - hybridDiscount;
   const hybridUpfrontAmount = Math.round(hybridFinalTotal * 0.20);
@@ -769,12 +770,12 @@ export default function CheckoutPage() {
         return;
       }
 
-      // Create Razorpay order for COD charge (₹100 per item)
+      // Create Razorpay order for COD advance payment
       const response = await fetch("/api/create-order", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ 
-          amount: codCharge, // Only charge the COD fee online
+          amount: codAdvance, // COD advance payment online
           currency: "INR", 
           receipt: `cod_${Date.now()}`, 
           notes: { 
@@ -782,9 +783,9 @@ export default function CheckoutPage() {
             userEmail: currentShippingDetails.email, 
             userName: currentShippingDetails.fullName,
             paymentType: "cod",
-            codCharge: codCharge,
+            codCharge: codAdvance,
             totalAmount: finalTotal,
-            remainingCOD: finalTotal - codCharge
+            remainingCOD: finalTotal - codAdvance
           } 
         }),
       });
@@ -813,8 +814,8 @@ export default function CheckoutPage() {
         userId: me?._id,
         isCODPayment: true,
         codDetails: {
-          codCharge: codCharge,
-          remainingCOD: finalTotal - codCharge,
+          codCharge: codAdvance,
+          remainingCOD: finalTotal - codAdvance,
           totalAmount: finalTotal
         }
       };
@@ -1269,7 +1270,7 @@ export default function CheckoutPage() {
                   </div>
                   <div className="min-w-0">
                     <p className="font-bold text-slate-800 text-xs leading-none">Cash on Delivery</p>
-                    <p className="text-[9px] text-slate-400 font-medium mt-0.5 truncate">₹{codCharge || 0} online + rest COD</p>
+                    <p className="text-[9px] text-slate-400 font-medium mt-0.5 truncate">₹{codAdvance || 0} advance online + rest COD</p>
                   </div>
                 </button>
               </div>
@@ -1375,7 +1376,7 @@ export default function CheckoutPage() {
                 {/* Pre-discount Gross Total Row */}
                 <div className="border-t border-dashed border-slate-200 pt-1.5 flex justify-between font-bold text-slate-700 text-xs">
                   <span>Gross Total (Before Discounts)</span>
-                  <span>₹{(subtotal + 50 + protectPromiseFee + (selectedPaymentMethod === "cod" ? codCharge : 0)).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                  <span>₹{(subtotal + 50 + protectPromiseFee).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                 </div>
 
                 {/* Applied Discounts & Promos Section */}
@@ -1427,11 +1428,24 @@ export default function CheckoutPage() {
                   </div>
                   <span className="font-black text-base text-emerald-600 font-mono tracking-tight leading-none">₹{(selectedPaymentMethod === "hybrid" ? hybridFinalTotal : finalTotal).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                 </div>
+
+                {selectedPaymentMethod === "cod" && (
+                  <div className="mt-2 pt-2 border-t border-slate-200 space-y-1.5 bg-slate-100/50 p-2 rounded-xl">
+                    <div className="flex justify-between items-center text-[11px] font-bold text-slate-700">
+                      <span>COD Advance (Paid Online)</span>
+                      <span className="font-mono">₹{codAdvance.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                    </div>
+                    <div className="flex justify-between items-center text-[11px] font-extrabold text-emerald-700">
+                      <span>Pay on Delivery</span>
+                      <span className="font-mono">₹{(finalTotal - codAdvance).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                    </div>
+                  </div>
+                )}
               </div>
 
-              {selectedPaymentMethod === "cod" && codCharge > 0 && (
+              {selectedPaymentMethod === "cod" && codAdvance > 0 && (
                 <div className="mt-2.5 p-2 bg-orange-50/70 border border-orange-150 rounded-xl">
-                  <p className="text-orange-700 text-[10px] font-medium leading-relaxed">⚠️ COD Charge (₹{codCharge}) must be paid online now. Remaining amount will be collected on delivery.</p>
+                  <p className="text-orange-700 text-[10px] font-medium leading-relaxed">💡 COD orders require a ₹{codAdvance} advance payment online now. The remaining ₹{(finalTotal - codAdvance).toLocaleString()} will be collected on delivery.</p>
                 </div>
               )}
 
@@ -1449,7 +1463,7 @@ export default function CheckoutPage() {
                 {isProcessing ? (
                   <><Loader2 className="w-4 h-4 animate-spin" /> Processing...</>
                 ) : selectedPaymentMethod === "cod" ? (
-                  <><Lock className="w-3.5 h-3.5" /> Pay COD Charge ₹{codCharge.toLocaleString()}</>
+                  <><Lock className="w-3.5 h-3.5" /> Pay COD Advance ₹{codAdvance.toLocaleString()}</>
                 ) : (
                   <><Lock className="w-3.5 h-3.5" /> Pay ₹{(selectedPaymentMethod === "hybrid" ? hybridUpfrontAmount : finalTotal).toLocaleString()}</>
                 )}
@@ -1526,19 +1540,19 @@ export default function CheckoutPage() {
                 <div className="grid grid-cols-2 gap-2 mb-3">
                   <div className="p-2 bg-slate-50 border border-slate-100 rounded-xl">
                     <p className="text-[8px] font-bold text-slate-400 uppercase tracking-wider">Pay Online Now</p>
-                    <p className="text-slate-800 font-black text-xs font-mono mt-1">₹{codCharge.toLocaleString()}</p>
-                    <p className="text-[8px] text-slate-405 font-medium leading-none mt-0.5">COD Reservation Fee</p>
+                    <p className="text-slate-800 font-black text-xs font-mono mt-1">₹{codAdvance.toLocaleString()}</p>
+                    <p className="text-[8px] text-slate-405 font-medium leading-none mt-0.5">COD Advance Payment</p>
                   </div>
                   <div className="p-2 bg-emerald-50/50 border border-emerald-100 rounded-xl">
                     <p className="text-[8px] font-bold text-emerald-705 uppercase tracking-wider">Pay on Delivery</p>
-                    <p className="text-emerald-700 font-black text-xs font-mono mt-1">₹{(finalTotal - codCharge).toLocaleString()}</p>
+                    <p className="text-emerald-700 font-black text-xs font-mono mt-1">₹{(finalTotal - codAdvance).toLocaleString()}</p>
                     <p className="text-[8px] text-emerald-600 font-medium leading-none mt-0.5">Cash collected at door</p>
                   </div>
                 </div>
                 
                 <div className="p-2 bg-blue-50/50 border border-blue-100 rounded-xl mb-3.5">
                   <p className="text-blue-700 text-[9px] leading-normal font-medium">
-                    💡 <strong>How it works:</strong> Pay the online COD booking fee of ₹{codCharge} now to secure your order dispatch. The remaining ₹{(finalTotal - codCharge).toLocaleString()} is payable in cash/UPI upon delivery.
+                    💡 <strong>How it works:</strong> Pay the online COD advance payment of ₹{codAdvance} now to secure your order dispatch. The remaining ₹{(finalTotal - codAdvance).toLocaleString()} is payable in cash/UPI upon delivery.
                   </p>
                 </div>
 
@@ -1557,7 +1571,7 @@ export default function CheckoutPage() {
                     {isProcessing ? (
                       <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Processing...</>
                     ) : (
-                      <><CreditCard className="w-3.5 h-3.5" /> Pay ₹{codCharge.toLocaleString()} Now</>
+                      <><CreditCard className="w-3.5 h-3.5" /> Pay COD Advance ₹{codAdvance.toLocaleString()} Now</>
                     )}
                   </button>
                 </div>
