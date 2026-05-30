@@ -77,7 +77,7 @@ export default function Home() {
             <img 
               src="/logo.png" 
               alt="Walkdrobe Logo" 
-              className="h-10 w-auto object-contain drop-shadow-sm select-none pointer-events-none" 
+              className="h-10 w-auto object-contain  select-none pointer-events-none" 
             />
           </motion.div>
 
@@ -92,25 +92,8 @@ export default function Home() {
               repeat: Infinity,
               ease: "easeInOut"
             }}
-            className="w-16 h-1.5 bg-slate-900/10 rounded-full blur-xs mt-0.5 mx-auto"
+            className="w-16 h-1.5 bg-slate-900/10 rounde blur-xs mt-0.5 mx-auto"
           />
-
-          {/* Sleek subtext indicator */}
-          <div className="text-center mt-2">
-            <p className="text-slate-400 text-[10px] font-bold uppercase tracking-[0.2em] font-sans">
-              Curating your wardrobe
-            </p>
-            <div className="flex justify-center gap-1 mt-3">
-              {[0, 1, 2].map((i) => (
-                <motion.span
-                  key={i}
-                  className="block w-1.5 h-1.5 rounded-full bg-slate-800"
-                  animate={{ opacity: [0.3, 1, 0.3] }}
-                  transition={{ delay: i * 0.15, repeat: Infinity, duration: 1 }}
-                />
-              ))}
-            </div>
-          </div>
         </div>
       </div>
     );
