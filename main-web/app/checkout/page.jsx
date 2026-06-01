@@ -467,7 +467,7 @@ export default function CheckoutPage() {
   };
 
   const { subtotal, deliveryFee, protectPromiseFee, codCharge, couponDiscount, finalTotal } = (isDirectPurchase ? getOrderTotals() : (effectiveCartItems.length === 0 ? { subtotal: 0, deliveryFee: 0, protectPromiseFee: 0, codCharge: 0, couponDiscount: 0, finalTotal: 0 } : getOrderTotals()));
-  const codAdvance = selectedPaymentMethod === "cod" ? 100 : 0;
+  const codAdvance = 0;
   const hybridDiscount = Math.round(finalTotal * 0.05);
   const hybridFinalTotal = finalTotal - hybridDiscount;
   const hybridUpfrontAmount = Math.round(hybridFinalTotal * 0.20);
@@ -770,58 +770,128 @@ export default function CheckoutPage() {
         return;
       }
 
-      // Create Razorpay order for COD advance payment
-      const response = await fetch("/api/create-order", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ 
-          amount: codAdvance, // COD advance payment online
-          currency: "INR", 
-          receipt: `cod_${Date.now()}`, 
-          notes: { 
-            userId: me?._id || "guest", 
-            userEmail: currentShippingDetails.email, 
-            userName: currentShippingDetails.fullName,
-            paymentType: "cod",
-            codCharge: codAdvance,
-            totalAmount: finalTotal,
-            remainingCOD: finalTotal - codAdvance
-          } 
-        }),
-      });
+      // Map items for order
+      const mappedItems = items.map((item) => ({
+        productId: item.productId || "",
+        name: item.productName || item.name || "",
+        price: Number(item.price) || 0,
+        quantity: Number(item.quantity) || 1,
+        size: item.size || "Free",
+        image: item.productImage || item.image || "",
+      }));
 
-      const data = await response.json();
-      if (!data.success) throw new Error(data.error || "Failed to create order");
-
-      // Open Razorpay modal to collect COD charge
-      const paymentData = {
-        orderId: data.order.id,
-        amount: data.order.amount, // COD charge amount
-        currency: data.order.currency,
-        customerDetails: currentShippingDetails,
-        items: isDirectPurchase 
-          ? [{ 
-              productId: directPurchaseItem.productId, 
-              productName: directPurchaseItem.productName, 
-              productImage: directPurchaseItem.productImage, 
-              price: directPurchaseItem.price, 
-              size: directPurchaseItem.size, 
-              quantity: directPurchaseItem.quantity 
-            }] 
-          : userCart.items,
-        orderTotal: finalTotal,
-        isDirectPurchase,
-        userId: me?._id,
-        isCODPayment: true,
-        codDetails: {
-          codCharge: codAdvance,
-          remainingCOD: finalTotal - codAdvance,
-          totalAmount: finalTotal
-        }
+      // Ensure shipping details have all required fields
+      const shippingDetailsObj = {
+        fullName: currentShippingDetails.fullName || "",
+        email: currentShippingDetails.email || "",
+        phone: currentShippingDetails.phone || "",
+        address: currentShippingDetails.address || "",
+        city: currentShippingDetails.city || "",
+        state: currentShippingDetails.state || "",
+        pincode: currentShippingDetails.pincode || "",
+        country: currentShippingDetails.country || "India",
       };
 
-      await openRazorpayModal(paymentData);
-      
+      // Create order in database
+      const orderResult = await createOrderMutation({
+        userId: me?._id || null,
+        items: mappedItems,
+        shippingDetails: shippingDetailsObj,
+        paymentDetails: {
+          razorpayOrderId: "cod_free_" + Date.now(),
+          razorpayPaymentId: "cod_free_" + Date.now(),
+          amount: Number(finalTotal) || 0,
+          currency: "INR",
+          status: "pending",
+          paymentMethod: "cod",
+          codCharge: 0,
+          remainingCOD: Number(finalTotal) || 0,
+        },
+        orderTotal: Number(finalTotal) || 0,
+        status: "confirmed",
+      });
+
+      // Save address to user table if logged in
+      if (me && me._id) {
+        await fetch("/api/update-user-address", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ userId: me._id, address: shippingDetailsObj }),
+        });
+      }
+
+      if (!orderResult?.success) throw new Error(orderResult?.message || "Failed to create order");
+
+      // Send confirmation emails and create Shiprocket order
+      await Promise.all([
+        fetch("/api/send-order-confirmation", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            userEmail: shippingDetailsObj.email,
+            userName: shippingDetailsObj.fullName,
+            orderNumber: orderResult.orderNumber,
+            orderItems: mappedItems,
+            orderTotal: finalTotal,
+            shippingDetails: shippingDetailsObj,
+            paymentDetails: {
+              amount: finalTotal,
+              currency: "INR",
+              status: "pending",
+              paymentMethod: "cod",
+            },
+          }),
+        }).catch(console.error),
+        fetch("/api/send-admin-notification", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            orderNumber: orderResult.orderNumber,
+            customerName: shippingDetailsObj.fullName,
+            customerEmail: shippingDetailsObj.email,
+            orderTotal: finalTotal,
+            items: mappedItems,
+            shippingAddress: `${shippingDetailsObj.address}, ${shippingDetailsObj.city}, ${shippingDetailsObj.state} - ${shippingDetailsObj.pincode}`,
+            shippingDetails: shippingDetailsObj,
+            paymentDetails: {
+              amount: finalTotal,
+              currency: "INR",
+              status: "pending",
+              paymentMethod: "cod",
+            },
+          }),
+        }).catch(console.error),
+        // Automatically create Shiprocket order
+        fetch("/api/auto-shiprocket", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            orderNumber: orderResult.orderNumber,
+          }),
+        }).then(response => response.json())
+          .then(result => {
+            if (!result.success) {
+              console.error("Shiprocket order creation failed:", result.error);
+            }
+          })
+          .catch(error => {
+            console.error("Error creating Shiprocket order:", error);
+          }),
+      ]);
+
+      // Clear cart if not direct purchase
+      if (!isDirectPurchase) {
+        if (me?._id) {
+          try { await clearCartMutation({ userId: me._id }); } catch (e) { console.error(e); }
+        } else {
+          try { clearGuestCart(); } catch (e) { console.error(e); }
+        }
+      }
+
+      showToastMessage("Order placed successfully!");
+      console.log("🔄 Redirecting to:", `/order-success?orderNumber=${orderResult.orderNumber}`);
+      setTimeout(() => router.push(`/order-success?orderNumber=${orderResult.orderNumber}`), 1500);
+
     } catch (error) { 
       showToastMessage(`Failed: ${error.message}`); 
       setIsProcessing(false);
@@ -1270,7 +1340,7 @@ export default function CheckoutPage() {
                   </div>
                   <div className="min-w-0">
                     <p className="font-bold text-slate-800 text-xs leading-none">Cash on Delivery</p>
-                    <p className="text-[9px] text-slate-400 font-medium mt-0.5 truncate">₹{codAdvance || 0} advance online + rest COD</p>
+                    <p className="text-[9px] text-slate-400 font-medium mt-0.5 truncate">Pay cash/UPI on delivery</p>
                   </div>
                 </button>
               </div>
@@ -1431,13 +1501,9 @@ export default function CheckoutPage() {
 
                 {selectedPaymentMethod === "cod" && (
                   <div className="mt-2 pt-2 border-t border-slate-200 space-y-1.5 bg-slate-100/50 p-2 rounded-xl">
-                    <div className="flex justify-between items-center text-[11px] font-bold text-slate-700">
-                      <span>COD Advance (Paid Online)</span>
-                      <span className="font-mono">₹{codAdvance.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                    </div>
                     <div className="flex justify-between items-center text-[11px] font-extrabold text-emerald-700">
                       <span>Pay on Delivery</span>
-                      <span className="font-mono">₹{(finalTotal - codAdvance).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                      <span className="font-mono">₹{finalTotal.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                     </div>
                   </div>
                 )}
@@ -1463,7 +1529,7 @@ export default function CheckoutPage() {
                 {isProcessing ? (
                   <><Loader2 className="w-4 h-4 animate-spin" /> Processing...</>
                 ) : selectedPaymentMethod === "cod" ? (
-                  <><Lock className="w-3.5 h-3.5" /> Pay COD Advance ₹{codAdvance.toLocaleString()}</>
+                  <><Lock className="w-3.5 h-3.5" /> Confirm COD Order</>
                 ) : (
                   <><Lock className="w-3.5 h-3.5" /> Pay ₹{(selectedPaymentMethod === "hybrid" ? hybridUpfrontAmount : finalTotal).toLocaleString()}</>
                 )}
@@ -1536,23 +1602,18 @@ export default function CheckoutPage() {
                   </div>
                 </div>
 
-                {/* Payment split */}
-                <div className="grid grid-cols-2 gap-2 mb-3">
-                  <div className="p-2 bg-slate-50 border border-slate-100 rounded-xl">
-                    <p className="text-[8px] font-bold text-slate-400 uppercase tracking-wider">Pay Online Now</p>
-                    <p className="text-slate-800 font-black text-xs font-mono mt-1">₹{codAdvance.toLocaleString()}</p>
-                    <p className="text-[8px] text-slate-405 font-medium leading-none mt-0.5">COD Advance Payment</p>
+                {/* Payment summary for COD */}
+                <div className="p-3 bg-emerald-50/55 border border-emerald-100 rounded-xl mb-3 flex items-center justify-between">
+                  <div>
+                    <p className="text-[9px] font-bold text-emerald-750 uppercase tracking-wider">Total Amount on Delivery</p>
+                    <p className="text-emerald-800 font-black text-sm font-mono mt-1">₹{finalTotal.toLocaleString()}</p>
                   </div>
-                  <div className="p-2 bg-emerald-50/50 border border-emerald-100 rounded-xl">
-                    <p className="text-[8px] font-bold text-emerald-705 uppercase tracking-wider">Pay on Delivery</p>
-                    <p className="text-emerald-700 font-black text-xs font-mono mt-1">₹{(finalTotal - codAdvance).toLocaleString()}</p>
-                    <p className="text-[8px] text-emerald-600 font-medium leading-none mt-0.5">Cash collected at door</p>
-                  </div>
+                  <span className="text-[9px] bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">Pay on Delivery</span>
                 </div>
                 
-                <div className="p-2 bg-blue-50/50 border border-blue-100 rounded-xl mb-3.5">
+                <div className="p-2.5 bg-blue-50/50 border border-blue-100 rounded-xl mb-3.5">
                   <p className="text-blue-700 text-[9px] leading-normal font-medium">
-                    💡 <strong>How it works:</strong> Pay the online COD advance payment of ₹{codAdvance} now to secure your order dispatch. The remaining ₹{(finalTotal - codAdvance).toLocaleString()} is payable in cash/UPI upon delivery.
+                    💡 <strong>How it works:</strong> You will pay the entire order total of ₹{finalTotal.toLocaleString()} in cash or via UPI when the package is delivered to your address.
                   </p>
                 </div>
 
@@ -1569,9 +1630,9 @@ export default function CheckoutPage() {
                     className="flex-2 py-2 bg-slate-900 text-white rounded-xl text-[10px] font-black uppercase tracking-wider disabled:opacity-50 flex items-center justify-center gap-1.5 shadow-sm shadow-slate-100 transition-colors active:scale-[0.98]"
                   >
                     {isProcessing ? (
-                      <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Processing...</>
+                      <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Placing Order...</>
                     ) : (
-                      <><CreditCard className="w-3.5 h-3.5" /> Pay COD Advance ₹{codAdvance.toLocaleString()} Now</>
+                      <><Check className="w-3.5 h-3.5" /> Confirm COD Order</>
                     )}
                   </button>
                 </div>
