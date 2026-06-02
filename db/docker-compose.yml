@@ -1,3 +1,5 @@
+name: walkdrobe-db
+
 services:
   backend:
     image: ghcr.io/get-convex/convex-backend:latest
