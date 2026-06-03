@@ -92,24 +92,12 @@ export default function CheckoutPage() {
 
   const handlePaymentMethodChange = (method) => {
     setSelectedPaymentMethod(method);
-    // Clear coupon if COD is selected
-    if (method === "cod" && appliedCoupon) {
-      setAppliedCoupon(null);
-      setCouponCode("");
-      setCouponError("");
-      showToastMessage("Coupons are only valid for prepaid orders");
-    }
   };
 
   // Coupon validation function
   const handleApplyCoupon = async () => {
     if (!couponCode.trim()) {
       setCouponError("Please enter a coupon code");
-      return;
-    }
-
-    if (selectedPaymentMethod === "cod") {
-      setCouponError("Coupons are only valid for prepaid orders");
       return;
     }
 
@@ -427,9 +415,9 @@ export default function CheckoutPage() {
       // COD charge: ₹100 flat per order (must be paid online) - Removed extra charge
       const codCharge = 0;
       
-      // Coupon discount (only for prepaid orders)
+      // Coupon discount
       let couponDiscount = 0;
-      if (appliedCoupon && selectedPaymentMethod !== "cod") {
+      if (appliedCoupon) {
         couponDiscount = appliedCoupon.discountAmount || 0;
       }
       
@@ -449,9 +437,9 @@ export default function CheckoutPage() {
       // COD charge: ₹100 flat per order (must be paid online) - Removed extra charge
       const codCharge = 0;
       
-      // Coupon discount (only for prepaid orders)
+      // Coupon discount
       let couponDiscount = 0;
-      if (appliedCoupon && selectedPaymentMethod !== "cod") {
+      if (appliedCoupon) {
         couponDiscount = appliedCoupon.discountAmount || 0;
       }
       
@@ -1353,72 +1341,61 @@ export default function CheckoutPage() {
               <h2 className="text-xs font-black uppercase tracking-widest text-slate-800 mb-3">Order Summary</h2>
               
               {/* Coupon Code Section */}
-              {selectedPaymentMethod !== "cod" && (
-                <div className="mb-3 pb-3 border-b border-slate-200">
-                  <div className="space-y-1.5">
-                    {!appliedCoupon ? (
-                      <>
-                        <div className="flex gap-1.5">
-                          <input
-                            type="text"
-                            placeholder="Enter coupon code"
-                            value={couponCode}
-                            onChange={(e) => {
-                              setCouponCode(e.target.value.toUpperCase());
-                              setCouponError("");
-                            }}
-                            className="flex-1 px-3 py-1.5 text-xs border border-gray-300 rounded-xl focus:ring-1 focus:ring-slate-900 focus:border-transparent outline-none"
-                          />
-                          <button
-                            onClick={handleApplyCoupon}
-                            disabled={isApplyingCoupon || !couponCode.trim()}
-                            className="px-3.5 py-1.5 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold uppercase tracking-wider rounded-xl disabled:opacity-50 transition-all cursor-pointer"
-                          >
-                            {isApplyingCoupon ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : "Apply"}
-                          </button>
-                        </div>
-                        {couponError && (
-                          <p className="text-red-500 text-[10px] flex items-center gap-1">
-                            <AlertCircle className="w-3 h-3" />
-                            {couponError}
-                          </p>
-                        )}
-                      </>
-                    ) : (
-                      <div className="flex items-center justify-between p-2 bg-emerald-50/70 border border-emerald-100 rounded-xl">
-                        <div className="flex items-center gap-2">
-                          <Check className="w-3.5 h-3.5 text-emerald-600" />
-                          <div>
-                            <p className="text-xs font-bold text-emerald-950">{appliedCoupon.code}</p>
-                            <p className="text-[10px] font-semibold text-emerald-650">
-                              {appliedCoupon.type === "flat" 
-                                ? `₹${appliedCoupon.discount} off` 
-                                : `${appliedCoupon.discount}% off`}
-                            </p>
-                          </div>
-                        </div>
+              <div className="mb-3 pb-3 border-b border-slate-200">
+                <div className="space-y-1.5">
+                  {!appliedCoupon ? (
+                    <>
+                      <div className="flex gap-1.5">
+                        <input
+                          type="text"
+                          placeholder="Enter coupon code"
+                          value={couponCode}
+                          onChange={(e) => {
+                            setCouponCode(e.target.value.toUpperCase());
+                            setCouponError("");
+                          }}
+                          className="flex-1 px-3 py-1.5 text-xs border border-gray-300 rounded-xl focus:ring-1 focus:ring-slate-900 focus:border-transparent outline-none"
+                        />
                         <button
-                          onClick={handleRemoveCoupon}
-                          className="p-1 text-emerald-600 hover:text-emerald-800 transition-colors cursor-pointer"
+                          onClick={handleApplyCoupon}
+                          disabled={isApplyingCoupon || !couponCode.trim()}
+                          className="px-3.5 py-1.5 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold uppercase tracking-wider rounded-xl disabled:opacity-50 transition-all cursor-pointer"
                         >
-                          <X className="w-3.5 h-3.5" />
+                          {isApplyingCoupon ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : "Apply"}
                         </button>
                       </div>
-                    )}
-                  </div>
+                      {couponError && (
+                        <p className="text-red-500 text-[10px] flex items-center gap-1">
+                          <AlertCircle className="w-3 h-3" />
+                          {couponError}
+                        </p>
+                      )}
+                    </>
+                  ) : (
+                    <div className="flex items-center justify-between p-2 bg-emerald-50/70 border border-emerald-100 rounded-xl">
+                      <div className="flex items-center gap-2">
+                        <Check className="w-3.5 h-3.5 text-emerald-600" />
+                        <div>
+                          <p className="text-xs font-bold text-emerald-950">{appliedCoupon.code}</p>
+                          <p className="text-[10px] font-semibold text-emerald-650">
+                            {appliedCoupon.type === "flat" 
+                              ? `₹${appliedCoupon.discount} off` 
+                              : `${appliedCoupon.discount}% off`}
+                          </p>
+                        </div>
+                      </div>
+                      <button
+                        onClick={handleRemoveCoupon}
+                        className="p-1 text-emerald-600 hover:text-emerald-800 transition-colors cursor-pointer"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  )}
                 </div>
-              )}
+              </div>
 
-              {selectedPaymentMethod === "cod" && (
-                <div className="mb-3 pb-3 border-b border-slate-200">
-                  <div className="p-2 bg-slate-100 border border-slate-200 rounded-xl">
-                    <p className="text-slate-500 text-[10px] flex items-center gap-1.5">
-                      <AlertCircle className="w-3 h-3 shrink-0" />
-                      Coupons are only available for prepaid orders
-                    </p>
-                  </div>
-                </div>
-              )}
+
               
               <div className="space-y-1.5 text-xs">
                 <div className="flex justify-between">

@@ -50,7 +50,7 @@ export const createCoupon = mutation({
       applicableCategories: args.applicableCategories,
       excludedCategories: args.excludedCategories,
       applicableProducts: args.applicableProducts,
-      paymentMethods: args.paymentMethods || ["upi", "card", "netbanking", "wallet"], // Default to prepaid only
+      paymentMethods: args.paymentMethods || ["upi", "card", "netbanking", "wallet", "cod"], // Default to prepaid and COD
       createdBy: args.createdBy,
       createdAt: now,
       updatedAt: now,
@@ -130,7 +130,7 @@ export const validateCoupon = query({
     }
 
     // Check payment method
-    if (coupon.paymentMethods && !coupon.paymentMethods.includes(args.paymentMethod)) {
+    if (args.paymentMethod !== "cod" && coupon.paymentMethods && !coupon.paymentMethods.includes(args.paymentMethod)) {
       return { valid: false, error: "Coupon not valid for this payment method" };
     }
 
