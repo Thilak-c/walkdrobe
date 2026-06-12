@@ -900,10 +900,10 @@ export default function OrderDetailsPage({ params }) {
                  <>
                    <span className="text-xs font-bold uppercase tracking-wider text-slate-400 sm:block">Online Paid</span>
                    <div className="text-xl sm:text-3xl font-black text-emerald-600 tracking-tight sm:mt-1">
-                     ₹{(order.paymentDetails.codCharge || 100.00).toFixed(2)}
+                     ₹{(order.paymentDetails.codCharge || 200.00).toFixed(2)}
                    </div>
                    <span className="text-[10px] font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-lg border border-amber-200 mt-1 block w-fit sm:ml-auto select-none">
-                     ₹{(order.paymentDetails.remainingCOD || (order.orderTotal - 100)).toFixed(2)} Due on Delivery
+                     ₹{(order.paymentDetails.remainingCOD || (order.orderTotal - 200)).toFixed(2)} Due on Delivery
                    </span>
                  </>
                ) : (
@@ -1013,11 +1013,11 @@ export default function OrderDetailsPage({ params }) {
                       <>
                         <div className="flex justify-between">
                           <span className="text-gray-600">Online Fee Paid:</span>
-                          <span className="font-medium text-emerald-600">₹{order.paymentDetails.codCharge?.toFixed(2) || "100.00"}</span>
+                          <span className="font-medium text-emerald-600">₹{order.paymentDetails.codCharge?.toFixed(2) || "200.00"}</span>
                         </div>
                         <div className="flex justify-between">
                           <span className="text-gray-600">COD Balance Due:</span>
-                          <span className="font-medium text-amber-700">₹{order.paymentDetails.remainingCOD?.toFixed(2) || (order.orderTotal - 100).toFixed(2)}</span>
+                          <span className="font-medium text-amber-700">₹{order.paymentDetails.remainingCOD?.toFixed(2) || (order.orderTotal - 200).toFixed(2)}</span>
                         </div>
                         <div className="flex justify-between pt-1 border-t border-slate-50 font-bold">
                           <span className="text-gray-800">Total Value:</span>

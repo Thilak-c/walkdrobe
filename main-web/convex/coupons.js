@@ -130,7 +130,13 @@ export const validateCoupon = query({
     }
 
     // Check payment method
-    if (args.paymentMethod !== "cod" && coupon.paymentMethods && !coupon.paymentMethods.includes(args.paymentMethod)) {
+    if (args.paymentMethod === "cod") {
+      const config = await ctx.db.query("shiprocketConfig").first();
+      const codAllowCoupons = config?.codAllowCoupons !== false;
+      if (!codAllowCoupons) {
+        return { valid: false, error: "Coupons cannot be used with Cash on Delivery (COD) orders." };
+      }
+    } else if (coupon.paymentMethods && !coupon.paymentMethods.includes(args.paymentMethod)) {
       return { valid: false, error: "Coupon not valid for this payment method" };
     }
 

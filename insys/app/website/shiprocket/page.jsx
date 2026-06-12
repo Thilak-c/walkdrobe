@@ -61,6 +61,8 @@ export default function ShiprocketPage() {
   const [breadth, setBreadth] = useState(10);
   const [height, setHeight] = useState(5);
   const [weight, setWeight] = useState(0.5);
+  const [codAdvance, setCodAdvance] = useState(200);
+  const [codAllowCoupons, setCodAllowCoupons] = useState(true);
   const [isUpdatingConfig, setIsUpdatingConfig] = useState(false);
 
   // Operations state
@@ -89,6 +91,8 @@ export default function ShiprocketPage() {
       setBreadth(currentConfig.breadth);
       setHeight(currentConfig.height);
       setWeight(currentConfig.weight);
+      setCodAdvance(currentConfig.codAdvance !== undefined ? currentConfig.codAdvance : 200);
+      setCodAllowCoupons(currentConfig.codAllowCoupons !== undefined ? currentConfig.codAllowCoupons : true);
     }
   }, [currentConfig]);
 
@@ -105,6 +109,8 @@ export default function ShiprocketPage() {
         breadth: parseFloat(breadth),
         height: parseFloat(height),
         weight: parseFloat(weight),
+        codAdvance: parseFloat(codAdvance),
+        codAllowCoupons: Boolean(codAllowCoupons),
       });
       toast.success("Shiprocket packaging configurations updated!", {
         style: {
@@ -298,6 +304,49 @@ export default function ShiprocketPage() {
                   </div>
                 </div>
 
+                {/* COD Customization Settings */}
+                <div className="border-t border-slate-100 pt-5 mt-4">
+                  <div className="flex items-center gap-2 mb-3">
+                    <SlidersHorizontal className="w-4 h-4 text-blue-500" />
+                    <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider">COD Policy Configuration</h4>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">COD Advance Payment (₹)</label>
+                      <input
+                        type="number"
+                        min="0"
+                        required
+                        value={codAdvance}
+                        onChange={(e) => setCodAdvance(parseFloat(e.target.value) || 0)}
+                        className="w-full px-3.5 py-2 bg-slate-50 hover:bg-slate-100/50 focus:bg-white border border-slate-200 focus:border-slate-800 rounded-xl text-sm focus:outline-none transition-all font-mono"
+                      />
+                      <p className="text-[10px] text-slate-400 mt-1">Amount customers pay online to place a COD order. Set to 0 to disable advance payment (Free COD).</p>
+                    </div>
+                    <div className="flex flex-col justify-center">
+                      <div className="flex items-center justify-between p-3.5 bg-slate-50 rounded-2xl border border-slate-200/50">
+                        <div>
+                          <p className="text-xs font-bold text-slate-700">Allow Coupons on COD</p>
+                          <p className="text-[10px] text-slate-400 mt-0.5">Allow usage of promotional discount codes for Cash on Delivery checkout</p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setCodAllowCoupons(!codAllowCoupons)}
+                          className={`w-11 h-6 rounded-full transition-all relative outline-none flex items-center cursor-pointer ${
+                            codAllowCoupons ? "bg-slate-900" : "bg-slate-200"
+                          }`}
+                        >
+                          <span
+                            className={`block w-4.5 h-4.5 bg-white rounded-full shadow-md transition-all absolute ${
+                              codAllowCoupons ? "right-1" : "left-1"
+                            }`}
+                          />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
                 <div className="flex items-center justify-end border-t border-slate-100 pt-4 mt-2">
                   <button
                     type="submit"
@@ -436,7 +485,7 @@ export default function ShiprocketPage() {
                               <span>{new Date(order.createdAt).toLocaleDateString("en-IN", { day: "2-digit", month: "short" })}</span>
                               <span className="font-bold text-slate-800">₹{order.orderTotal?.toLocaleString("en-IN")}</span>
                               {order.paymentDetails?.paymentMethod === "cod" ? (
-                                <span className="px-1.5 py-0.5 bg-amber-50 text-amber-700 border border-amber-250 rounded font-mono text-[9px] font-extrabold">COD Split (₹{order.paymentDetails?.codCharge || 100} Paid)</span>
+                                <span className="px-1.5 py-0.5 bg-amber-50 text-amber-700 border border-amber-250 rounded font-mono text-[9px] font-extrabold">COD Split (₹{order.paymentDetails?.codCharge || 200} Paid)</span>
                               ) : (
                                 <span className="px-1.5 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-150 rounded font-mono text-[9px] font-extrabold">Prepaid</span>
                               )}
@@ -695,11 +744,11 @@ export default function ShiprocketPage() {
                         <>
                           <div>
                             <span className="text-slate-400 block font-medium">Online Upfront Fee Paid</span>
-                            <span className="font-extrabold text-emerald-600 text-sm">₹{selectedOrder.paymentDetails?.codCharge?.toLocaleString("en-IN") || "100.00"}</span>
+                            <span className="font-extrabold text-emerald-600 text-sm">₹{selectedOrder.paymentDetails?.codCharge?.toLocaleString("en-IN") || "200.00"}</span>
                           </div>
                           <div>
                             <span className="text-slate-400 block font-medium">Cash Due on Delivery</span>
-                            <span className="font-extrabold text-amber-700 text-sm">₹{selectedOrder.paymentDetails?.remainingCOD?.toLocaleString("en-IN") || (selectedOrder.orderTotal - 100).toLocaleString("en-IN")}</span>
+                            <span className="font-extrabold text-amber-700 text-sm">₹{selectedOrder.paymentDetails?.remainingCOD?.toLocaleString("en-IN") || (selectedOrder.orderTotal - 200).toLocaleString("en-IN")}</span>
                           </div>
                           <div>
                             <span className="text-slate-400 block font-medium">Grand Total Value</span>

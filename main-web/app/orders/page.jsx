@@ -442,9 +442,9 @@ function OrderCard({
           <div className="text-right shrink-0 space-y-0.5">
             {order.paymentDetails?.paymentMethod === "cod" ? (
               <>
-                <span className="text-[8px] text-emerald-650 font-bold uppercase tracking-wider block leading-none">COD Fee Paid</span>
-                <span className="text-xs font-black text-emerald-700 font-mono leading-none block">₹{order.paymentDetails.codCharge?.toFixed(2) || "100.00"}</span>
-                <span className="text-[7px] text-amber-700 font-bold uppercase tracking-wider block leading-none mt-0.5">COD Due: ₹{order.paymentDetails.remainingCOD?.toFixed(2) || (order.orderTotal - 100).toFixed(2)}</span>
+                <span className="text-[8px] text-emerald-650 font-bold uppercase tracking-wider block leading-none">COD Advance Paid</span>
+                <span className="text-xs font-black text-emerald-700 font-mono leading-none block">₹{order.paymentDetails.codCharge?.toFixed(2) || "200.00"}</span>
+                <span className="text-[7px] text-amber-700 font-bold uppercase tracking-wider block leading-none mt-0.5">COD Due: ₹{order.paymentDetails.remainingCOD?.toFixed(2) || (order.orderTotal - 200).toFixed(2)}</span>
               </>
             ) : (
               <>
@@ -541,14 +541,14 @@ function OrderCard({
                       </div>
                       {order.paymentDetails.paymentMethod === "cod" ? (
                         <>
-                          <div className="flex justify-between items-center text-emerald-600">
-                            <span>Online Fee Paid</span>
-                            <span className="font-mono font-bold">₹{order.paymentDetails.codCharge?.toFixed(2) || "100.00"}</span>
-                          </div>
-                          <div className="flex justify-between items-center text-amber-700">
-                            <span>COD Due on Delivery</span>
-                            <span className="font-mono font-bold">₹{order.paymentDetails.remainingCOD?.toFixed(2) || (order.orderTotal - 100).toFixed(2)}</span>
-                          </div>
+                           <div className="flex justify-between items-center text-emerald-600">
+                             <span>Online Advance Paid</span>
+                             <span className="font-mono font-bold">₹{order.paymentDetails.codCharge?.toFixed(2) || "200.00"}</span>
+                           </div>
+                           <div className="flex justify-between items-center text-amber-700">
+                             <span>COD Due on Delivery</span>
+                             <span className="font-mono font-bold">₹{order.paymentDetails.remainingCOD?.toFixed(2) || (order.orderTotal - 200).toFixed(2)}</span>
+                           </div>
                         </>
                       ) : (
                         <div className="flex justify-between items-center pt-1.5 border-t border-slate-50 text-[10px] sm:text-[11px] font-black text-slate-900">

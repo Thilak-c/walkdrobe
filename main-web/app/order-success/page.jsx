@@ -154,7 +154,7 @@ export default function OrderSuccessPage() {
             </h1>
             <p className="text-xs sm:text-sm text-gray-500 max-w-md mx-auto leading-relaxed">
               {order?.paymentDetails?.paymentMethod === "cod"
-                ? "Your Cash on Delivery order has been registered successfully. The reservation fee was collected online."
+                ? `Your Cash on Delivery order has been registered successfully. You have paid ₹${order.paymentDetails.codCharge || 200} advance from this order value, and we are making the order in the Shiprocket. The remaining ₹${(order.paymentDetails.remainingCOD || (order.orderTotal - 200)).toFixed(2)} will be collected on delivery.`
                 : "Your order has been placed successfully. You will receive a confirmation email shortly."}
             </p>
             {orderNumber && (
@@ -218,7 +218,7 @@ export default function OrderSuccessPage() {
                     <span className="font-semibold text-slate-800 leading-relaxed pl-5">
                       {order.paymentDetails.paymentMethod === "cod" ? (
                         <>
-                          COD Upfront Fee: <span className="text-emerald-600 font-bold">₹{(order.paymentDetails.codCharge || 100).toFixed(2)}</span> paid online (Razorpay)
+                          COD Advance Paid: <span className="text-emerald-600 font-bold">₹{(order.paymentDetails.codCharge || 200).toFixed(2)}</span> paid online (Razorpay)
                         </>
                       ) : (
                         <>
@@ -270,13 +270,13 @@ export default function OrderSuccessPage() {
                   <div className="border-t border-slate-100 pt-3.5 mt-3.5 space-y-2 text-xs">
                     {order.paymentDetails?.paymentMethod === "cod" && (
                       <div className="bg-slate-50 border border-slate-100/80 rounded-xl p-2.5 space-y-1.5 mb-2.5">
-                        <div className="flex justify-between text-slate-600">
-                          <span>Online Reservation Fee Paid:</span>
-                          <span className="font-bold text-emerald-650 font-mono">₹{(order.paymentDetails.codCharge || 100).toFixed(2)}</span>
+                        <div className="flex justify-between text-slate-650">
+                          <span>Online Advance Paid:</span>
+                          <span className="font-bold text-emerald-650 font-mono">₹{(order.paymentDetails.codCharge || 200).toFixed(2)}</span>
                         </div>
                         <div className="flex justify-between text-slate-700">
                           <span>COD Balance Due at Doorstep:</span>
-                          <span className="font-extrabold text-amber-700 font-mono">₹{(order.paymentDetails.remainingCOD || (order.orderTotal - 100)).toFixed(2)}</span>
+                          <span className="font-extrabold text-amber-700 font-mono">₹{(order.paymentDetails.remainingCOD || (order.orderTotal - 200)).toFixed(2)}</span>
                         </div>
                       </div>
                     )}

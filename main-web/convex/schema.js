@@ -1110,6 +1110,8 @@ export default defineSchema({
     breadth: v.number(),
     height: v.number(),
     weight: v.number(),
+    codAdvance: v.optional(v.number()),
+    codAllowCoupons: v.optional(v.boolean()),
     updatedAt: v.number(),
   }),
 });

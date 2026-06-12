@@ -213,6 +213,24 @@ export async function POST(request) {
                       ₹${orderTotal.toLocaleString()}
                     </td>
                   </tr>
+                  ${paymentDetails && paymentDetails.paymentMethod === 'cod' ? `
+                  <tr style="background: #fdf2f2;">
+                    <td colspan="3" style="padding: 12px 16px; text-align: right; font-weight: 600; color: #166534; font-size: 14px;">
+                      Online Advance Paid:
+                    </td>
+                    <td style="padding: 12px 16px; text-align: right; font-weight: bold; color: #166534; font-size: 14px;">
+                      ₹${(paymentDetails.codCharge || 200).toLocaleString()}
+                    </td>
+                  </tr>
+                  <tr style="background: #fffbeb;">
+                    <td colspan="3" style="padding: 12px 16px; text-align: right; font-weight: 600; color: #92400e; font-size: 14px;">
+                      COD Due on Delivery:
+                    </td>
+                    <td style="padding: 12px 16px; text-align: right; font-weight: bold; color: #92400e; font-size: 14px;">
+                      ₹${(paymentDetails.remainingCOD || (Number(orderTotal) - 200)).toLocaleString()}
+                    </td>
+                  </tr>
+                  ` : ''}
                 </tfoot>
               </table>
             </td>
