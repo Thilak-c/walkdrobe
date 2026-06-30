@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from "react";
 import { useQuery } from "convex/react";
 import { api } from "../../../main-web/convex/_generated/api";
 import Sidebar from "@/components/Sidebar";
+import JsBarcode from "jsbarcode";
 import { 
   ArrowUpCircle, ArrowDownCircle, RefreshCw, Clock, Package, 
   Receipt, User, Phone, X, Printer, Search
@@ -15,6 +16,26 @@ export default function HistoryPage() {
   const [logoBase64, setLogoBase64] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const printRef = useRef(null);
+  const billBarcodeRef = useRef(null);
+
+  useEffect(() => {
+    if (selectedBill && billBarcodeRef.current) {
+      try {
+        JsBarcode(billBarcodeRef.current, selectedBill.billNumber, {
+          format: "CODE128",
+          displayValue: true,
+          fontSize: 14,
+          textMargin: 2,
+          margin: 0,
+          lineColor: "#000000",
+          height: 40,
+          width: 1.5
+        });
+      } catch (e) {
+        console.error("Failed to render bill barcode", e);
+      }
+    }
+  }, [selectedBill]);
   
   const movements = useQuery(api.offStore.getMovements, { limit: 100 });
   const bills = useQuery(api.offStore.getBills, { limit: 100 });
@@ -121,83 +142,190 @@ export default function HistoryPage() {
     if (!selectedBill || !printRef.current) return;
     
     const printContent = printRef.current;
-    const printWindow = window.open("", "", "width=350,height=600");
+    const printWindow = window.open("", "", "width=600,height=900");
     printWindow.document.write(`
       <html>
         <head>
           <title>Bill - ${selectedBill.billNumber}</title>
           <style>
-            @page {
-              size: 80mm auto;
-              margin: 2mm;
-            }
+            @page { size: 80mm auto; margin: 0; }
             * { margin: 0; padding: 0; box-sizing: border-box; }
-            body { 
-              font-family: 'Courier New', monospace; 
-              width: 76mm;
-              padding: 2mm; 
-              font-size: 11px; 
-              color: #000;
-              background: white;
+            body {
+              font-family: Arial, Helvetica, sans-serif;
+              width: 80mm;
+              margin: 0 auto;
+              padding: 6mm 4mm;
+              font-size: 14px;
+              line-height: 1.45;
+              color: #000000;
+              background: #ffffff;
+              -webkit-font-smoothing: antialiased;
               position: relative;
+              font-weight: 500;
             }
-            .watermark { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-45deg); font-size: 24px; font-weight: bold; color: rgba(200, 0, 0, 0.2); pointer-events: none; z-index: 1000; white-space: nowrap; }
+            .watermark { 
+              position: fixed; 
+              top: 50%; 
+              left: 50%; 
+              transform: translate(-50%, -50%) rotate(-45deg); 
+              font-size: 32px; 
+              font-weight: 800; 
+              color: rgba(0, 0, 0, 0.15); 
+              pointer-events: none; 
+              z-index: 1000; 
+              white-space: nowrap; 
+              letter-spacing: 0.1em;
+            }
             .content { position: relative; z-index: 1; }
-            .text-center { text-align: center; }
-            .text-right { text-align: right; }
-            .font-bold { font-weight: 700; }
-            .font-semibold { font-weight: 600; }
-            .text-sm { font-size: 10px; }
-            .text-xs { font-size: 9px; }
-            .text-gray-900, .text-gray-600, .text-gray-500 { color: #000; }
-            .text-gray-400 { color: #666; }
-            .text-white { color: #fff; }
-            .text-emerald-600 { color: #000; }
-            .bg-gray-900 { background: #000; }
-            .bg-gray-50 { background: #f5f5f5; }
-            .border-b { border-bottom: 1px solid #ccc; }
-            .border-t { border-top: 1px solid #ccc; }
-            .border-t-2 { border-top: 2px solid #000; }
-            .border-b-2 { border-bottom: 2px solid #000; }
-            .border-gray-900 { border-color: #000; }
-            .border-gray-300 { border-color: #ccc; }
-            .border-dashed { border-style: dashed; }
-            .mb-6 { margin-bottom: 4mm; }
-            .mb-4 { margin-bottom: 3mm; }
-            .mb-3 { margin-bottom: 2mm; }
-            .mb-2 { margin-bottom: 2mm; }
-            .mt-8 { margin-top: 5mm; }
-            .mt-6 { margin-top: 4mm; }
-            .mt-4 { margin-top: 3mm; }
-            .mt-2 { margin-top: 2mm; }
-            .mt-1 { margin-top: 1mm; }
-            .pb-6 { padding-bottom: 4mm; }
-            .pb-4 { padding-bottom: 3mm; }
-            .pt-6 { padding-top: 4mm; }
-            .pt-4 { padding-top: 3mm; }
-            .py-3 { padding-top: 2mm; padding-bottom: 2mm; }
-            .px-8 { padding-left: 3mm; padding-right: 3mm; }
-            .p-8 { padding: 3mm; }
-            .p-4 { padding: 2mm; }
-            .space-y-3 > * + * { margin-top: 2mm; }
-            .space-y-1 > * + * { margin-top: 1mm; }
-            .rounded-lg { border-radius: 2mm; }
-            .w-full { width: 100%; }
+            
+            /* Layout & Structure */
             .flex { display: flex; }
             .justify-between { justify-content: space-between; }
             .justify-center { justify-content: center; }
-            table { width: 100%; border-collapse: collapse; }
-            th, td { padding: 1mm 0; }
-            th { text-align: left; }
-            img { height: 10mm; width: auto; max-width: 30mm; object-fit: contain; margin: 0 auto; display: block; }
-            .-mx-8 { margin-left: -3mm; margin-right: -3mm; }
-            .text-xl { font-size: 14px; }
-            .h-10 { height: 10mm; }
-            .w-auto { width: auto; }
-            .max-w-\\[120px\\] { max-width: 30mm; }
-            .object-contain { object-fit: contain; }
-            @media print {
-              body { width: 76mm; }
+            .flex-col { flex-direction: column; }
+            .items-center { align-items: center; }
+            
+            /* Alignment & Transforms */
+            .text-center { text-align: center; }
+            .text-right { text-align: right; }
+            .text-left { text-align: left; }
+            .uppercase { text-transform: uppercase; }
+            .tracking-wider { letter-spacing: 0.05em; }
+            .tracking-widest { letter-spacing: 0.1em; }
+            
+            /* Typography Weights & Classes */
+            .font-bold { font-weight: 800; }
+            .font-semibold { font-weight: 700; }
+            .font-extrabold { font-weight: 900; }
+            .font-mono { font-family: SFMono-Regular, Consolas, Menlo, monospace; font-weight: 600; }
+            
+            /* Font Size Override for thermal prints */
+            .text-\\[9px\\] { font-size: 12px; font-weight: 600; }
+            .text-\\[10px\\] { font-size: 12px; font-weight: 700; }
+            .text-\\[11px\\] { font-size: 13px; font-weight: 600; }
+            .text-xs { font-size: 13px; font-weight: 600; }
+            .text-sm { font-size: 14px; font-weight: 600; }
+            .text-base { font-size: 16px; font-weight: 800; }
+            .text-xl { font-size: 20px; font-weight: 900; }
+            
+            /* Color Contrast Enforcements */
+            body, p, span, td, th, div {
+              color: #000000 !important;
+            }
+            .text-slate-900, .text-slate-800, .text-slate-700, 
+            .text-slate-600, .text-slate-500, .text-slate-400,
+            .text-emerald-600, .text-gray-900, .text-gray-600, .text-gray-550, .text-gray-500 {
+              color: #000000 !important;
+            }
+            
+            /* Margins & Spacings */
+            .mt-0\\.5 { margin-top: 2px; }
+            .mt-1 { margin-top: 4px; }
+            .mt-2 { margin-top: 6px; }
+            .mt-3\\.5 { margin-top: 10px; }
+            .mt-3 { margin-top: 8px; }
+            .mt-4 { margin-top: 8px; }
+            .mt-5 { margin-top: 12px; }
+            .mt-6 { margin-top: 14px; }
+            .mt-8 { margin-top: 16px; }
+            .mb-0\\.5 { margin-bottom: 2px; }
+            .mb-1\\.5 { margin-bottom: 6px; }
+            .mb-1 { margin-bottom: 4px; }
+            .mb-2\\.5 { margin-bottom: 8px; }
+            .mb-4 { margin-bottom: 8px; }
+            .mb-5 { margin-bottom: 12px; }
+            .mb-6 { margin-bottom: 12px; }
+            .pb-3\\.5 { padding-bottom: 8px; }
+            .pb-4 { padding-bottom: 8px; }
+            .pb-6 { padding-bottom: 12px; }
+            .pt-3\\.5 { padding-top: 8px; }
+            .pt-4 { padding-top: 8px; }
+            .pt-6 { padding-top: 12px; }
+            .py-2\\.5 { padding-top: 6px; padding-bottom: 6px; }
+            .py-2 { padding-top: 4px; padding-bottom: 4px; }
+            .py-3\\.5 { padding-top: 10px; padding-bottom: 10px; }
+            .p-3 { padding: 8px; }
+            .p-6 { padding: 0; } 
+            .p-8 { padding: 0; } /* Remove modal container styling on print */
+            .px-6, .px-8 { padding-left: 0; padding-right: 0; }
+            .p-4 { padding: 6px; }
+            
+            /* Space utilities */
+            .space-y-0\\.5 > * + * { margin-top: 2px; }
+            .space-y-1 > * + * { margin-top: 4px; }
+            .space-y-2 > * + * { margin-top: 6px; }
+            .space-y-3 > * + * { margin-top: 8px; }
+            
+            /* Borders & Rules */
+            .border-b-2 { border-bottom: 1.5px solid #000000; }
+            .border-t-2 { border-top: 1.5px solid #000000; }
+            .border-b { border-bottom: 1px solid #000000; }
+            .border-t { border-top: 1px solid #000000; }
+            .border-dashed { border-style: dashed; }
+            .border-slate-100, .border-slate-200, .border-slate-900, 
+            .border-gray-150, .border-gray-200, .border-gray-300, .border-gray-900 {
+              border-color: #000000 !important;
+            }
+            
+            /* Tables styling */
+            table {
+              width: 100%;
+              border-collapse: collapse;
+            }
+            th {
+              border-bottom: 1.5px solid #000000;
+              padding: 6px 0;
+              text-align: left;
+            }
+            td {
+              padding: 6px 0;
+              vertical-align: top;
+            }
+            tr.border-b {
+              border-bottom: 1px dashed #000000;
+            }
+            
+            /* Logo image */
+            img {
+              height: 36px;
+              width: auto;
+              max-width: 120px;
+              object-fit: contain;
+              margin: 0 auto;
+              display: block;
+              filter: grayscale(100%) contrast(150%);
+            }
+            
+            /* Net Total Highlight */
+            .bg-slate-900, .bg-gray-900 {
+              background: #000000 !important;
+            }
+            .bg-slate-900 *, .bg-gray-900 * {
+              color: #ffffff !important;
+            }
+            .text-white {
+              color: #ffffff !important;
+            }
+            .-mx-6, .-mx-8 {
+              margin-left: -4mm;
+              margin-right: -4mm;
+            }
+            .px-6, .px-8 {
+              padding-left: 4mm;
+              padding-right: 4mm;
+            }
+            
+            /* Details highlight box */
+            .bg-slate-50, .bg-gray-50 {
+              background: #ffffff !important;
+              border: 1px solid #000000 !important;
+              border-radius: 4px;
+            }
+            
+            svg {
+              display: block;
+              margin: 0 auto;
+              max-width: 100%;
             }
           </style>
         </head>
@@ -533,7 +661,10 @@ export default function HistoryPage() {
                 <p className="text-xs text-gray-500 mt-3">Exchange within 7 days with original bill</p>
                 <p className="text-xs text-gray-500 mt-1">No refund on sale items</p>
                 <div className="mt-6 pt-4 border-t border-gray-200">
-                  <p className="text-[10px] text-gray-400">Follow us @walkdrobe.in</p>
+                  <p className="text-[10px] text-gray-400 font-mono">Follow us @walkdrobe.in</p>
+                  <div className="mt-4 flex justify-center">
+                    <svg ref={billBarcodeRef} className="max-w-[180px] h-auto" />
+                  </div>
                 </div>
               </div>
             </div>

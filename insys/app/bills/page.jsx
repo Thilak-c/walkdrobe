@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { useQuery } from "convex/react";
 import { api } from "../../../main-web/convex/_generated/api";
 import Sidebar from "@/components/Sidebar";
+import JsBarcode from "jsbarcode";
 import {
   Search,
   Receipt,
@@ -29,6 +30,23 @@ export default function BillsHistoryPage() {
   const [dateFilter, setDateFilter] = useState("all"); // "all", "today", "week", "month"
   const [selectedBill, setSelectedBill] = useState(null);
   const printRef = useRef(null);
+  const [logoBase64, setLogoBase64] = useState("");
+
+  // Load logo
+  useEffect(() => {
+    const loadLogo = async () => {
+      try {
+        const response = await fetch("/logo.png");
+        const blob = await response.blob();
+        const reader = new FileReader();
+        reader.onloadend = () => setLogoBase64(reader.result);
+        reader.readAsDataURL(blob);
+      } catch (error) {
+        console.error("Failed to load logo:", error);
+      }
+    };
+    loadLogo();
+  }, []);
 
   // Fetch all bills from the self-hosted Convex backend
   const bills = useQuery(api.offStore.getBills, { limit: 200 });
@@ -113,15 +131,33 @@ export default function BillsHistoryPage() {
     const taxVal = bill.tax || 0;
     const totalVal = bill.total || 0;
 
+    let barcodeSvgHtml = "";
+    try {
+      const svg = printWindow.document.createElementNS("http://www.w3.org/2000/svg", "svg");
+      JsBarcode(svg, bill.billNumber, {
+        format: "CODE128",
+        displayValue: true,
+        fontSize: 14,
+        textMargin: 2,
+        margin: 0,
+        lineColor: "#000000",
+        height: 40,
+        width: 1.5
+      });
+      barcodeSvgHtml = svg.outerHTML;
+    } catch (e) {
+      console.error("Failed to generate bill barcode", e);
+    }
+
     const itemsRows = bill.items.map((item, idx) => `
-      <tr style="border-bottom: 1px dashed #ccc;">
-        <td style="padding: 6px 0; max-width: 140px; font-size: 11px;">
+      <tr style="border-bottom: 1px dashed #000000;">
+        <td style="padding: 6px 0; max-width: 140px; font-size: 13px; vertical-align: top; font-weight: 600;">
           ${idx + 1}. ${item.productName}
-          <div style="font-size: 9px; color: #444;">SKU: ${item.itemId} • Size: ${item.size}</div>
+          <div style="font-size: 11px; color: #000000; margin-top: 2px; font-weight: 500;">Size: ${item.size} • Rate: ₹${item.price}</div>
         </td>
-        <td style="padding: 6px 0; text-align: center;">${item.quantity}</td>
-        <td style="padding: 6px 0; text-align: right;">₹${item.price}</td>
-        <td style="padding: 6px 0; text-align: right;">₹${item.price * item.quantity}</td>
+        <td style="padding: 6px 0; text-align: center; vertical-align: top; font-size: 13px; font-weight: 600;">${item.quantity}</td>
+        <td style="padding: 6px 0; text-align: right; vertical-align: top; font-size: 13px; font-weight: 500;">₹${item.price}</td>
+        <td style="padding: 6px 0; text-align: right; vertical-align: top; font-weight: bold; font-size: 13px;">₹${item.price * item.quantity}</td>
       </tr>
     `).join("");
 
@@ -130,43 +166,55 @@ export default function BillsHistoryPage() {
         <head>
           <title>Bill - ${bill.billNumber}</title>
           <style>
-            @page { size: 4in 6in; margin: 0.125in; }
+            @page { size: 80mm auto; margin: 0; }
             * { margin: 0; padding: 0; box-sizing: border-box; }
             body {
-              font-family: 'Courier New', monospace;
-              width: calc(4in - 0.25in);
-              padding: 0.125in;
-              font-size: 13px;
-              color: #000;
-              background: white;
+              font-family: Arial, Helvetica, sans-serif;
+              width: 80mm;
+              margin: 0 auto;
+              padding: 6mm 4mm;
+              font-size: 14px;
+              line-height: 1.45;
+              color: #000000;
+              background: #ffffff;
+              -webkit-font-smoothing: antialiased;
+              font-weight: 500;
             }
             .text-center { text-align: center; }
             .text-right { text-align: right; }
-            .font-bold { font-weight: 700; }
+            .font-bold { font-weight: 800; }
             .mb-2 { margin-bottom: 4px; }
-            .mb-4 { margin-bottom: 6px; }
-            .mb-6 { margin-bottom: 8px; }
+            .mb-4 { margin-bottom: 8px; }
+            .mb-6 { margin-bottom: 12px; }
             .mt-4 { margin-top: 8px; }
-            .mt-6 { margin-top: 10px; }
-            .pb-4 { padding-bottom: 6px; }
-            .pt-4 { padding-top: 6px; }
-            .border-b-2 { border-bottom: 2px solid #000; }
-            .border-t-2 { border-top: 2px solid #000; }
+            .mt-6 { margin-top: 12px; }
+            .pb-4 { padding-bottom: 8px; }
+            .pt-4 { padding-top: 8px; }
+            .border-b-2 { border-bottom: 1.5px solid #000000; }
+            .border-t-2 { border-top: 1.5px solid #000000; }
             .border-dashed { border-style: dashed; }
             table { width: 100%; border-collapse: collapse; margin: 6px 0; }
-            th, td { font-size: 11px; }
-            img { height: 28mm; width: auto; max-width: 70mm; object-fit: contain; margin: 0 auto display: block; }
+            th, td { font-size: 13px; color: #000000 !important; }
+            th { border-bottom: 1.5px solid #000000; padding: 6px 0; font-weight: bold; }
+            td { padding: 6px 0; vertical-align: top; }
+            svg { display: block; margin: 0 auto; max-width: 100%; }
           </style>
         </head>
         <body>
-          <div class="text-center pb-4 border-b-2 mb-4">
-            <h2 style="font-size: 18px; font-weight: 800;">WALKDROBE</h2>
-            <p style="font-size: 11px; margin-top: 2px;">Premium Sneakers Store</p>
-            <p style="font-size: 9px; color: #333;">Patna Branch, Bihar</p>
-            <p style="font-size: 9px;">GSTIN: 10ABCDE1234F1Z5</p>
+          <div class="text-center pb-4 border-b-2 mb-4" style="border-color: #000000 !important;">
+            ${logoBase64 ? `
+              <div style="display: flex; justify-content: center; margin-bottom: 8px;">
+                <img src="${logoBase64}" alt="Walkdrobe" style="height: 36px; width: auto; max-width: 120px; object-fit: contain; display: block; filter: grayscale(100%) contrast(150%);" />
+              </div>
+            ` : `
+              <h2 style="font-size: 18px; font-weight: 800; text-transform: uppercase; margin-bottom: 4px;">WALKDROBE</h2>
+            `}
+            <p style="font-size: 11px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.1em; margin-top: 2px;">Premium Shoes Store</p>
+            <p style="font-size: 10px; margin-top: 4px;">Boring Road, Patna, Bihar - 800001</p>
+            <p style="font-size: 10px;">Phone: +91 9122583392</p>
           </div>
 
-          <div class="mb-4" style="font-size: 11px; line-height: 1.4;">
+          <div class="mb-4" style="font-size: 12px; line-height: 1.4; border-bottom: 1px dashed #000000; padding-bottom: 8px;">
             <div><strong>Bill No:</strong> ${bill.billNumber}</div>
             <div><strong>Date:</strong> ${formatDate(bill.createdAt)}</div>
             <div><strong>Operator:</strong> ${bill.createdBy || "System"}</div>
@@ -174,13 +222,13 @@ export default function BillsHistoryPage() {
             ${bill.customerPhone ? `<div><strong>Phone:</strong> ${bill.customerPhone}</div>` : ""}
           </div>
 
-          <table class="border-t-2 border-b-2 border-dashed">
+          <table class="border-t-2 border-b-2 border-dashed" style="border-color: #000000 !important;">
             <thead>
-              <tr style="border-bottom: 2px solid #000;">
-                <th style="padding: 4px 0; text-align: left;">Item</th>
-                <th style="padding: 4px 0; text-align: center; width: 30px;">Qty</th>
-                <th style="padding: 4px 0; text-align: right; width: 55px;">Rate</th>
-                <th style="padding: 4px 0; text-align: right; width: 60px;">Total</th>
+              <tr style="border-bottom: 1.5px solid #000000;">
+                <th style="padding: 6px 0; text-align: left; font-weight: bold;">Item Description</th>
+                <th style="padding: 6px 0; text-align: center; width: 35px; font-weight: bold;">Qty</th>
+                <th style="padding: 6px 0; text-align: right; width: 60px; font-weight: bold;">Rate</th>
+                <th style="padding: 6px 0; text-align: right; width: 70px; font-weight: bold;">Total</th>
               </tr>
             </thead>
             <tbody>
@@ -188,30 +236,35 @@ export default function BillsHistoryPage() {
             </tbody>
           </table>
 
-          <div style="font-size: 11px; margin-top: 6px; line-height: 1.5; border-bottom: 2px dashed #000; padding-bottom: 6px;">
-            <div style="display: flex; justify-content: space-between;">
+          <div style="font-size: 12px; margin-top: 8px; line-height: 1.5; border-bottom: 1.5px dashed #000000; padding-bottom: 8px;">
+            <div style="display: flex; justify-content: space-between; margin-bottom: 2px;">
               <span>Subtotal:</span>
               <span>₹${subtotalVal.toFixed(0)}</span>
             </div>
             ${discountVal > 0 ? `
-            <div style="display: flex; justify-content: space-between; font-weight: bold; color: #000;">
+            <div style="display: flex; justify-content: space-between; font-weight: bold; color: #000000; margin-bottom: 2px;">
               <span>Discount (${discountVal}%):</span>
               <span>-₹${discountAmountVal.toFixed(0)}</span>
             </div>` : ""}
-            <div style="display: flex; justify-content: space-between; font-size: 10px; color: #444;">
+            <div style="display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 4px;">
               <span>GST Inclusive (18%):</span>
               <span>₹${taxVal.toFixed(0)}</span>
             </div>
-            <div style="display: flex; justify-content: space-between; font-size: 14px; font-weight: bold; margin-top: 4px; border-top: 1px solid #000; padding-top: 4px;">
+            <div style="display: flex; justify-content: space-between; font-size: 15px; font-weight: 800; margin-top: 6px; border-top: 1.5px solid #000000; padding-top: 6px; background: #000000; color: #ffffff; padding: 6px 8px; margin-left: -4mm; margin-right: -4mm;">
               <span>NET TOTAL:</span>
               <span>₹${totalVal.toFixed(0)}</span>
             </div>
           </div>
 
-          <div class="text-center mt-6" style="font-size: 10px;">
-            <p>Payment Mode: <strong>${(bill.paymentMethod || "CASH").toUpperCase()}</strong></p>
-            <p style="margin-top: 8px; font-weight: bold;">*** THANK YOU FOR SHOPPING ***</p>
-            <p>Exchange allowed within 7 days with tag intact.</p>
+          <div class="text-center mt-6" style="font-size: 11px;">
+            <p style="font-weight: bold; margin-bottom: 4px;">Payment Method: ${(bill.paymentMethod || "CASH").toUpperCase()}</p>
+            <p style="margin-top: 8px; font-weight: bold; font-size: 12px;">Thank you for visiting Walkdrobe!</p>
+            <p style="margin-top: 2px; font-size: 10px;">Exchange permitted within 7 days against print invoice.</p>
+            ${barcodeSvgHtml ? `
+              <div style="margin-top: 12px; display: flex; justify-content: center;">
+                ${barcodeSvgHtml}
+              </div>
+            ` : ""}
           </div>
         </body>
       </html>
