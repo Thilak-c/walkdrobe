@@ -898,13 +898,10 @@ export default function OrderDetailsPage({ params }) {
              <div className="border-t border-slate-100 sm:border-t-0 pt-3 sm:pt-0 flex justify-between items-center sm:block sm:text-right">
                {order.paymentDetails?.paymentMethod === "cod" ? (
                  <>
-                   <span className="text-xs font-bold uppercase tracking-wider text-slate-400 sm:block">Online Paid</span>
-                   <div className="text-xl sm:text-3xl font-black text-emerald-600 tracking-tight sm:mt-1">
-                     ₹{(order.paymentDetails.codCharge || 200.00).toFixed(2)}
+                   <span className="text-xs font-bold uppercase tracking-wider text-slate-400 sm:block">Cash Due on Delivery</span>
+                   <div className="text-xl sm:text-3xl font-black text-amber-700 tracking-tight sm:mt-1">
+                     ₹{(order.paymentDetails.remainingCOD !== undefined ? order.paymentDetails.remainingCOD : order.orderTotal).toFixed(2)}
                    </div>
-                   <span className="text-[10px] font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-lg border border-amber-200 mt-1 block w-fit sm:ml-auto select-none">
-                     ₹{(order.paymentDetails.remainingCOD || (order.orderTotal - 200)).toFixed(2)} Due on Delivery
-                   </span>
                  </>
                ) : (
                  <>
@@ -998,7 +995,7 @@ export default function OrderDetailsPage({ params }) {
                 {order.paymentDetails?.paymentMethod === "cod" ? (
                   <div className="flex items-center space-x-2 text-amber-600 mb-3 bg-amber-50/50 p-2 rounded-lg border border-amber-100">
                     <Check className="w-4 h-4 text-amber-500" />
-                    <span className="font-semibold text-xs">COD Reservation Confirmed</span>
+                    <span className="font-semibold text-xs">COD Confirmed</span>
                   </div>
                 ) : (
                   <div className="flex items-center space-x-2 text-green-600 mb-3">
@@ -1012,12 +1009,8 @@ export default function OrderDetailsPage({ params }) {
                     {order.paymentDetails.paymentMethod === "cod" ? (
                       <>
                         <div className="flex justify-between">
-                          <span className="text-gray-600">Online Fee Paid:</span>
-                          <span className="font-medium text-emerald-600">₹{order.paymentDetails.codCharge?.toFixed(2) || "200.00"}</span>
-                        </div>
-                        <div className="flex justify-between">
                           <span className="text-gray-600">COD Balance Due:</span>
-                          <span className="font-medium text-amber-700">₹{order.paymentDetails.remainingCOD?.toFixed(2) || (order.orderTotal - 200).toFixed(2)}</span>
+                          <span className="font-medium text-amber-700">₹{(order.paymentDetails.remainingCOD !== undefined ? order.paymentDetails.remainingCOD : order.orderTotal).toFixed(2)}</span>
                         </div>
                         <div className="flex justify-between pt-1 border-t border-slate-50 font-bold">
                           <span className="text-gray-800">Total Value:</span>

@@ -61,7 +61,7 @@ export default function ShiprocketPage() {
   const [breadth, setBreadth] = useState(10);
   const [height, setHeight] = useState(5);
   const [weight, setWeight] = useState(0.5);
-  const [codAdvance, setCodAdvance] = useState(200);
+  const [codAdvance, setCodAdvance] = useState(0);
   const [codAllowCoupons, setCodAllowCoupons] = useState(true);
   const [isUpdatingConfig, setIsUpdatingConfig] = useState(false);
 
@@ -84,14 +84,14 @@ export default function ShiprocketPage() {
   const orders = useQuery(api.orders.getOrdersWithShiprocket);
   const updateConfigMutation = useMutation(api.shiprocketConfig.updateConfig);
 
-  // Pre-populate settings form when currentConfig is fetched
+  // Sync state values with fetched config
   useEffect(() => {
     if (currentConfig) {
       setLength(currentConfig.length);
       setBreadth(currentConfig.breadth);
       setHeight(currentConfig.height);
       setWeight(currentConfig.weight);
-      setCodAdvance(currentConfig.codAdvance !== undefined ? currentConfig.codAdvance : 200);
+      setCodAdvance(currentConfig.codAdvance !== undefined ? currentConfig.codAdvance : 0);
       setCodAllowCoupons(currentConfig.codAllowCoupons !== undefined ? currentConfig.codAllowCoupons : true);
     }
   }, [currentConfig]);
@@ -109,7 +109,7 @@ export default function ShiprocketPage() {
         breadth: parseFloat(breadth),
         height: parseFloat(height),
         weight: parseFloat(weight),
-        codAdvance: parseFloat(codAdvance),
+        codAdvance: 0,
         codAllowCoupons: Boolean(codAllowCoupons),
       });
       toast.success("Shiprocket packaging configurations updated!", {
@@ -311,19 +311,7 @@ export default function ShiprocketPage() {
                     <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider">COD Policy Configuration</h4>
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                    <div>
-                      <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">COD Advance Payment (₹)</label>
-                      <input
-                        type="number"
-                        min="0"
-                        required
-                        value={codAdvance}
-                        onChange={(e) => setCodAdvance(parseFloat(e.target.value) || 0)}
-                        className="w-full px-3.5 py-2 bg-slate-50 hover:bg-slate-100/50 focus:bg-white border border-slate-200 focus:border-slate-800 rounded-xl text-sm focus:outline-none transition-all font-mono"
-                      />
-                      <p className="text-[10px] text-slate-400 mt-1">Amount customers pay online to place a COD order. Set to 0 to disable advance payment (Free COD).</p>
-                    </div>
-                    <div className="flex flex-col justify-center">
+                    <div className="flex flex-col justify-center col-span-2 md:col-span-1">
                       <div className="flex items-center justify-between p-3.5 bg-slate-50 rounded-2xl border border-slate-200/50">
                         <div>
                           <p className="text-xs font-bold text-slate-700">Allow Coupons on COD</p>
@@ -333,7 +321,7 @@ export default function ShiprocketPage() {
                           type="button"
                           onClick={() => setCodAllowCoupons(!codAllowCoupons)}
                           className={`w-11 h-6 rounded-full transition-all relative outline-none flex items-center cursor-pointer ${
-                            codAllowCoupons ? "bg-slate-900" : "bg-slate-200"
+                            codAllowCoupons ? "bg-slate-955" : "bg-slate-200"
                           }`}
                         >
                           <span
@@ -740,15 +728,11 @@ export default function ShiprocketPage() {
                         <span className="text-slate-400 block font-medium">Gateway Payment Method</span>
                         <span className="font-semibold text-slate-800 uppercase text-xs">{selectedOrder.paymentDetails?.paymentMethod || "cod"}</span>
                       </div>
-                      {selectedOrder.paymentDetails?.paymentMethod === "cod" ? (
+                       {selectedOrder.paymentDetails?.paymentMethod === "cod" ? (
                         <>
                           <div>
-                            <span className="text-slate-400 block font-medium">Online Upfront Fee Paid</span>
-                            <span className="font-extrabold text-emerald-600 text-sm">₹{selectedOrder.paymentDetails?.codCharge?.toLocaleString("en-IN") || "200.00"}</span>
-                          </div>
-                          <div>
                             <span className="text-slate-400 block font-medium">Cash Due on Delivery</span>
-                            <span className="font-extrabold text-amber-700 text-sm">₹{selectedOrder.paymentDetails?.remainingCOD?.toLocaleString("en-IN") || (selectedOrder.orderTotal - 200).toLocaleString("en-IN")}</span>
+                            <span className="font-extrabold text-amber-700 text-sm">₹{(selectedOrder.paymentDetails?.remainingCOD !== undefined ? selectedOrder.paymentDetails.remainingCOD : selectedOrder.orderTotal).toLocaleString("en-IN")}</span>
                           </div>
                           <div>
                             <span className="text-slate-400 block font-medium">Grand Total Value</span>

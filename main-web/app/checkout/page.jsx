@@ -467,7 +467,7 @@ export default function CheckoutPage() {
   };
 
   const { subtotal, deliveryFee, protectPromiseFee, codCharge, couponDiscount, finalTotal } = (isDirectPurchase ? getOrderTotals() : (effectiveCartItems.length === 0 ? { subtotal: 0, deliveryFee: 0, protectPromiseFee: 0, codCharge: 0, couponDiscount: 0, finalTotal: 0 } : getOrderTotals()));
-  const codAdvance = config?.codAdvance !== undefined ? config.codAdvance : 200;
+  const codAdvance = 0;
   const codAllowCoupons = config?.codAllowCoupons !== false;
   const hybridDiscount = Math.round(finalTotal * 0.05);
   const hybridFinalTotal = finalTotal - hybridDiscount;
@@ -775,166 +775,127 @@ export default function CheckoutPage() {
         return;
       }
 
-      if (codAdvance > 0) {
-        // If COD advance is required, we do Razorpay checkout!
-        const response = await fetch("/api/create-order", {
-          method: "POST", headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            amount: codAdvance,
-            currency: "INR",
-            receipt: `cod_${Date.now()}`,
-            notes: {
-              userId: me?._id || "guest",
-              userEmail: currentShippingDetails.email,
-              userName: currentShippingDetails.fullName,
-              paymentType: "cod",
-              totalAmount: finalTotal,
-              codAmount: finalTotal - codAdvance,
-              codAdvance: codAdvance
-            }
-          }),
+      // Map items for order
+      const mappedItems = items.map((item) => ({
+        productId: item.productId || "",
+        name: item.productName || item.name || "",
+        price: Number(item.price) || 0,
+        quantity: Number(item.quantity) || 1,
+        size: item.size || "Free",
+        image: item.productImage || item.image || "",
+      }));
+
+      // Ensure shipping details have all required fields
+      const shippingDetailsObj = {
+        fullName: currentShippingDetails.fullName || "",
+        email: currentShippingDetails.email || "",
+        phone: currentShippingDetails.phone || "",
+        address: currentShippingDetails.address || "",
+        city: currentShippingDetails.city || "",
+        state: currentShippingDetails.state || "",
+        pincode: currentShippingDetails.pincode || "",
+        country: currentShippingDetails.country || "India",
+      };
+
+      // Create order in database
+      const orderResult = await createOrderMutation({
+        userId: me?._id || null,
+        items: mappedItems,
+        shippingDetails: shippingDetailsObj,
+        paymentDetails: {
+          razorpayOrderId: "cod_free_" + Date.now(),
+          razorpayPaymentId: "cod_free_" + Date.now(),
+          amount: Number(finalTotal) || 0,
+          currency: "INR",
+          status: "pending",
+          paymentMethod: "cod",
+          codCharge: 0,
+          remainingCOD: Number(finalTotal) || 0,
+        },
+        orderTotal: Number(finalTotal) || 0,
+        status: "confirmed",
+      });
+
+      // Save address to user table if logged in
+      if (me && me._id) {
+        await fetch("/api/update-user-address", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ userId: me._id, address: shippingDetailsObj }),
         });
-        const data = await response.json();
-        if (!data.success) throw new Error(data.error || "Failed to create order");
-        const paymentData = {
-          orderId: data.order.id,
-          amount: data.order.amount,
-          currency: data.order.currency,
-          customerDetails: currentShippingDetails,
-          items: isDirectPurchase ? [{ productId: directPurchaseItem.productId, productName: directPurchaseItem.productName, productImage: directPurchaseItem.productImage, price: directPurchaseItem.price, size: directPurchaseItem.size, quantity: directPurchaseItem.quantity, category: directPurchaseItem.category || '', brand: directPurchaseItem.brand || '' }] : userCart.items,
-          orderTotal: finalTotal,
-          isDirectPurchase,
-          userId: me?._id,
-          isCODPayment: true,
-          codDetails: {
-            codCharge: codAdvance,
-            remainingCOD: finalTotal - codAdvance
-          }
-        };
-        await openRazorpayModal(paymentData);
-      } else {
-        // Map items for order
-        const mappedItems = items.map((item) => ({
-          productId: item.productId || "",
-          name: item.productName || item.name || "",
-          price: Number(item.price) || 0,
-          quantity: Number(item.quantity) || 1,
-          size: item.size || "Free",
-          image: item.productImage || item.image || "",
-        }));
-
-        // Ensure shipping details have all required fields
-        const shippingDetailsObj = {
-          fullName: currentShippingDetails.fullName || "",
-          email: currentShippingDetails.email || "",
-          phone: currentShippingDetails.phone || "",
-          address: currentShippingDetails.address || "",
-          city: currentShippingDetails.city || "",
-          state: currentShippingDetails.state || "",
-          pincode: currentShippingDetails.pincode || "",
-          country: currentShippingDetails.country || "India",
-        };
-
-        // Create order in database
-        const orderResult = await createOrderMutation({
-          userId: me?._id || null,
-          items: mappedItems,
-          shippingDetails: shippingDetailsObj,
-          paymentDetails: {
-            razorpayOrderId: "cod_free_" + Date.now(),
-            razorpayPaymentId: "cod_free_" + Date.now(),
-            amount: Number(finalTotal) || 0,
-            currency: "INR",
-            status: "pending",
-            paymentMethod: "cod",
-            codCharge: 0,
-            remainingCOD: Number(finalTotal) || 0,
-          },
-          orderTotal: Number(finalTotal) || 0,
-          status: "confirmed",
-        });
-
-        // Save address to user table if logged in
-        if (me && me._id) {
-          await fetch("/api/update-user-address", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ userId: me._id, address: shippingDetailsObj }),
-          });
-        }
-
-        if (!orderResult?.success) throw new Error(orderResult?.message || "Failed to create order");
-
-        // Send confirmation emails and create Shiprocket order
-        await Promise.all([
-          fetch("/api/send-order-confirmation", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              userEmail: shippingDetailsObj.email,
-              userName: shippingDetailsObj.fullName,
-              orderNumber: orderResult.orderNumber,
-              orderItems: mappedItems,
-              orderTotal: finalTotal,
-              shippingDetails: shippingDetailsObj,
-              paymentDetails: {
-                amount: finalTotal,
-                currency: "INR",
-                status: "pending",
-                paymentMethod: "cod",
-              },
-            }),
-          }).catch(console.error),
-          fetch("/api/send-admin-notification", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              orderNumber: orderResult.orderNumber,
-              customerName: shippingDetailsObj.fullName,
-              customerEmail: shippingDetailsObj.email,
-              orderTotal: finalTotal,
-              items: mappedItems,
-              shippingAddress: `${shippingDetailsObj.address}, ${shippingDetailsObj.city}, ${shippingDetailsObj.state} - ${shippingDetailsObj.pincode}`,
-              shippingDetails: shippingDetailsObj,
-              paymentDetails: {
-                amount: finalTotal,
-                currency: "INR",
-                status: "pending",
-                paymentMethod: "cod",
-              },
-            }),
-          }).catch(console.error),
-          // Automatically create Shiprocket order
-          fetch("/api/auto-shiprocket", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              orderNumber: orderResult.orderNumber,
-            }),
-          }).then(response => response.json())
-            .then(result => {
-              if (!result.success) {
-                console.error("Shiprocket order creation failed:", result.error);
-              }
-            })
-            .catch(error => {
-              console.error("Error creating Shiprocket order:", error);
-            }),
-        ]);
-
-        // Clear cart if not direct purchase
-        if (!isDirectPurchase) {
-          if (me?._id) {
-            try { await clearCartMutation({ userId: me._id }); } catch (e) { console.error(e); }
-          } else {
-            try { clearGuestCart(); } catch (e) { console.error(e); }
-          }
-        }
-
-        showToastMessage("Order placed successfully!");
-        console.log("🔄 Redirecting to:", `/order-success?orderNumber=${orderResult.orderNumber}`);
-        setTimeout(() => router.push(`/order-success?orderNumber=${orderResult.orderNumber}`), 1500);
       }
+
+      if (!orderResult?.success) throw new Error(orderResult?.message || "Failed to create order");
+
+      // Send confirmation emails and create Shiprocket order
+      await Promise.all([
+        fetch("/api/send-order-confirmation", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            userEmail: shippingDetailsObj.email,
+            userName: shippingDetailsObj.fullName,
+            orderNumber: orderResult.orderNumber,
+            orderItems: mappedItems,
+            orderTotal: finalTotal,
+            shippingDetails: shippingDetailsObj,
+            paymentDetails: {
+              amount: finalTotal,
+              currency: "INR",
+              status: "pending",
+              paymentMethod: "cod",
+            },
+          }),
+        }).catch(console.error),
+        fetch("/api/send-admin-notification", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            orderNumber: orderResult.orderNumber,
+            customerName: shippingDetailsObj.fullName,
+            customerEmail: shippingDetailsObj.email,
+            orderTotal: finalTotal,
+            items: mappedItems,
+            shippingAddress: `${shippingDetailsObj.address}, ${shippingDetailsObj.city}, ${shippingDetailsObj.state} - ${shippingDetailsObj.pincode}`,
+            shippingDetails: shippingDetailsObj,
+            paymentDetails: {
+              amount: finalTotal,
+              currency: "INR",
+              status: "pending",
+              paymentMethod: "cod",
+            },
+          }),
+        }).catch(console.error),
+        // Automatically create Shiprocket order
+        fetch("/api/auto-shiprocket", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            orderNumber: orderResult.orderNumber,
+          }),
+        }).then(response => response.json())
+          .then(result => {
+            if (!result.success) {
+              console.error("Shiprocket order creation failed:", result.error);
+            }
+          })
+          .catch(error => {
+            console.error("Error creating Shiprocket order:", error);
+          }),
+      ]);
+
+      // Clear cart if not direct purchase
+      if (!isDirectPurchase) {
+        if (me?._id) {
+          try { await clearCartMutation({ userId: me._id }); } catch (e) { console.error(e); }
+        } else {
+          try { clearGuestCart(); } catch (e) { console.error(e); }
+        }
+      }
+
+      showToastMessage("Order placed successfully!");
+      console.log("🔄 Redirecting to:", `/order-success?orderNumber=${orderResult.orderNumber}`);
+      setTimeout(() => router.push(`/order-success?orderNumber=${orderResult.orderNumber}`), 1500);
     } catch (error) { 
       showToastMessage(error.message || "Payment failed"); 
       setIsProcessing(false); 
@@ -1534,24 +1495,12 @@ export default function CheckoutPage() {
                 {selectedPaymentMethod === "cod" && (
                   <div className="mt-2 pt-2 border-t border-slate-200 space-y-1.5 bg-slate-100/50 p-2 rounded-xl">
                     <div className="flex justify-between items-center text-[11px] font-extrabold text-emerald-700">
-                      <span>{codAdvance > 0 ? "Advance Paid Online" : "Pay on Delivery"}</span>
-                      <span className="font-mono">₹{(codAdvance > 0 ? codAdvance : finalTotal).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                      <span>Pay on Delivery (100% COD)</span>
+                      <span className="font-mono">₹{finalTotal.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                     </div>
-                    {codAdvance > 0 && (
-                      <div className="flex justify-between items-center text-[11px] font-extrabold text-amber-700 pt-1 border-t border-dashed border-slate-200">
-                        <span>Pay on Delivery</span>
-                        <span className="font-mono">₹{(finalTotal - codAdvance).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                      </div>
-                    )}
                   </div>
                 )}
               </div>
-
-              {selectedPaymentMethod === "cod" && codAdvance > 0 && (
-                <div className="mt-2.5 p-2 bg-orange-50/70 border border-orange-150 rounded-xl">
-                  <p className="text-orange-700 text-[10px] font-medium leading-relaxed">💡 COD orders require a ₹{codAdvance} advance payment online now. The remaining ₹{(finalTotal - codAdvance).toLocaleString()} will be collected on delivery.</p>
-                </div>
-              )}
 
               {selectedPaymentMethod === "hybrid" && (
                 <div className="mt-2.5 p-2 bg-green-50/70 border border-green-150 rounded-xl">

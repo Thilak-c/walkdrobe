@@ -421,14 +421,10 @@ export default function TrackOrderPage() {
                 </div>
 
                 {tracking.paymentMethod === "cod" && (
-                  <div className="grid grid-cols-2 gap-3 text-[10px] pt-2.5 border-t border-slate-50 mt-1">
-                    <div className="space-y-0.5">
-                      <span className="text-[8px] font-bold text-emerald-650 uppercase tracking-wider block">COD Fee Paid Online</span>
-                      <p className="font-mono font-extrabold text-emerald-700">₹{tracking.paymentDetails?.codCharge?.toFixed(2) || "200.00"}</p>
-                    </div>
+                  <div className="grid grid-cols-1 text-[10px] pt-2.5 border-t border-slate-50 mt-1">
                     <div className="space-y-0.5 text-right">
                       <span className="text-[8px] font-bold text-amber-750 uppercase tracking-wider block">COD Due on Delivery</span>
-                      <p className="font-mono font-extrabold text-amber-800">₹{tracking.paymentDetails?.remainingCOD?.toFixed(2) || (tracking.orderTotal - 200).toFixed(2)}</p>
+                      <p className="font-mono font-extrabold text-amber-800">₹{(tracking.paymentDetails?.remainingCOD !== undefined ? tracking.paymentDetails.remainingCOD : tracking.orderTotal).toFixed(2)}</p>
                     </div>
                   </div>
                 )}

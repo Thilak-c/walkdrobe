@@ -62,7 +62,7 @@ export async function POST(request) {
       from: process.env.EMAIL_FROM || `Walkdrobe <${process.env.EMAIL_USER}>`,
       to: userEmail,
       subject: `Order Confirmation`,
-      text: `Hi ${userName},\n\nThank you for your purchase!\nOrder Number: ${orderNumber}\nTotal: ₹${orderTotal}${paymentDetails && paymentDetails.paymentMethod === 'cod' ? `\n(₹${(paymentDetails.codCharge || 200).toFixed(2)} advance paid online, remaining ₹${(paymentDetails.remainingCOD || (Number(orderTotal) - 200)).toFixed(2)} due on delivery)` : ''}\nExpected delivery: ${formattedDeliveryDate}\n\nTrack your order: https://walkdrobe.in/orders/${orderNumber}\n\nIf you have questions, reply to this email.`,
+      text: `Hi ${userName},\n\nThank you for your purchase!\nOrder Number: ${orderNumber}\nTotal: ₹${orderTotal}${paymentDetails && paymentDetails.paymentMethod === 'cod' ? `\n(Remaining ₹${(paymentDetails.remainingCOD !== undefined ? paymentDetails.remainingCOD : Number(orderTotal)).toFixed(2)} due on delivery)` : ''}\nExpected delivery: ${formattedDeliveryDate}\n\nTrack your order: https://walkdrobe.in/orders/${orderNumber}\n\nIf you have questions, reply to this email.`,
       html: `
 <body style="margin:0; padding:0; background-color:#f8f9fa; font-family: Arial, sans-serif;">
     <table width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#f8f9fa">
@@ -121,15 +121,9 @@ export async function POST(request) {
                   </tr>
                   ${paymentDetails && paymentDetails.paymentMethod === 'cod' ? `
                   <tr>
-                    <td style="padding:12px 16px; font-size:14px; color:#16a34a; font-weight:600;">Advance Paid (Online)</td>
-                    <td style="padding:12px 16px; font-size:14px; color:#16a34a; text-align:right; font-weight:bold;">
-                      ₹${(paymentDetails.codCharge || 200).toFixed(2)}
-                    </td>
-                  </tr>
-                  <tr>
                     <td style="padding:12px 16px; font-size:14px; color:#d97706; font-weight:600;">COD Due on Delivery</td>
                     <td style="padding:12px 16px; font-size:14px; color:#d97706; text-align:right; font-weight:bold;">
-                      ₹${(paymentDetails.remainingCOD || (Number(orderTotal) - 200)).toFixed(2)}
+                      ₹${(paymentDetails.remainingCOD !== undefined ? paymentDetails.remainingCOD : Number(orderTotal)).toFixed(2)}
                     </td>
                   </tr>
                   ` : ''}

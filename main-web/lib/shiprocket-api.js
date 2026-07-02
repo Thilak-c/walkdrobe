@@ -274,7 +274,7 @@ export function formatOrderForShiprocket(order, config = null) {
     orderItems: orderItems,
     paymentMethod: order.paymentDetails.paymentMethod === 'cod' ? 'COD' : 'Prepaid',
     subTotal: order.paymentDetails.paymentMethod === 'cod'
-      ? (order.paymentDetails.remainingCOD !== undefined ? order.paymentDetails.remainingCOD : (order.orderTotal - 200))
+      ? (order.paymentDetails.remainingCOD !== undefined ? order.paymentDetails.remainingCOD : order.orderTotal)
       : order.orderTotal,
     length: targetLength,
     breadth: targetBreadth,

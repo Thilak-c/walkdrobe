@@ -13,13 +13,13 @@ export const getConfig = query({
         breadth: 10,
         height: 5,
         weight: 0.5,
-        codAdvance: 200,
+        codAdvance: 0,
         codAllowCoupons: true,
       };
     }
     return {
       ...config,
-      codAdvance: config.codAdvance !== undefined ? config.codAdvance : 200,
+      codAdvance: config.codAdvance !== undefined ? config.codAdvance : 0,
       codAllowCoupons: config.codAllowCoupons !== undefined ? config.codAllowCoupons : true,
     };
   },
@@ -56,7 +56,7 @@ export const updateConfig = mutation({
     } else {
       await ctx.db.insert("shiprocketConfig", {
         ...updateData,
-        codAdvance: args.codAdvance !== undefined ? args.codAdvance : 200,
+        codAdvance: args.codAdvance !== undefined ? args.codAdvance : 0,
         codAllowCoupons: args.codAllowCoupons !== undefined ? args.codAllowCoupons : true,
       });
     }
