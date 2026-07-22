@@ -3,8 +3,8 @@
 @custom-variant dark (&:is(.dark *));
 
 /* Font family utilities */
-.font-poppins {
-  font-family: var(--font-poppins), system-ui, sans-serif;
+.font-poppins, .font-montserrat, .font-sans {
+  font-family: var(--font-montserrat), system-ui, sans-serif !important;
 }
 
 .font-inter {
@@ -13,6 +13,10 @@
 
 .font-anton {
   font-family: var(--font-anton), system-ui, sans-serif;
+}
+
+.font-cormorant, .font-serif {
+  font-family: var(--font-cormorant), Georgia, serif !important;
 }
 
 /* Clean scrollbar for white theme */

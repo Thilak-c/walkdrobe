@@ -530,6 +530,7 @@ const toCardData = (p) => ({
   price: p.price,
   mainImage: p.mainImage,
   category: p.category,
+  availableSizes: p.availableSizes || [],
 });
 
 // Get all products for cards (minimal data)
@@ -549,10 +550,14 @@ export const getProductsForCards = query({
           q.eq(q.field("inStock"), true)
         )
       )
-      .order("desc")
-      .take(limit);
+      .collect();
     
-    return products.map(toCardData);
+    return products
+      .sort((a, b) => 
+        (a.itemId || "").localeCompare(b.itemId || "", undefined, { numeric: true, sensitivity: 'base' })
+      )
+      .slice(0, limit)
+      .map(toCardData);
   },
 });
 

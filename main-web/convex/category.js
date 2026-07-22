@@ -147,9 +147,12 @@ export const getProductsByCategory = query(async ({ db }, { category }) => {
 });
 
 export const getAll = query(async ({ db }) => {
-  return await db
+  const products = await db
     .query("products")
     .filter((q) => q.neq(q.field("isDeleted"), true))
-    .order("desc", "createdAt")
     .collect();
+  
+  return products.sort((a, b) => 
+    (a.itemId || "").localeCompare(b.itemId || "", undefined, { numeric: true, sensitivity: 'base' })
+  );
 });

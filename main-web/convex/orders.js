@@ -177,7 +177,7 @@ export const createOrder = mutation({
   },
 });
 // Get user's orders
-// OPTIMIZED: Added limit
+// Return user orders + all orders matching logged in user's email/phone from DB
 export const getUserOrders = query({
   args: {
     userId: v.id("users"),
@@ -186,13 +186,79 @@ export const getUserOrders = query({
   handler: async (ctx, args) => {
     const limit = args.limit || 50;
     
-    const orders = await ctx.db
-      .query("orders")
-      .withIndex("by_user", (q) => q.eq("userId", args.userId))
-      .order("desc")
-      .take(limit);
+    const user = await ctx.db.get(args.userId);
+    if (!user) {
+      return await ctx.db
+        .query("orders")
+        .withIndex("by_user", (q) => q.eq("userId", args.userId))
+        .order("desc")
+        .take(limit);
+    }
 
-    return orders;
+    const userEmail = user.email?.toLowerCase().trim();
+    const userPhone = user.phoneNumber?.replace(/\D/g, "");
+
+    const allOrders = await ctx.db.query("orders").order("desc").take(200);
+
+    const userOrders = allOrders.filter((order) => {
+      // Direct match by userId
+      if (order.userId && order.userId.toString() === args.userId.toString()) {
+        return true;
+      }
+      
+      // Direct match by email
+      const orderEmail = order.shippingDetails?.email?.toLowerCase().trim();
+      if (userEmail && orderEmail && userEmail === orderEmail) {
+        return true;
+      }
+
+      // Direct match by phone
+      const orderPhone = order.shippingDetails?.phone?.replace(/\D/g, "");
+      if (userPhone && userPhone.length >= 10 && orderPhone && orderPhone.length >= 10) {
+        if (orderPhone.endsWith(userPhone) || userPhone.endsWith(orderPhone)) {
+          return true;
+        }
+      }
+
+      return false;
+    });
+
+    userOrders.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+    return userOrders.slice(0, limit);
+  },
+});
+
+// Claim all guest orders for a logged-in user
+export const claimGuestOrders = mutation({
+  args: {
+    userId: v.id("users"),
+    phone: v.optional(v.string()),
+    email: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const orders = await ctx.db.query("orders").order("desc").take(200);
+    let claimedCount = 0;
+
+    const userPhone = args.phone?.replace(/\D/g, "") || "";
+    const userEmail = args.email?.toLowerCase().trim() || "";
+
+    for (const order of orders) {
+      const isGuest = !order.userId || order.userId === "guest";
+      if (isGuest) {
+        const orderPhone = order.shippingDetails?.phone?.replace(/\D/g, "") || "";
+        const orderEmail = order.shippingDetails?.email?.toLowerCase().trim() || "";
+
+        const matchPhone = userPhone.length >= 10 && orderPhone.length >= 10 && (orderPhone.endsWith(userPhone) || userPhone.endsWith(orderPhone));
+        const matchEmail = userEmail && orderEmail && userEmail === orderEmail;
+
+        if (matchPhone || matchEmail) {
+          await ctx.db.patch(order._id, { userId: args.userId });
+          claimedCount++;
+        }
+      }
+    }
+
+    return { success: true, claimedCount };
   },
 });
 
@@ -684,5 +750,38 @@ export const trackOrder = query({
     }
 
     return null;
+  },
+});
+
+// Check if any order exists for an email address or user with this email
+export const checkOrdersExistByEmail = query({
+  args: {
+    email: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const normalizedEmail = args.email.toLowerCase().trim();
+    if (!normalizedEmail) return false;
+
+    // Check user record first
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_email", (q) => q.eq("email", normalizedEmail))
+      .first();
+
+    if (user) {
+      const userOrder = await ctx.db
+        .query("orders")
+        .withIndex("by_user", (q) => q.eq("userId", user._id))
+        .first();
+      if (userOrder) return true;
+    }
+
+    // Check recent orders by shippingDetails.email
+    const recentOrders = await ctx.db.query("orders").order("desc").take(200);
+    const hasOrder = recentOrders.some(o => 
+      o.shippingDetails?.email?.toLowerCase().trim() === normalizedEmail
+    );
+
+    return hasOrder;
   },
 });

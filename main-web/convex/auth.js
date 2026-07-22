@@ -633,6 +633,19 @@ export const verifyPhoneOTP = mutation({
 				});
 			}
 
+			// Automatically claim any guest orders matching this phone number
+			const recentOrders = await ctx.db.query("orders").order("desc").take(150);
+			const cleanPhone = normalizedPhone.replace(/\D/g, "");
+			for (const o of recentOrders) {
+				const isGuest = !o.userId || o.userId === "guest";
+				if (isGuest && o.shippingDetails?.phone) {
+					const orderPhone = o.shippingDetails.phone.replace(/\D/g, "");
+					if (cleanPhone.length >= 10 && orderPhone.length >= 10 && (orderPhone.endsWith(cleanPhone) || cleanPhone.endsWith(orderPhone))) {
+						await ctx.db.patch(o._id, { userId: user._id });
+					}
+				}
+			}
+
 			// Generate session
 			const sessionToken = generateSessionToken();
 			const expiresAt = calculateSessionExpiry();
@@ -694,6 +707,17 @@ export const verifyPhoneOTP = mutation({
 						updatedAt: nowIso(),
 						isActive: true,
 					});
+				}
+
+				// Automatically claim any guest orders matching this email address
+				const recentOrders = await ctx.db.query("orders").order("desc").take(150);
+				for (const o of recentOrders) {
+					const isGuest = !o.userId || o.userId === "guest";
+					if (isGuest && o.shippingDetails?.email) {
+						if (o.shippingDetails.email.toLowerCase().trim() === normalizedEmail) {
+							await ctx.db.patch(o._id, { userId: user._id });
+						}
+					}
 				}
 
 				// Generate session

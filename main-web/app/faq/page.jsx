@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 import Navbar, { NavbarMobile } from "@/components/Navbar";
-import FooterSimple from "@/components/FooterSimple";
+import Footer from "@/components/home/Footer";
 import { ChevronDown } from "lucide-react";
 
 const faqs = [
@@ -94,7 +94,7 @@ export default function FAQPage() {
         </div>
       </div>
 
-      <FooterSimple />
+      <Footer />
     </div>
   );
 }

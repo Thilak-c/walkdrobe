@@ -7,7 +7,7 @@ import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { motion, AnimatePresence } from "framer-motion";
 import Navbar, { NavbarMobile } from "@/components/Navbar";
-import FooterSimple from "@/components/FooterSimple";
+import Footer from "@/components/home/Footer";
 import { 
   Heart, 
   Trash2, 
@@ -349,7 +349,7 @@ export default function WishlistPage() {
         )}
       </div>
 
-      <FooterSimple />
+      <Footer />
     </div>
   );
 }

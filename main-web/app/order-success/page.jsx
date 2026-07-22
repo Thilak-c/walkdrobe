@@ -2,8 +2,8 @@
 import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
-import { Check, Home, ShoppingBag, Package, Calendar, MapPin, CreditCard, Truck } from "lucide-react";
-import { useQuery } from "convex/react";
+import { Check, Home, ShoppingBag, Package, Calendar, MapPin, CreditCard, Truck, ShieldCheck, Loader2, Sparkles, Mail, ArrowRight } from "lucide-react";
+import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 
 const colors = ["#22c55e", "#3b82f6", "#ef4444", "#eab308", "#a855f7", "#ec4899", "#14b8a6"];
@@ -26,34 +26,133 @@ const confettiParticles = Array.from({ length: confettiCount }).map((_, i) => {
 export default function OrderSuccessPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [countdown, setCountdown] = useState(10);
-  const [hasNavigated, setHasNavigated] = useState(false);
   
   const orderNumber = searchParams.get('orderNumber');
   
+  // Auth state
+  const [token, setToken] = useState(null);
+  useEffect(() => {
+    if (typeof document !== "undefined") {
+      const match = document.cookie.match(/(?:^|; )sessionToken=([^;]+)/);
+      if (match) setToken(decodeURIComponent(match[1]));
+    }
+  }, []);
+
+  const me = useQuery(api.users.meByToken, token ? { token } : "skip");
+  const claimGuestOrdersMutation = useMutation(api.orders.claimGuestOrders);
+  const createSessionForEmailMutation = useMutation(api.auth.createSessionForEmail);
+
+  // Email OTP Post-Checkout Registration state
+  const [email, setEmail] = useState("");
+  const [otp, setOtp] = useState("");
+  const [otpStep, setOtpStep] = useState("input"); // 'input' | 'otp' | 'linked'
+  const [isSendingOtp, setIsSendingOtp] = useState(false);
+  const [isVerifyingOtp, setIsVerifyingOtp] = useState(false);
+  const [authError, setAuthError] = useState("");
+  const [authSuccess, setAuthSuccess] = useState("");
+
   // Get order details if order number is available
   const order = useQuery(
     api.orders.getOrderByNumber, 
     orderNumber ? { orderNumber } : "skip"
   );
 
+  // Prefill email from order
   useEffect(() => {
-    const timer = setInterval(() => {
-      setCountdown((prev) => {
-        if (prev <= 1 && !hasNavigated) {
-          setHasNavigated(true);
-          // Use setTimeout to avoid setState during render
-          setTimeout(() => {
-          router.push('/');
-          }, 100);
-          return 0;
-        }
-        return prev > 0 ? prev - 1 : 0;
-      });
-    }, 1000);
+    if (order?.shippingDetails?.email && !email) {
+      setEmail(order.shippingDetails.email);
+    }
+  }, [order, email]);
 
-    return () => clearInterval(timer);
-  }, [router, hasNavigated]);
+  // Handle Send OTP to Email for guest conversion
+  const handleSendOtp = async (e) => {
+    e?.preventDefault();
+    const cleanEmail = email.trim().toLowerCase();
+    if (!cleanEmail || !cleanEmail.includes("@")) {
+      setAuthError("Please enter a valid email address");
+      return;
+    }
+
+    setIsSendingOtp(true);
+    setAuthError("");
+
+    try {
+      const res = await fetch("/api/send-otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: cleanEmail }),
+      });
+      const data = await res.json();
+      if (!data.success) {
+        setAuthError(data.message || "Failed to send OTP to email");
+      } else {
+        setOtpStep("otp");
+        setAuthSuccess(`OTP code sent to ${cleanEmail}`);
+      }
+    } catch (err) {
+      setAuthError("Network error while sending OTP to email");
+    } finally {
+      setIsSendingOtp(false);
+    }
+  };
+
+  // Handle Verify Email OTP and convert guest to user
+  const handleVerifyOtp = async (e) => {
+    e?.preventDefault();
+    if (!otp || otp.length < 4) {
+      setAuthError("Please enter the complete OTP code");
+      return;
+    }
+
+    setIsVerifyingOtp(true);
+    setAuthError("");
+
+    try {
+      const cleanEmail = email.trim().toLowerCase();
+
+      // 1. Verify Email OTP via API
+      const verifyRes = await fetch("/api/verify-otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: cleanEmail, otp: otp.trim() }),
+      });
+      const verifyData = await verifyRes.json();
+
+      if (!verifyData.success) {
+        setAuthError(verifyData.message || "Invalid OTP code");
+        setIsVerifyingOtp(false);
+        return;
+      }
+
+      // 2. Create/Get Session in Convex
+      const sessionRes = await createSessionForEmailMutation({ email: cleanEmail });
+      if (!sessionRes.success) {
+        setAuthError(sessionRes.message || "Failed to create user session");
+        setIsVerifyingOtp(false);
+        return;
+      }
+
+      // 3. Store session token cookie
+      document.cookie = `sessionToken=${encodeURIComponent(sessionRes.sessionToken)}; path=/; max-age=${30 * 24 * 60 * 60}`;
+      setToken(sessionRes.sessionToken);
+
+      // 4. Claim guest orders for this account
+      if (sessionRes.userId) {
+        await claimGuestOrdersMutation({
+          userId: sessionRes.userId,
+          email: cleanEmail,
+          phone: order?.shippingDetails?.phone,
+        });
+      }
+
+      setOtpStep("linked");
+      setAuthSuccess("Account created! Order successfully linked to your profile.");
+    } catch (err) {
+      setAuthError("Verification failed. Please try again.");
+    } finally {
+      setIsVerifyingOtp(false);
+    }
+  };
 
   const formatDate = (timestamp) => {
     return new Date(timestamp).toLocaleDateString('en-IN', {
@@ -164,10 +263,88 @@ export default function OrderSuccessPage() {
                 </p>
               </div>
             )}
-            <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider mt-3 block">
-              Redirecting to home page in {countdown} seconds...
-            </p>
           </div>
+
+          {/* POST-CHECKOUT GUEST-TO-USER EMAIL ACCOUNT CREATION & LINKING CARD */}
+          {!me && (
+            <motion.div 
+              initial={{ opacity: 0, y: 15 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.25 }}
+              className="bg-white border-2 border-neutral-900 rounded-2xl p-5 sm:p-6 text-left shadow-lg relative overflow-hidden"
+            >
+              <div className="flex items-center gap-2 mb-2">
+              
+                <h3 className="text-xs font-black uppercase tracking-widest text-neutral-900 font-inter">
+                  Save Order to Account
+                </h3>
+              </div>
+              <p className="text-xs text-gray-600 font-medium mb-4 leading-normal">
+                {otpStep === "linked" 
+                  ? "Your account is active! You can now track your order status and manage your purchases anytime."
+                  : "Convert your guest checkout into an account in 10 seconds to get live tracking and order management."}
+              </p>
+
+              {otpStep === "input" && (
+                <form onSubmit={handleSendOtp} className="space-y-3">
+                  <div className="flex gap-2">
+                    <div className="relative flex-1">
+                      <Mail className="w-4 h-4 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                      <input
+                        type="email"
+                        placeholder="Enter your email address"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        className="w-full pl-9 pr-4 py-2.5 bg-gray-50 border border-gray-300 rounded-lg text-xs font-bold text-gray-900 focus:bg-white focus:border-neutral-900 outline-none font-inter"
+                      />
+                    </div>
+                    <button
+                      type="submit"
+                      disabled={isSendingOtp}
+                      className="px-5 py-2.5 bg-neutral-900 hover:bg-black text-white text-xs font-bold uppercase tracking-wider rounded-lg disabled:opacity-50 transition-all cursor-pointer flex items-center gap-1.5 shrink-0 font-inter"
+                    >
+                      {isSendingOtp ? <Loader2 className="w-4 h-4 animate-spin" /> : <>Send OTP <ArrowRight className="w-3.5 h-3.5" /></>}
+                    </button>
+                  </div>
+                  {authError && <p className="text-rose-600 text-[11px] font-bold">{authError}</p>}
+                </form>
+              )}
+
+              {otpStep === "otp" && (
+                <form onSubmit={handleVerifyOtp} className="space-y-3">
+                  <p className="text-[11px] font-bold text-emerald-700">{authSuccess}</p>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      maxLength={6}
+                      placeholder="ENTER 6-DIGIT OTP"
+                      value={otp}
+                      onChange={(e) => setOtp(e.target.value)}
+                      className="flex-1 px-4 py-2.5 bg-gray-50 border border-gray-300 rounded-lg text-xs font-black tracking-widest text-gray-900 focus:bg-white focus:border-neutral-900 outline-none uppercase font-inter"
+                    />
+                    <button
+                      type="submit"
+                      disabled={isVerifyingOtp}
+                      className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold uppercase tracking-wider rounded-lg disabled:opacity-50 transition-all cursor-pointer flex items-center gap-1.5 shrink-0 font-inter"
+                    >
+                      {isVerifyingOtp ? <Loader2 className="w-4 h-4 animate-spin" /> : <>Verify & Link Order</>}
+                    </button>
+                  </div>
+                  {authError && <p className="text-rose-600 text-[11px] font-bold">{authError}</p>}
+                </form>
+              )}
+
+              {otpStep === "linked" && (
+                <div className="p-3 bg-emerald-50 border border-emerald-300 rounded-lg flex items-center gap-3">
+                  <ShieldCheck className="w-5 h-5 text-emerald-600 shrink-0 stroke-[2.5px]" />
+                  <div>
+                    <p className="text-xs font-black text-emerald-950 font-inter">Account Created & Order Linked!</p>
+                    <p className="text-[11px] font-bold text-emerald-800 font-inter">You can now view live tracking in your orders tab.</p>
+                  </div>
+                </div>
+              )}
+            </motion.div>
+          )}
 
           {/* Order Details */}
           {order && (
@@ -175,14 +352,14 @@ export default function OrderSuccessPage() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.4 }}
-              className="bg-white rounded-3xl border border-slate-100 p-4 sm:p-5 shadow-xs"
+              className="bg-white rounded-3xl border border-slate-100 p-4 sm:p-5 shadow-xs text-left"
             >
-              <h2 className="text-xs font-black uppercase tracking-widest text-slate-800 mb-3.5 flex items-center gap-1.5">
+              <h2 className="text-xs font-black uppercase tracking-widest text-slate-800 mb-3.5 flex items-center gap-1.5 font-inter">
                 <Package className="w-4 h-4 text-slate-700" />
                 Order Details
               </h2>
               
-              <div className="space-y-2.5 text-left text-xs text-slate-650">
+              <div className="space-y-2.5 text-left text-xs text-slate-650 font-inter">
                 {/* Order Info */}
                 <div className="flex justify-between items-center py-1.5 border-b border-slate-100/80">
                   <span className="text-slate-500 font-medium flex items-center gap-1.5">
@@ -243,7 +420,7 @@ export default function OrderSuccessPage() {
                 
                 {/* Order Items */}
                 <div className="border-t border-slate-100 pt-3.5 mt-1">
-                  <h3 className="text-xs font-black uppercase tracking-widest text-slate-800 mb-3 flex items-center gap-1.5">
+                  <h3 className="text-xs font-black uppercase tracking-widest text-slate-800 mb-3 flex items-center gap-1.5 font-inter">
                     Order Items ({order.items.length})
                   </h3>
                   <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
@@ -288,7 +465,7 @@ export default function OrderSuccessPage() {
                 {/* Delivery Tracking */}
                 {order.deliveryDetails && order.deliveryDetails.length > 0 && (
                   <div className="border-t border-slate-100 pt-3.5 mt-1">
-                    <h3 className="text-xs font-black uppercase tracking-widest text-slate-800 mb-3 flex items-center gap-1.5">
+                    <h3 className="text-xs font-black uppercase tracking-widest text-slate-800 mb-3 flex items-center gap-1.5 font-inter">
                       <Truck className="w-4 h-4 text-slate-700" />
                       Delivery Tracking
                     </h3>
@@ -318,31 +495,19 @@ export default function OrderSuccessPage() {
           {/* Action Buttons */}
           <div className="flex flex-col sm:flex-row gap-2.5 pt-4">
             <button
-              onClick={() => {
-                if (!hasNavigated) {
-                  setHasNavigated(true);
-                  router.push('/');
-                }
-              }}
-              disabled={hasNavigated}
-              className="flex-1 px-4 py-2.5 bg-slate-900 text-white rounded-xl text-xs font-bold uppercase tracking-wider hover:bg-slate-800 disabled:bg-slate-600 transition-all flex items-center justify-center space-x-2 shadow-xs"
+              onClick={() => router.push('/')}
+              className="flex-1 px-4 py-2.5 bg-slate-900 text-white rounded-xl text-xs font-bold uppercase tracking-wider hover:bg-slate-800 transition-all flex items-center justify-center space-x-2 shadow-xs cursor-pointer font-inter"
             >
               <Home className="w-3.5 h-3.5" />
               <span>Go Home</span>
             </button>
             
             <button
-              onClick={() => {
-                if (!hasNavigated) {
-                  setHasNavigated(true);
-                  router.push('/orders');
-                }
-              }}
-              disabled={hasNavigated}
-              className="flex-1 px-4 py-2.5 bg-emerald-600 text-white rounded-xl text-xs font-bold uppercase tracking-wider hover:bg-emerald-700 disabled:bg-emerald-400 transition-all flex items-center justify-center space-x-2 shadow-xs"
+              onClick={() => router.push('/orders')}
+              className="flex-1 px-4 py-2.5 bg-emerald-600 text-white rounded-xl text-xs font-bold uppercase tracking-wider hover:bg-emerald-700 transition-all flex items-center justify-center space-x-2 shadow-xs cursor-pointer font-inter"
             >
               <ShoppingBag className="w-3.5 h-3.5" />
-              <span>View Orders</span>
+              <span>View My Orders</span>
             </button>
           </div>
 
@@ -356,4 +521,4 @@ export default function OrderSuccessPage() {
       </div>
     </div>
   );
-} 
+}

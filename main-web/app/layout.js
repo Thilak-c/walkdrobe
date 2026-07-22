@@ -1,5 +1,4 @@
-import { Geist, Geist_Mono } from "next/font/google";
-import { Poppins, Inter, Anton } from "next/font/google";
+import { Geist, Geist_Mono, Poppins, Inter, Anton, Cormorant_Garamond, Montserrat } from "next/font/google";
 import "./globals.css";
 import { ConvexProvider, convex } from "../convexClient"; // Revert to named import
 import LayoutWrapper from "../components/LayoutWrapper";
@@ -34,6 +33,18 @@ const anton = Anton({
   variable: "--font-anton",
   subsets: ["latin"],
   weight: ["400"],
+});
+
+const cormorant = Cormorant_Garamond({
+  variable: "--font-cormorant",
+  subsets: ["latin"],
+  weight: ["300", "400", "500", "600", "700"],
+});
+
+const montserrat = Montserrat({
+  variable: "--font-montserrat",
+  subsets: ["latin"],
+  weight: ["300", "400", "500", "600", "700"],
 });
 
 export const metadata = {
@@ -122,7 +133,7 @@ export default function RootLayout({ children }) {
         </noscript>
       </head>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} ${poppins.variable} ${inter.variable} ${anton.variable} antialiased font-poppins`}
+        className={`${geistSans.variable} ${geistMono.variable} ${poppins.variable} ${inter.variable} ${anton.variable} ${cormorant.variable} ${montserrat.variable} antialiased font-montserrat`}
       >
         <Script id="fb-pixel" strategy="afterInteractive">
           {`

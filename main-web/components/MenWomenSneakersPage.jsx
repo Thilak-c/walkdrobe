@@ -5,7 +5,7 @@ import { useQuery } from "convex/react";
 import { motion } from "framer-motion";
 import ProductCard from "./ProductCard";
 import Header from "@/components/Header";
-import FooterSimple from "@/components/FooterSimple";
+import Footer from "@/components/home/Footer";
 import { useSearchParams, useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
 
@@ -253,7 +253,7 @@ export default function MenWomenSneakersPage() {
         )}
       </section>
       </div>
-      <FooterSimple />
+      <Footer />
     </div>
   );
 }

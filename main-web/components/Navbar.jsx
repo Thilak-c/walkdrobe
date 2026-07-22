@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { motion, AnimatePresence } from "framer-motion";
-import { ShoppingBag, Heart, Search, Menu, X, User, ChevronLeft, ChevronRight } from "lucide-react";
+import { ShoppingCart, Heart, Search, Menu, X, User, ChevronLeft, ChevronRight } from "lucide-react";
 import SidebarDrawer from "./SidebarDrawer";
 import SearchDropdown from "./SearchDropdown";
 import MobileSearchModal from "./MobileSearchModal";
@@ -101,23 +101,13 @@ export default function Navbar() {
     }
   };
 
-  const navClass = isHome
-    ? `fixed top-0 left-0 right-0 z-50 transition-all duration-500 ease-in-out hidden md:block ${
-        scrolled 
-          ? "bg-white border-b border-gray-100 shadow-sm" 
-          : "bg-transparent border-transparent"
-      }`
-    : "fixed top-0 left-0 right-0 z-50 bg-white border-b border-gray-100 hidden md:block";
+  const navClass = "fixed top-0 left-0 right-0 z-50 bg-white border-b border-gray-100 hidden md:block";
 
-  const linkColorClass = isHome && !scrolled
-    ? "text-white/80 hover:text-white"
-    : "text-gray-600 hover:text-black";
+  const linkColorClass = "text-gray-600 hover:text-black font-medium tracking-[0.25em] uppercase text-[9.5px] transition-all duration-300";
 
-  const iconBtnClass = isHome && !scrolled
-    ? "p-2 hover:bg-white/10 rounded-lg transition-colors text-white/80 hover:text-white"
-    : "p-2 hover:bg-gray-50 rounded-lg transition-colors text-gray-600 hover:text-black";
+  const iconBtnClass = "p-2 hover:bg-gray-50 rounded-lg transition-colors text-gray-500 hover:text-black";
 
-  const iconClass = "w-5 h-5 transition-colors duration-300";
+  const iconClass = "w-4.5 h-4.5 transition-colors duration-300";
 
   return (
     <nav className={navClass}>
@@ -137,16 +127,10 @@ export default function Navbar() {
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.5, delay: 0.2 }}
-            className={`transition-all duration-500 ease-in-out ${
-              isHome
-                ? scrolled
-                  ? "opacity-100 pointer-events-auto scale-100"
-                  : "opacity-0 pointer-events-none scale-95"
-                : "opacity-100 pointer-events-auto scale-100"
-            }`}
+            className="opacity-100 pointer-events-auto scale-100"
           >
             <Link href="/" className="shrink-0">
-              <img src="/logo.png" alt="Walkdrobe" className="h-6" />
+              <img src="/logo.png" alt="Walkdrobe" className="h-8 w-auto" />
             </Link>
           </motion.div>
 
@@ -157,14 +141,11 @@ export default function Navbar() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.3 }}
           >
-            <Link href="/shop?ct=all" className={`text-sm transition-colors duration-300 ${linkColorClass}`}>
-              All
+            <Link href="/" className={`transition-colors duration-300 ${linkColorClass}`}>
+              Home
             </Link>
-            <Link href="/shop?ct=sneakers" className={`text-sm transition-colors duration-300 ${linkColorClass}`}>
-              Sneakers
-            </Link>
-            <Link href="/shop?ct=sports" className={`text-sm transition-colors duration-300 ${linkColorClass}`}>
-              Sports
+            <Link href="/shop?ct=all" className={`transition-colors duration-300 ${linkColorClass}`}>
+              Our Collection
             </Link>
           </motion.div>
 
@@ -254,7 +235,7 @@ export default function Navbar() {
             {/* Cart */}
             <Link href="/cart">
               <button className={`relative ${iconBtnClass}`}>
-                <ShoppingBag className={iconClass} />
+                <ShoppingCart className={iconClass} />
                 {me && cartSummary?.totalItems > 0 && (
                   <span className="absolute -top-1 -right-1 w-4 h-4 bg-black text-white text-[10px] rounded-full flex items-center justify-center font-bold">
                     {cartSummary.totalItems > 9 ? "9+" : cartSummary.totalItems}
@@ -298,17 +279,9 @@ export function NavbarMobile() {
   const me = useQuery(api.users.meByToken, token ? { token } : "skip");
   const cartSummary = useQuery(api.cart.getCartSummary, me ? { userId: me._id } : "skip");
 
-  const navClass = isHome
-    ? `fixed top-0 left-0 right-0 z-40 transition-all duration-500 ease-in-out md:hidden ${
-        scrolled 
-          ? "bg-white border-b border-gray-100 shadow-sm" 
-          : "bg-transparent border-transparent"
-      }`
-    : "fixed top-0 left-0 right-0 z-40 bg-white border-b border-gray-100 md:hidden";
+  const navClass = "fixed top-0 left-0 right-0 z-40 bg-white border-b border-gray-100 md:hidden";
 
-  const iconBtnClass = isHome && !scrolled
-    ? "p-2 hover:bg-white/10 rounded-full transition-colors text-white hover:text-white/80"
-    : "p-2 hover:bg-gray-100 rounded-full transition-colors text-gray-800 hover:text-black";
+  const iconBtnClass = "p-2 hover:bg-gray-100 rounded-full transition-colors text-gray-700 hover:text-black";
 
   return (
     <>
@@ -329,15 +302,9 @@ export function NavbarMobile() {
           {/* Logo */}
           <Link 
             href="/" 
-            className={`absolute left-1/2 -translate-x-1/2 transition-all duration-500 ease-in-out ${
-              isHome
-                ? scrolled
-                  ? "opacity-100 pointer-events-auto scale-100"
-                  : "opacity-0 pointer-events-none scale-95"
-                : "opacity-100 pointer-events-auto scale-100"
-            }`}
+            className="absolute left-1/2 -translate-x-1/2 opacity-100 scale-100"
           >
-            <img src="/logo.png" alt="Walkdrobe" className="h-5" />
+            <img src="/logo.png" alt="Walkdrobe" className="h-6 w-auto" />
           </Link>
 
           {/* Right Icons */}
@@ -351,7 +318,7 @@ export function NavbarMobile() {
 
             <Link href="/cart">
               <button className={`relative ${iconBtnClass}`}>
-                <ShoppingBag className="w-5 h-5" />
+                <ShoppingCart className="w-5 h-5" />
                 {me && cartSummary?.totalItems > 0 && (
                   <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-black text-white text-[10px] rounded-full flex items-center justify-center font-bold">
                     {cartSummary.totalItems > 9 ? "9+" : cartSummary.totalItems}
