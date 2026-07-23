@@ -421,7 +421,8 @@ function OrderCardItem({
   router,
 }) {
   const isCOD = order.paymentDetails?.paymentMethod === "cod";
-  const remainingCOD = order.paymentDetails?.remainingCOD !== undefined ? order.paymentDetails.remainingCOD : order.orderTotal;
+  const advanceAmount = order.paymentDetails?.advanceAmount || 200;
+  const remainingCOD = order.paymentDetails?.remainingCOD !== undefined ? order.paymentDetails.remainingCOD : Math.max(0, (order.orderTotal || 0) - advanceAmount);
 
   return (
     <motion.div
@@ -488,9 +489,10 @@ function OrderCardItem({
           <div className="text-right shrink-0">
             {isCOD ? (
               <>
-                <span className="text-[9px] text-amber-700 font-bold uppercase tracking-wider block font-inter">COD Balance</span>
-                <span className="text-xs sm:text-sm font-black text-amber-800 font-mono">
-                  ₹{remainingCOD.toFixed(2)}
+                <span className="text-[9px] text-emerald-600 font-bold uppercase tracking-wider block font-inter">₹{advanceAmount} Paid Online</span>
+                <span className="text-[9px] text-amber-700 font-bold uppercase tracking-wider block font-inter">COD Due: ₹{remainingCOD.toFixed(2)}</span>
+                <span className="text-[10px] font-black text-slate-900 font-mono block">
+                  Total: ₹{order.orderTotal?.toFixed(2)}
                 </span>
               </>
             ) : (

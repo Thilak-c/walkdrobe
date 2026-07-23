@@ -82,6 +82,7 @@ export const createOrder = mutation({
       paidBy: v.optional(v.string()),
       paymentMethod: v.optional(v.string()),
       codCharge: v.optional(v.float64()),
+      advanceAmount: v.optional(v.float64()),
       remainingCOD: v.optional(v.float64()),
     }),
     orderTotal: v.float64(),

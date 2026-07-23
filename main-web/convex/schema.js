@@ -427,6 +427,7 @@ export default defineSchema({
       paidBy: v.optional(v.string()), // Payment method or payer name
       paymentMethod: v.optional(v.string()), // 'upi', 'card', 'netbanking', 'wallet', 'cod'
       codCharge: v.optional(v.float64()),
+      advanceAmount: v.optional(v.float64()),
       remainingCOD: v.optional(v.float64()),
     }),
     orderTotal: v.float64(),

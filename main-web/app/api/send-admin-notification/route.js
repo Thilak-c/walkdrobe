@@ -214,12 +214,20 @@ export async function POST(request) {
                     </td>
                   </tr>
                   ${paymentDetails && paymentDetails.paymentMethod === 'cod' ? `
+                  <tr style="background: #f0fdf4;">
+                    <td colspan="3" style="padding: 12px 16px; text-align: right; font-weight: 600; color: #166534; font-size: 14px;">
+                      COD Advance Paid Online:
+                    </td>
+                    <td style="padding: 12px 16px; text-align: right; font-weight: bold; color: #166534; font-size: 14px;">
+                      ₹${(paymentDetails.advanceAmount || 200).toLocaleString()}
+                    </td>
+                  </tr>
                   <tr style="background: #fffbeb;">
                     <td colspan="3" style="padding: 12px 16px; text-align: right; font-weight: 600; color: #92400e; font-size: 14px;">
-                      COD Due on Delivery:
+                      Cash Due on Delivery:
                     </td>
                     <td style="padding: 12px 16px; text-align: right; font-weight: bold; color: #92400e; font-size: 14px;">
-                      ₹${(paymentDetails.remainingCOD !== undefined ? paymentDetails.remainingCOD : Number(orderTotal)).toLocaleString()}
+                      ₹${(paymentDetails.remainingCOD !== undefined ? paymentDetails.remainingCOD : Math.max(0, Number(orderTotal) - 200)).toLocaleString()}
                     </td>
                   </tr>
                   ` : ''}

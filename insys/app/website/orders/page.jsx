@@ -445,11 +445,14 @@ export default function WebsiteOrdersPage() {
                                  <div className="font-extrabold text-slate-850 text-sm">
                                    ₹{order.orderTotal?.toLocaleString("en-IN")}
                                  </div>
+                                 <div className="text-[10px] font-bold text-emerald-600">
+                                   Adv: ₹{(order.paymentDetails?.advanceAmount || 200).toLocaleString("en-IN")}
+                                 </div>
                                  <div className="text-[10px] font-bold text-amber-750">
-                                   Due: ₹{(order.paymentDetails?.remainingCOD !== undefined ? order.paymentDetails.remainingCOD : order.orderTotal).toLocaleString("en-IN")}
+                                   Due: ₹{(order.paymentDetails?.remainingCOD !== undefined ? order.paymentDetails.remainingCOD : Math.max(0, (order.orderTotal || 0) - 200)).toLocaleString("en-IN")}
                                  </div>
                                  <span className="inline-block text-[8px] font-black uppercase tracking-wider bg-amber-50 text-amber-755 border border-amber-200 px-1.5 py-0.5 rounded-md mt-0.5">
-                                   COD
+                                   COD (₹{order.paymentDetails?.advanceAmount || 200} Paid)
                                  </span>
                                </div>
                              ) : (
@@ -685,8 +688,12 @@ export default function WebsiteOrdersPage() {
                       {selectedOrder.paymentDetails?.paymentMethod === "cod" ? (
                         <>
                           <div>
+                            <span className="text-slate-400 block font-medium">Advance Paid Online</span>
+                            <span className="font-extrabold text-emerald-600 text-sm">₹{(selectedOrder.paymentDetails?.advanceAmount || 200).toLocaleString("en-IN")}</span>
+                          </div>
+                          <div>
                             <span className="text-slate-400 block font-medium">Cash Due on Delivery</span>
-                            <span className="font-extrabold text-amber-700 text-sm">₹{(selectedOrder.paymentDetails?.remainingCOD !== undefined ? selectedOrder.paymentDetails.remainingCOD : selectedOrder.orderTotal).toLocaleString("en-IN")}</span>
+                            <span className="font-extrabold text-amber-700 text-sm">₹{(selectedOrder.paymentDetails?.remainingCOD !== undefined ? selectedOrder.paymentDetails.remainingCOD : Math.max(0, (selectedOrder.orderTotal || 0) - 200)).toLocaleString("en-IN")}</span>
                           </div>
                           <div>
                             <span className="text-slate-400 block font-medium">Grand Total Value</span>

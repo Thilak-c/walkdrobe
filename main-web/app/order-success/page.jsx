@@ -253,7 +253,7 @@ export default function OrderSuccessPage() {
             </h1>
             <p className="text-xs sm:text-sm text-gray-500 max-w-md mx-auto leading-relaxed">
               {order?.paymentDetails?.paymentMethod === "cod"
-                ? `Your Cash on Delivery order has been placed successfully. The total amount of ₹${order.orderTotal.toFixed(2)} will be collected on delivery.`
+                ? `Your Cash on Delivery order has been placed successfully. ₹${(order.paymentDetails?.advanceAmount || 200)} advance paid online. The remaining balance of ₹${(order.paymentDetails?.remainingCOD !== undefined ? order.paymentDetails.remainingCOD : Math.max(0, (order.orderTotal || 0) - 200)).toFixed(2)} will be collected on delivery.`
                 : "Your order has been placed successfully. You will receive a confirmation email shortly."}
             </p>
             {orderNumber && (
@@ -395,7 +395,7 @@ export default function OrderSuccessPage() {
                     <span className="font-semibold text-slate-800 leading-relaxed pl-5">
                       {order.paymentDetails.paymentMethod === "cod" ? (
                         <>
-                          COD Advance Paid: <span className="text-emerald-600 font-bold">₹{(order.paymentDetails.codCharge || 200).toFixed(2)}</span> paid online (Razorpay)
+                          COD Advance Paid: <span className="text-emerald-600 font-bold">₹{(order.paymentDetails.advanceAmount || 200).toFixed(2)}</span> online (Razorpay) • Cash Due on Delivery: <span className="text-amber-800 font-bold">₹{(order.paymentDetails.remainingCOD !== undefined ? order.paymentDetails.remainingCOD : Math.max(0, (order.orderTotal || 0) - 200)).toFixed(2)}</span>
                         </>
                       ) : (
                         <>

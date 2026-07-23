@@ -468,7 +468,8 @@ export default function CheckoutPage() {
   };
 
   const { subtotal, deliveryFee, protectPromiseFee, codCharge, couponDiscount, finalTotal } = (isDirectPurchase ? getOrderTotals() : (effectiveCartItems.length === 0 ? { subtotal: 0, deliveryFee: 0, protectPromiseFee: 0, codCharge: 0, couponDiscount: 0, finalTotal: 0 } : getOrderTotals()));
-  const codAdvance = 0;
+  const codAdvance = Math.min(200, finalTotal);
+  const remainingCOD = Math.max(0, finalTotal - codAdvance);
   const codAllowCoupons = config?.codAllowCoupons !== false;
   const hybridDiscount = Math.round(finalTotal * 0.05);
   const hybridFinalTotal = finalTotal - hybridDiscount;
@@ -532,7 +533,7 @@ export default function CheckoutPage() {
         paymentStatus = "partial";
         paymentMethod = "hybrid";
       } else if (paymentData.isCODPayment) {
-        paymentStatus = "partial"; // COD charge paid, remaining on delivery
+        paymentStatus = "partial"; // Advance paid, remaining on delivery
         paymentMethod = "cod";
       }
 
@@ -549,7 +550,8 @@ export default function CheckoutPage() {
           status: paymentStatus,
           paymentMethod: paymentMethod,
           codCharge: paymentData.codDetails?.codCharge || 0,
-          remainingCOD: paymentData.codDetails?.remainingCOD || 0,
+          advanceAmount: paymentData.codDetails?.advanceAmount || (paymentData.isCODPayment ? codAdvance : 0),
+          remainingCOD: paymentData.codDetails?.remainingCOD !== undefined ? paymentData.codDetails.remainingCOD : (paymentData.isCODPayment ? remainingCOD : 0),
         },
         orderTotal: Number(paymentData.orderTotal) || 0,
         status: "confirmed",
@@ -677,6 +679,8 @@ export default function CheckoutPage() {
       image: "https://walkdrobe.in/favicon.ico",
       description: paymentData.isHybridPayment
         ? `Hybrid Payment - ₹${paymentData.hybridDetails?.upfrontAmount} upfront`
+        : paymentData.isCODPayment
+        ? `COD Advance - ₹${paymentData.codDetails?.advanceAmount || 200}`
         : "Order Payment",
       order_id: paymentData.orderId,
       prefill: {
@@ -776,127 +780,22 @@ export default function CheckoutPage() {
         return;
       }
 
-      // Map items for order
-      const mappedItems = items.map((item) => ({
-        productId: item.productId || "",
-        name: item.productName || item.name || "",
-        price: Number(item.price) || 0,
-        quantity: Number(item.quantity) || 1,
-        size: item.size || "Free",
-        image: item.productImage || item.image || "",
-      }));
+      // Create Razorpay order for ₹200 COD advance
+      const response = await fetch("/api/create-order", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ amount: codAdvance, currency: "INR", receipt: `cod_adv_${Date.now()}`, notes: { userId: me?._id || "guest", userEmail: getCurrentShippingDetails().email, userName: getCurrentShippingDetails().fullName, paymentType: "cod_advance", totalAmount: finalTotal, codAmount: remainingCOD, advancePaid: codAdvance } }),
+      });
+      const data = await response.json();
+      if (!data.success) throw new Error(data.error || "Failed to create order");
 
-      // Ensure shipping details have all required fields
-      const shippingDetailsObj = {
-        fullName: currentShippingDetails.fullName || "",
-        email: currentShippingDetails.email || "",
-        phone: currentShippingDetails.phone || "",
-        address: currentShippingDetails.address || "",
-        city: currentShippingDetails.city || "",
-        state: currentShippingDetails.state || "",
-        pincode: currentShippingDetails.pincode || "",
-        country: currentShippingDetails.country || "India",
+      const paymentData = {
+        orderId: data.order.id, amount: data.order.amount, currency: data.order.currency, customerDetails: getCurrentShippingDetails(),
+        items: isDirectPurchase ? [{ productId: directPurchaseItem.productId, productName: directPurchaseItem.productName, productImage: directPurchaseItem.productImage, price: directPurchaseItem.price, size: directPurchaseItem.size, quantity: directPurchaseItem.quantity, category: directPurchaseItem.category || '', brand: directPurchaseItem.brand || '' }] : userCart.items,
+        orderTotal: finalTotal, isDirectPurchase, userId: me?._id, isCODPayment: true,
+        codDetails: { advanceAmount: codAdvance, remainingCOD: remainingCOD, codCharge: 0 },
       };
 
-      // Create order in database
-      const orderResult = await createOrderMutation({
-        userId: me?._id || null,
-        items: mappedItems,
-        shippingDetails: shippingDetailsObj,
-        paymentDetails: {
-          razorpayOrderId: "cod_free_" + Date.now(),
-          razorpayPaymentId: "cod_free_" + Date.now(),
-          amount: Number(finalTotal) || 0,
-          currency: "INR",
-          status: "pending",
-          paymentMethod: "cod",
-          codCharge: 0,
-          remainingCOD: Number(finalTotal) || 0,
-        },
-        orderTotal: Number(finalTotal) || 0,
-        status: "confirmed",
-      });
-
-      // Save address to user table if logged in
-      if (me && me._id) {
-        await fetch("/api/update-user-address", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ userId: me._id, address: shippingDetailsObj }),
-        });
-      }
-
-      if (!orderResult?.success) throw new Error(orderResult?.message || "Failed to create order");
-
-      // Send confirmation emails and create Shiprocket order
-      await Promise.all([
-        fetch("/api/send-order-confirmation", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            userEmail: shippingDetailsObj.email,
-            userName: shippingDetailsObj.fullName,
-            orderNumber: orderResult.orderNumber,
-            orderItems: mappedItems,
-            orderTotal: finalTotal,
-            shippingDetails: shippingDetailsObj,
-            paymentDetails: {
-              amount: finalTotal,
-              currency: "INR",
-              status: "pending",
-              paymentMethod: "cod",
-            },
-          }),
-        }).catch(console.error),
-        fetch("/api/send-admin-notification", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            orderNumber: orderResult.orderNumber,
-            customerName: shippingDetailsObj.fullName,
-            customerEmail: shippingDetailsObj.email,
-            orderTotal: finalTotal,
-            items: mappedItems,
-            shippingAddress: `${shippingDetailsObj.address}, ${shippingDetailsObj.city}, ${shippingDetailsObj.state} - ${shippingDetailsObj.pincode}`,
-            shippingDetails: shippingDetailsObj,
-            paymentDetails: {
-              amount: finalTotal,
-              currency: "INR",
-              status: "pending",
-              paymentMethod: "cod",
-            },
-          }),
-        }).catch(console.error),
-        // Automatically create Shiprocket order
-        fetch("/api/auto-shiprocket", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            orderNumber: orderResult.orderNumber,
-          }),
-        }).then(response => response.json())
-          .then(result => {
-            if (!result.success) {
-              console.error("Shiprocket order creation failed:", result.error);
-            }
-          })
-          .catch(error => {
-            console.error("Error creating Shiprocket order:", error);
-          }),
-      ]);
-
-      // Clear cart if not direct purchase
-      if (!isDirectPurchase) {
-        if (me?._id) {
-          try { await clearCartMutation({ userId: me._id }); } catch (e) { console.error(e); }
-        } else {
-          try { clearGuestCart(); } catch (e) { console.error(e); }
-        }
-      }
-
-      showToastMessage("Order placed successfully!");
-      console.log("🔄 Redirecting to:", `/order-success?orderNumber=${orderResult.orderNumber}`);
-      setTimeout(() => router.push(`/order-success?orderNumber=${orderResult.orderNumber}`), 1500);
+      await openRazorpayModal(paymentData);
     } catch (error) {
       showToastMessage(error.message || "Payment failed");
       setIsProcessing(false);
@@ -1422,16 +1321,22 @@ export default function CheckoutPage() {
                   </div>
                 )}
 
-                {selectedPaymentMethod === "cod" && codCharge > 0 && (
-                  <div className="flex justify-between text-gray-700 font-bold">
-                    <span>COD Convenience Charge</span>
-                    <span className="font-black text-gray-900">₹{codCharge}</span>
+                {selectedPaymentMethod === "cod" && (
+                  <div className="space-y-2 pt-2 border-t border-dashed border-gray-200">
+                    <div className="flex justify-between text-emerald-800 font-bold">
+                      <span>Advance Online Payment (Pay Now)</span>
+                      <span className="font-black">₹{codAdvance.toLocaleString()}</span>
+                    </div>
+                    <div className="flex justify-between text-amber-800 font-bold">
+                      <span>Cash Due on Delivery</span>
+                      <span className="font-black">₹{remainingCOD.toLocaleString()}</span>
+                    </div>
                   </div>
                 )}
 
                 <div className="border-t border-gray-300 pt-3 flex justify-between items-baseline">
                   <div>
-                    <span className="text-xs font-black uppercase tracking-widest text-gray-900 block font-inter">Total Payable</span>
+                    <span className="text-xs font-black uppercase tracking-widest text-gray-900 block font-inter">Total Order Amount</span>
                     <span className="text-[10px] text-gray-500 font-bold">Inclusive of all taxes</span>
                   </div>
                   <span className="text-2xl sm:text-3xl font-serif font-black text-gray-900">
@@ -1449,7 +1354,7 @@ export default function CheckoutPage() {
                 {isProcessing ? (
                   <><Loader2 className="w-4 h-4 animate-spin" /> Processing Order...</>
                 ) : selectedPaymentMethod === "cod" ? (
-                  <><Lock className="w-4 h-4" /> Confirm COD Order</>
+                  <><Lock className="w-4 h-4" /> Pay ₹{codAdvance.toLocaleString()} Advance & Confirm</>
                 ) : (
                   <> Pay ₹{(selectedPaymentMethod === "hybrid" ? hybridUpfrontAmount : finalTotal).toLocaleString()} Now</>
                 )}
@@ -1497,6 +1402,13 @@ export default function CheckoutPage() {
                 </button>
               </div>
 
+              {/* Notice */}
+              <div className="p-3 bg-amber-50 border border-amber-200 rounded-md">
+                <p className="text-[11px] font-bold text-amber-900 leading-snug">
+                  An advance payment of ₹{codAdvance.toLocaleString()} is required online to confirm your COD order. The remaining ₹{remainingCOD.toLocaleString()} will be collected on delivery.
+                </p>
+              </div>
+
               {/* Items Preview */}
               <div className="space-y-2 max-h-32 overflow-y-auto">
                 {items.map((item, i) => (
@@ -1517,9 +1429,19 @@ export default function CheckoutPage() {
                 <p className="text-gray-600">{getCurrentShippingDetails().address}, {getCurrentShippingDetails().city} - {getCurrentShippingDetails().pincode}</p>
               </div>
 
-              <div className="p-3 bg-emerald-50 border border-emerald-200 flex items-center justify-between">
-                <span className="text-xs font-bold uppercase tracking-wider text-emerald-900">Total Due on Delivery</span>
-                <span className="text-base font-serif font-bold text-emerald-900">₹{finalTotal.toLocaleString()}</span>
+              <div className="p-3.5 bg-emerald-50 border border-emerald-200 space-y-1.5 rounded-md">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-emerald-950 font-inter">Advance Online Payment (Pay Now)</span>
+                  <span className="text-sm font-bold text-emerald-700 font-mono">₹{codAdvance.toLocaleString()}</span>
+                </div>
+                <div className="flex items-center justify-between border-t border-emerald-200/80 pt-1.5">
+                  <span className="text-xs font-bold text-amber-900 font-inter">Remaining Cash Due on Delivery</span>
+                  <span className="text-sm font-bold text-amber-800 font-mono">₹{remainingCOD.toLocaleString()}</span>
+                </div>
+                <div className="flex items-center justify-between border-t border-emerald-200/80 pt-1.5">
+                  <span className="text-xs font-black uppercase tracking-wider text-slate-900 font-inter">Total Order Price</span>
+                  <span className="text-base font-serif font-black text-slate-900">₹{finalTotal.toLocaleString()}</span>
+                </div>
               </div>
 
               <div className="flex gap-3 pt-2">
@@ -1532,9 +1454,9 @@ export default function CheckoutPage() {
                 <button
                   onClick={handleCODConfirmation}
                   disabled={isProcessing}
-                  className="flex-1 py-3 bg-neutral-900 text-white text-xs font-bold uppercase tracking-widest hover:bg-black transition-colors disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer"
+                  className="flex-1 py-3 bg-neutral-900 text-white text-xs font-bold uppercase tracking-widest hover:bg-black transition-colors disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer font-inter"
                 >
-                  {isProcessing ? <Loader2 className="w-4 h-4 animate-spin" /> : "Confirm COD"}
+                  {isProcessing ? <Loader2 className="w-4 h-4 animate-spin" /> : `Pay ₹${codAdvance} Advance`}
                 </button>
               </div>
             </motion.div>

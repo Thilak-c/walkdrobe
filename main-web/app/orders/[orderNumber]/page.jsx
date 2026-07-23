@@ -136,7 +136,8 @@ export default function SingleOrderPage() {
   }
 
   const isCOD = order.paymentDetails?.paymentMethod === "cod";
-  const remainingCOD = order.paymentDetails?.remainingCOD !== undefined ? order.paymentDetails.remainingCOD : order.orderTotal;
+  const advanceAmount = order.paymentDetails?.advanceAmount || 200;
+  const remainingCOD = order.paymentDetails?.remainingCOD !== undefined ? order.paymentDetails.remainingCOD : Math.max(0, (order.orderTotal || 0) - advanceAmount);
 
   return (
     <div className="min-h-screen min-h-[100vh] min-h-dvh bg-slate-50/50 font-sans antialiased text-slate-900 flex flex-col justify-between">
@@ -210,7 +211,8 @@ export default function SingleOrderPage() {
               <div className="sm:text-right">
                 {isCOD ? (
                   <>
-                    <span className="text-[10px] font-bold uppercase tracking-widest text-amber-700 font-inter block">COD Balance Due</span>
+                    <span className="text-[10px] font-bold uppercase tracking-widest text-emerald-600 font-inter block">₹{advanceAmount} Paid Online</span>
+                    <span className="text-[10px] font-bold uppercase tracking-widest text-amber-700 font-inter block">COD Due on Delivery</span>
                     <span className="text-2xl sm:text-3xl font-black text-amber-800 font-mono block">
                       ₹{remainingCOD.toFixed(2)}
                     </span>
@@ -292,10 +294,16 @@ export default function SingleOrderPage() {
                     </span>
                   </div>
 
-                  {isCOD && order.paymentDetails?.codCharge > 0 && (
-                    <div className="flex justify-between text-amber-800 bg-amber-50 p-2 rounded-lg border border-amber-200 font-bold">
-                      <span>COD Reservation Paid Online:</span>
-                      <span className="font-mono">₹{order.paymentDetails.codCharge.toFixed(2)}</span>
+                  {isCOD && (
+                    <div className="space-y-1.5 bg-slate-50 p-2.5 rounded-lg border border-slate-200">
+                      <div className="flex justify-between text-emerald-800 font-bold">
+                        <span>COD Advance Paid Online:</span>
+                        <span className="font-mono">₹{advanceAmount.toFixed(2)}</span>
+                      </div>
+                      <div className="flex justify-between text-amber-800 font-bold border-t border-slate-200 pt-1.5">
+                        <span>Cash Due on Delivery:</span>
+                        <span className="font-mono">₹{remainingCOD.toFixed(2)}</span>
+                      </div>
                     </div>
                   )}
 

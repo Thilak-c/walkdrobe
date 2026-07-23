@@ -15,7 +15,6 @@ function PromoBar() {
   const [isVisible, setIsVisible] = useState(true);
 
   const offers = [
-    " Buy 2 Pairs Get Flat ₹400 OFF",
     "Free Delivery for Prepaid Orders",
     "T&C - All offers are only applicable on prepaid orders     "
   ]
